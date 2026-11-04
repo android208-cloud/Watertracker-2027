@@ -13,6 +13,29 @@
   "use strict";
   var L = W.WT2L;
 
+  /* Смена начала суток с историей (донор 343–355, C-001): значение дня
+     фиксируется в dayStartHistory, повторная смена того же дня заменяет
+     запись, мусор по from выметается. */
+  function todayStrLocal() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function setDayStart(state, value, today) {
+    if (!/^\d{1,2}:\d{2}$/.test(String(value || ""))) return false;
+    var t = today || todayStrLocal();
+    var before = dayStartOn(state, t);
+    var hist = Array.isArray(state.dayStartHistory) ? state.dayStartHistory.slice() : [];
+    if (!hist.length && before) hist.push({ from: "", value: before });
+    if (before !== value) {
+      state.dayStartHistory = hist.filter(function (h) { return h && h.from !== t; });
+      state.dayStartHistory.push({ from: t, value: value });
+      state.dayStartHistory.sort(function (a, b) { return String(a.from || "").localeCompare(String(b.from || "")); });
+    }
+    state.dayStart = value;
+    if (W.WT2R) W.WT2R.emit("journal:daystart", { value: value, from: t });
+    return true;
+  }
+
   function uid() {
     return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
   }
@@ -146,7 +169,7 @@
     events: ["journal:add", "journal:edit", "journal:delete"], status: "ported"
   });
   W.WT2J = {
-    uid: uid, dayStartOn: dayStartOn, entryDay: entryDay, dayMinOf: dayMinOf, dayEntries: dayEntries,
+    uid: uid, dayStartOn: dayStartOn, setDayStart: setDayStart, entryDay: entryDay, dayMinOf: dayMinOf, dayEntries: dayEntries,
     entryKey: entryKey, weightKey: weightKey, entryTouch: entryTouch,
     tombMap: tombMap, markDeleted: markDeleted, markAlive: markAlive, tombBlocks: tombBlocks,
     mergeGuard: mergeGuard, addEntry: addEntry, editEntry: editEntry, deleteEntries: deleteEntries,

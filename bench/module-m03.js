@@ -67,6 +67,10 @@ const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undef
     const s8 = st(); s8.dayStartHistory = [{ from: '', value: '02:00' }];
     J.addEntry(s8, { date: D, time: '13:00', volume: 250, drink: { id: 'water', name: 'Вода', hydration: 100 } }, 11);
     out.bus = seen;
+    // 14 setDayStart (C-001): история смен, замена того же дня, мусор отклонён
+    const s14 = window.WT2C.initialState();
+    window.WT2J.setDayStart(s14, '05:00', '2026-11-04');
+    out.ds = [s14.dayStartHistory.map(h => (h.from || '*') + '@' + h.value), window.WT2J.setDayStart(s14, 'xx', '2026-11-04'), s14.dayStart];
     return out;
   });
   ok('dayStartOn history', JSON.stringify(r.dso) === JSON.stringify(['02:00', '03:00', '03:00']), r.dso);
@@ -82,6 +86,7 @@ const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undef
   ok('edit recomputes credited+updatedAt', JSON.stringify(r.edit) === JSON.stringify([400, 9]), r.edit);
   ok('prune 180d', JSON.stringify(r.prune) === JSON.stringify([false, true]), r.prune);
   ok('bus emits add + star', JSON.stringify(r.bus) === JSON.stringify(['add:250', 'star:journal:add']), r.bus);
+  ok('setDayStart: история/замена/мусор', JSON.stringify(r.ds[0]) === JSON.stringify(['*@02:00', '2026-11-04@05:00']) && r.ds[1] === false && r.ds[2] === '05:00', r.ds);
   await b.close();
   console.log(fails ? 'BENCH M03: FAILS=' + fails : 'BENCH M03: ALL GREEN');
   process.exit(fails ? 1 : 0);
