@@ -306,6 +306,6 @@
     dayWindow: dayWindow, periodOpts: periodOpts, periodList: periodList,
     adoptedPeriod: adoptedPeriod, effGoalFor: effGoalFor, effPeriodFor: effPeriodFor,
     everyEffMin: everyEffMin, nextSlotMs: nextSlotMs, nextSlot: nextSlot,
-    alertsPayload: alertsPayload, reminderText: reminderText, wallToday: wallToday
+    alertsPayload: alertsPayload, reminderText: reminderText, wallToday: wallToday, waterToday: waterToday
   };
 })(window);
