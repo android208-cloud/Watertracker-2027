@@ -193,6 +193,48 @@
     return slot + "</div>";
   }
 
+  /* Кадр «от ширины» (донор 9886–9929): --w задаёт отступ, шаг F, иконки и
+     кота; лишняя высота уходит в зону D. Клавиатура Android не перекраивает. */
+  var DESIGN_W = 412, MAX_W = 480, MIN_W = 280, NAV_H = 56, NATURAL_K = 1.52;
+  var lastVh = 0;
+  function fitPhone() {
+    var stage = document.getElementById("stage");
+    var app = document.getElementById("app");
+    if (!stage || !app) return;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    if (lastVh && vh < lastVh * 0.75) vh = lastVh; else lastVh = vh;
+    var margin = (vw > MAX_W + 48 && vh > MAX_W * NATURAL_K + NAV_H + 48) ? 24 : 0;
+    var availW = Math.max(1, vw - margin * 2);
+    var availH = Math.max(1, vh - margin * 2);
+    var w = Math.min(availW, MAX_W, (availH - NAV_H) / NATURAL_K);
+    w = Math.max(Math.min(MIN_W, availW), w);
+    w = Math.round(w);
+    var h = (vw > MAX_W + 16) ? Math.min(availH, Math.round(w * 2340 / 1080)) : availH;
+    stage.style.position = "relative";
+    stage.style.overflow = "hidden";
+    stage.style.width = w + "px";
+    stage.style.height = h + "px";
+    stage.style.maxWidth = "none";
+    app.style.position = "absolute";
+    app.style.left = "0";
+    app.style.top = "0";
+    app.style.width = w + "px";
+    app.style.height = h + "px";
+    app.style.maxWidth = "none";
+    app.style.setProperty("--w", w + "px");
+    app.style.transform = "none";
+    app.style.transformOrigin = "top left";
+    var framed = vw > w + 16 || vh > h + 16;
+    app.style.borderRadius = framed ? "28px" : "0";
+    app.style.boxShadow = framed ? "0 0 0 8px #1a1b1e, 0 18px 50px rgba(0,0,0,.45)" : "none";
+    if (W.WT2R) W.WT2R.emit("ui:fit", { w: w, h: h });
+  }
+  function bindPhone() {
+    fitPhone();
+    window.addEventListener("resize", fitPhone);
+  }
+
   if (W.WT2R) W.WT2R.register({
     id: "M20", file: "m20-ui-shell.js", layer: 2, optional: false,
     contracts: ["C-007", "C-008", "C-013", "C-015"],
@@ -207,6 +249,7 @@
     backAvailable: backAvailable, backStep: backStep, goHome: goHome,
     registerBackModal: registerBackModal, registerBackPage: registerBackPage,
     dialog: dialog, sheet: sheet, roundBtn: roundBtn, chipRow: chipRow,
-    optionList: optionList, pillHtml: pillHtml
+    optionList: optionList, pillHtml: pillHtml,
+    fitPhone: fitPhone, bindPhone: bindPhone
   };
 })(window);

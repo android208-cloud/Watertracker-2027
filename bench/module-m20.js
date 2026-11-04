@@ -77,10 +77,11 @@ const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undef
   // C-007 пилюли: геометрия/цвета из computed styles, обе темы + снимки
   await p.evaluate(() => {
     const U = window.WT2U;
-    const dock = '<div class="home-dock">' +
+    U.fitPhone();
+    const dock = '<div class="screen home-screen"><div class="home-dock">' +
       U.pillHtml({ slot: { c: 0, r: 2 }, act: 'open-volume', label: '350 мл', icon: '<span class="mini-cat"></span>' }) +
       U.pillHtml({ slot: { c: 2, r: 2 }, cls: 'cup-pill', aria: 'Чашка котика: 3', label: 'Чашка 3', icon: '<span class="mini-cat"></span>' }) +
-      '</div>' + U.navHtml(U.shellState());
+      '</div></div>' + U.navHtml(U.shellState());
     document.getElementById('app').innerHTML = dock;
   });
   for (const theme of ['dark','light']) {
@@ -91,10 +92,11 @@ const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undef
       const span = pill.querySelector('span:last-child');
       const cat = pill.querySelector('.mini-cat');
       const cs = getComputedStyle(pill), ss = getComputedStyle(span), fs = getComputedStyle(cat);
-      return { bg: cs.backgroundColor, color: ss.color, filter: fs.filter, radius: cs.borderRadius, h: pill.getBoundingClientRect().height };
+      return { bg: cs.backgroundColor, color: ss.color, filter: fs.filter, radius: cs.borderRadius, h: Math.round(pill.getBoundingClientRect().height), navH: Math.round(document.querySelector('.nav').getBoundingClientRect().height) };
     });
     if (theme === 'dark') {
       ok('C-007 тёмная: подпись #5aade8, иконка БЕЗ invert', c.color === 'rgb(90, 173, 232)' && c.filter === 'none', c);
+      ok('геометрия: пилюля живая, панель 56', c.h > 20 && c.h < 60 && c.navH === 56, c);
     } else {
       ok('C-007 светлая: пилюля #78ceff, подпись #fff, мордочка белая', c.bg === 'rgb(120, 206, 255)' && c.color === 'rgb(255, 255, 255)' && /invert\(1\)/.test(c.filter), c);
     }

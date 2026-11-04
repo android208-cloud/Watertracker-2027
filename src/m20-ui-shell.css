@@ -1,6 +1,19 @@
-/* M20 ui-shell — CSS оболочки, побайтный перенос из донора v158 styles.css.
-   Переменные тем + блоки: #stage/.app, .nav, .toast, .modal*, .scrim/.sheet,
-   .pill/.pill-slot, .round, .ui-mask, .home-dock. Контракты C-007/C-008/C-013. */
+/* M20 ui-shell — CSS оболочки, побайтный перенос из донора v158 styles.css
+   (комментарии сняты, правила и порядок — донорские). Переменные тем + блоки:
+   #stage/.app, .screen/.home-screen (геометрия --w/--f/--ico), .nav, .toast,
+   .modal*, .scrim/.sheet, .pill/.pill-slot, .round, .ui-mask, .home-dock.
+   Контракты C-007/C-008/C-013. */
+
+:root {
+  --k: 1;
+  --act-round: calc(var(--k) * 64px); 
+  --cell: calc(var(--k) * 52px);
+  --sw-h: calc(var(--k) * 28px);
+  --sheet-act-h: calc(var(--k) * 72px);
+  --r-round: 50%;
+  --r-card: 16px;
+  --r-chip: 8px;
+}
 
 :root {
   --bg: #2c2d32;
@@ -34,13 +47,11 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --phone-w: 412px;
   --phone-h: 893px;
-  --w: 412px; /* ширина модуля макета; на телефоне её задаёт fitPhone() */
+  --w: 412px; 
   --glyph: 51%;
   color-scheme: dark;
 }
 
-/* Светлая тема Watercat: синие шапки, светло-голубые полосы, белые карточки.
-   Палитра снята пипеткой с оригинальных светлых скриншотов. */
 [data-theme="light"] {
   --bg: #ffffff;
   --bg-deep: #dbf3ff;
@@ -70,7 +81,6 @@
   color-scheme: light;
 }
 
-/* Шапки экранов — синяя полоса с белым текстом, как в оригинале. */
 [data-theme="light"] .top.band,
 [data-theme="light"] .weight-screen .top.plain,
 [data-theme="light"] .hist-screen .top.plain,
@@ -80,95 +90,14 @@
 
 [data-theme="light"] .progress { background: var(--ptrack, #d3dee4); }
 
-[data-theme="light"] .pill { background: var(--pill, #78ceff); color: #fff; }
-
-/* Тема «Oneplus 7»: палитра снята пипеткой со скриншотов оболочки.
-   Чёрный фон, серые диалоги и панели #424242, акцент #42a5f6,
-   карточки и поля #1f1f1f, дорожки #4d4d4d, меню #303030. */
-[data-theme="oneplus"] {
-  --bg: #000000;
-  --bg-deep: #000000;
-  --row: #303030;
-  --nav: #000000;
-  --listbg: #000000;
-  --track: #4d4d4d;
-  --fill: #42a5f6;
-  --blue-ink: #42a5f6;
-  --blue-fill: #42a5f6;
-  --blue: #42a5f6;
-  --blue-2: #42a5f6;
-  --title: #ffffff;
-  --text: #ffffff;
-  --muted: #9e9e9e;
-  --green: #59d567;
-  --danger: #f4696f;
-  --line: #1c1c1c;
-  --grid: #303030;
-  --edit-mark: #42a5f6;
-  --edit-pick: #ffffff;
-  --page: #000000;
-  --panel: #424242;
-  --input-bg: #1f1f1f;
-  --toast-bg: #424242;
-  --sel: #14344e;
-  color-scheme: dark;
-}
-
-[data-theme="oneplus"] .top { background: var(--band, #000000); border-bottom: 1px solid #1a1a1a; }
-
-[data-theme="oneplus"] .alerts-screen .top.plain,
-[data-theme="oneplus"] .settings-screen .top.plain,
-[data-theme="oneplus"] .register-screen .top.plain,
-[data-theme="oneplus"] .weight-screen .top.plain,
-[data-theme="oneplus"] .hist-screen .top.plain,
-[data-theme="oneplus"] .drinks-screen > .top { background: var(--band, #000000); }
-
-[data-theme="oneplus"] .nav { background: var(--nav, #000000); border-top: 1px solid #1a1a1a; }
-
-/* Строки настроек: просторнее, разделители тонкие, как в оболочке. */
-[data-theme="oneplus"] .n-row { background: var(--listbg, #000000); border-bottom: 1px solid #1c1c1c; padding: 16px; min-height: 68px; }
-
-[data-theme="oneplus"] .n-section {
-  background: #000000;
-  color: var(--blue, #42a5f6);
-  text-transform: uppercase;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .4px;
-  padding: 20px 16px 10px;
-}
-
-[data-theme="oneplus"] .checksq::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 2px;
-  width: 23px;
-  height: 23px;
-  border-radius: var(--r-round);
-  background: #d1d1d1;
-  transition: left .15s ease, background .15s ease;
-}
-
-/* Диалоги и шторки — серые, как системные; кнопки действий синими буквами. */
-[data-theme="oneplus"] .modal { background: var(--panel, #424242); color: #ffffff; border-radius: 4px; }
-
-[data-theme="oneplus"] .sheet { background: var(--panel, #424242); }
-
-[data-theme="oneplus"] .toast { background: var(--toast-bg, #424242); color: #ffffff; }
-
-[data-theme="oneplus"] .pill { background: var(--pill, #212121); }
-
 [data-theme="light"] .round.dark { background: #78ceff; color: #fff; }
 
-/* Нижняя панель: голубая, активная иконка синяя, остальные белые. */
 [data-theme="light"] .nav { background: #78ceff; }
 
 [data-theme="light"] .nav button { color: #fff; }
 
 [data-theme="light"] .nav button.on { color: #1da0e8; }
 
-/* Пресеты объёма и цели — светло-голубые пилюли с синим текстом. */
 [data-theme="light"] .preset,
 [data-theme="light"] .sheet.goal .preset,
 [data-theme="light"] .sheet.volume.menu .preset { background: #c9ecff; color: #1da0e8; }
@@ -177,7 +106,6 @@
 [data-theme="light"] .sheet.goal .preset.on,
 [data-theme="light"] .sheet.volume.menu .preset.on { background: #c9ecff; outline: 2px solid #1da0e8; }
 
-/* Всплывающие уведомления: фон как у нижней панели, текст белый. */
 [data-theme="light"] .toast {
   background: #78ceff;
   color: #fff;
@@ -215,6 +143,33 @@
   padding-top: var(--safe-t);
 }
 
+.screen {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-anchor: none;
+  background: var(--bg);
+}
+
+.screen.home-screen {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  --side: calc(var(--w) * 0.10);
+  --f: calc(var(--w) * 0.16);
+  --pitch: calc(var(--f) * 4 / 3);
+  --ico: calc(var(--f) * 0.78);
+  --band: calc(var(--f) * 0.80);
+  --cat-w: calc(var(--w) * 0.875);
+}
+
+.screen::-webkit-scrollbar, .chart-scroll::-webkit-scrollbar, .xscroll::-webkit-scrollbar { display: none; }
+
+.screen, .chart-scroll, .xscroll { scrollbar-width: none; }
+
 .drinks-screen .icon-btn.right .ui-mask {
   width: 26px;
   height: 26px;
@@ -229,8 +184,6 @@
 
 .app.anim .cat-art.bounce { animation: pop .4s ease; }
 
-/* Still frames breathe while the Rive runtime is on its way, and keep the
-   screen alive if it cannot start at all in this window. */
 .app.anim .cat-art.soft .cat-body { transform-origin: 50% 92%; }
 
 .ui-mask {
@@ -254,7 +207,6 @@
 
 .nav-ico .ui-mask { width: 100%; height: 100%; }
 
-/* Bottom-row glyphs match the drinks drop's visible height, then sit centered. */
 .nav button[data-tab="home"] .nav-ico { width: var(--nav-ico-home, 21.22px); height: var(--nav-ico-home, 21.22px); }
 
 .nav button[data-tab="history"] .nav-ico { width: var(--nav-ico-history, 30.89px); height: var(--nav-ico-history, 30.89px); }
@@ -417,7 +369,6 @@
   height: 70%;
 }
 
-/* поворот отдельным свойством rotate: inline-transform (подгонка иконки) его не перебьёт */
 .edit-toggle .ui-mask { transition: rotate .25s ease; }
 
 .edit-toggle.on .ui-mask { rotate: 45deg; }
@@ -467,12 +418,9 @@
 
 .pill {
   border: 0;
-  /* v140: пилюли нижнего ряда — в цвет круглых кнопок «погода/фигура» рядом
-     (.round.dark), содержимое белое, по слову владельца 02.11 */
+  
   background: var(--pill, var(--row));
-  /* v160: подписи пилюль синие, как объёмы под напитками и как помнит
-     владелец (слово 03.11 отменяет белые содержимое v140); на светлой теме
-     пилюля голубая — там подписи белые. */
+  
   color: #5aade8;
   border-radius: 22px;
   height: 44px;
@@ -491,9 +439,6 @@
 
 [data-theme="light"] .pill { background: var(--pill, #78ceff); color: #fff; }
 
-/* v164: мини-иконки пилюль ЦВЕТНЫЕ, как в образце владельца 22:26: синяя
-   мордочка, стакан цвета напитка; отбеливание v140 отменено (пилюли тёмные). */
-/* v165: в светлой теме пилюля голубая — мордочка на ней белая (слово 04.11). */
 [data-theme="light"] .pill .mini-cat { filter: brightness(0) invert(1); }
 
 .nav {
@@ -502,8 +447,7 @@
   background: var(--nav);
   display: flex;
   flex: 0 0 auto;
-  /* Нижняя панель всегда сверху: меню выезжает из-под неё, а не поверх,
-     и затемнение диалогов её не гасит. */
+  
   z-index: 29;
 }
 
@@ -564,7 +508,6 @@
 
 .sheet-actions { position: relative; height: var(--sheet-act-h); flex: 0 0 auto; margin: 0 16px; }
 
-/* Список групп дублей: строки-кнопки «дата · порция ×N». */
 .dupes-modal .modal-body { max-height: 52vh; overflow: auto; }
 
 .hist-ico .ui-mask { width: 22px; height: 22px; }
@@ -616,9 +559,8 @@
 
 .modal h3 { margin: 0 8px 8px; font-size: 18px; font-weight: 600; text-align: center; }
 
-.modal p { margin: 0 8px 12px; color: var(--text); line-height: 1.4; text-align: center; /* v134: длинный текст диалога не должен распирать окно сверх экрана */ max-height: 58vh; overflow-y: auto; }
+.modal p { margin: 0 8px 12px; color: var(--text); line-height: 1.4; text-align: center;  max-height: 58vh; overflow-y: auto; }
 
-/* Длинные значения (отпечатки, ключи) переносятся, а не уезжают за край окна. */
 .modal p .wrapval { word-break: break-all; overflow-wrap: anywhere; }
 
 .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
@@ -839,7 +781,6 @@
 
 .hist-export .modal-actions button { font-size: 13px; }
 
-/* Панель редактора не должна перекрывать модальные окна. */
 .app.modal-open .svg-panel { display: none; }
 
 .sheet.enter { animation: sheet-up .28s cubic-bezier(.22, .61, .36, 1) both; }
@@ -855,17 +796,78 @@
 
 .sheet.enter, .sheet.leave, .scrim.enter, .scrim.leave { animation: none; }
 
+[data-theme="oneplus"] {
+  --bg: #000000;
+  --bg-deep: #000000;
+  --row: #303030;
+  --nav: #000000;
+  --listbg: #000000;
+  --track: #4d4d4d;
+  --fill: #42a5f6;
+  --blue-ink: #42a5f6;
+  --blue-fill: #42a5f6;
+  --blue: #42a5f6;
+  --blue-2: #42a5f6;
+  --title: #ffffff;
+  --text: #ffffff;
+  --muted: #9e9e9e;
+  --green: #59d567;
+  --danger: #f4696f;
+  --line: #1c1c1c;
+  --grid: #303030;
+  --edit-mark: #42a5f6;
+  --edit-pick: #ffffff;
+  --page: #000000;
+  --panel: #424242;
+  --input-bg: #1f1f1f;
+  --toast-bg: #424242;
+  --sel: #14344e;
+  color-scheme: dark;
+}
+
+[data-theme="oneplus"] .top { background: var(--band, #000000); border-bottom: 1px solid #1a1a1a; }
+
+[data-theme="oneplus"] .alerts-screen .top.plain,
+[data-theme="oneplus"] .settings-screen .top.plain,
+[data-theme="oneplus"] .register-screen .top.plain,
+[data-theme="oneplus"] .weight-screen .top.plain,
+[data-theme="oneplus"] .hist-screen .top.plain,
+[data-theme="oneplus"] .drinks-screen > .top { background: var(--band, #000000); }
+
 [data-theme="oneplus"] .nav { background: var(--nav, #000000); border-top: 1px solid #1a1a1a; }
 
 [data-theme="oneplus"] .nav button { color: #e3e3e3; }
 
 [data-theme="oneplus"] .nav button.on { color: #42a5f6; }
 
+[data-theme="oneplus"] .n-row { background: var(--listbg, #000000); border-bottom: 1px solid #1c1c1c; padding: 16px; min-height: 68px; }
+
+[data-theme="oneplus"] .n-section {
+  background: #000000;
+  color: var(--blue, #42a5f6);
+  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  padding: 20px 16px 10px;
+}
+
+[data-theme="oneplus"] .checksq::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 23px;
+  height: 23px;
+  border-radius: var(--r-round);
+  background: #d1d1d1;
+  transition: left .15s ease, background .15s ease;
+}
+
 [data-theme="oneplus"] .checksq svg,
 [data-theme="oneplus"] .checksq .ui-ico,
 [data-theme="oneplus"] .checksq .ui-mask { display: none; }
 
-/* Диалоги и шторки — серые, как системные; кнопки действий синими буквами. */
 [data-theme="oneplus"] .modal { background: var(--panel, #424242); color: #ffffff; border-radius: 4px; }
 
 [data-theme="oneplus"] .modal h3 { color: #ffffff; }
