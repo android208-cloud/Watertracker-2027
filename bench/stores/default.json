@@ -1,0 +1,2 @@
+{ "tracker": { "entries": [ { "id": 1, "date": "2026-11-04", "time": "08:00", "drinkId": "water", "name": "Вода", "icon": "water", "color": "#5aade8", "hydration": 100, "volume": 900, "credited": 900 } ], "drinks": [ { "id": "water", "name": "Вода", "icon": "water", "color": "#5aade8", "hydration": 100 } ], "weights": [], "dayStart": "02:00", "goalMl": 1947, "onboarded": 1, "historyDismissed": 1, "theme": "dark", "profile": { "gender": "male", "volume": 350 }, "notifications": { "enabled": false, "everyMin": 120 } },
+  "liquid": null }
