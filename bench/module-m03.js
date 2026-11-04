@@ -66,7 +66,7 @@ const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undef
     window.WT2R.on('*', ev => seen.push('star:' + ev.ev));
     const s8 = st(); s8.dayStartHistory = [{ from: '', value: '02:00' }];
     J.addEntry(s8, { date: D, time: '13:00', volume: 250, drink: { id: 'water', name: 'Вода', hydration: 100 } }, 11);
-    out.bus = seen;
+    out.bus = seen.slice();
     // 14 setDayStart (C-001): история смен, замена того же дня, мусор отклонён
     const s14 = window.WT2C.initialState();
     window.WT2J.setDayStart(s14, '05:00', '2026-11-04');
