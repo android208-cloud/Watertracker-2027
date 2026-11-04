@@ -13,6 +13,30 @@
   "use strict";
   var L = W.WT2L;
 
+  /* v83: отравленные метки веса — несколько ключей с одной меткой времени,
+     не поддержанной меткой порции в пределах 5 с (инцидент 25.10). */
+  function purgePoisonedWeightTombs(tombs) {
+    if (!tombs || typeof tombs !== "object") return 0;
+    var w = tombs.w;
+    var e = tombs.e || {};
+    if (!w || typeof w !== "object") return 0;
+    var byTs = {};
+    Object.keys(w).forEach(function (k) {
+      var t = Number(w[k]) || 0;
+      if (!t) return;
+      (byTs[t] = byTs[t] || []).push(k);
+    });
+    var eTs = Object.keys(e).map(function (k) { return Number(e[k]) || 0; }).filter(Boolean);
+    var removed = 0;
+    Object.keys(byTs).forEach(function (ts) {
+      if (byTs[ts].length < 2) return;
+      var t = Number(ts);
+      for (var i = 0; i < eTs.length; i++) if (Math.abs(eTs[i] - t) <= 5000) return;
+      byTs[ts].forEach(function (k) { delete w[k]; removed++; });
+    });
+    return removed;
+  }
+
   /* Смена начала суток с историей (донор 343–355, C-001): значение дня
      фиксируется в dayStartHistory, повторная смена того же дня заменяет
      запись, мусор по from выметается. */
@@ -169,7 +193,7 @@
     events: ["journal:add", "journal:edit", "journal:delete"], status: "ported"
   });
   W.WT2J = {
-    uid: uid, dayStartOn: dayStartOn, setDayStart: setDayStart, entryDay: entryDay, dayMinOf: dayMinOf, dayEntries: dayEntries,
+    uid: uid, dayStartOn: dayStartOn, setDayStart: setDayStart, purgePoisonedWeightTombs: purgePoisonedWeightTombs, entryDay: entryDay, dayMinOf: dayMinOf, dayEntries: dayEntries,
     entryKey: entryKey, weightKey: weightKey, entryTouch: entryTouch,
     tombMap: tombMap, markDeleted: markDeleted, markAlive: markAlive, tombBlocks: tombBlocks,
     mergeGuard: mergeGuard, addEntry: addEntry, editEntry: editEntry, deleteEntries: deleteEntries,
