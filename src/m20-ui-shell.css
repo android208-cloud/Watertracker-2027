@@ -1,0 +1,886 @@
+/* M20 ui-shell — CSS оболочки, побайтный перенос из донора v158 styles.css.
+   Переменные тем + блоки: #stage/.app, .nav, .toast, .modal*, .scrim/.sheet,
+   .pill/.pill-slot, .round, .ui-mask, .home-dock. Контракты C-007/C-008/C-013. */
+
+:root {
+  --bg: #2c2d32;
+  --bg-deep: #26272b;
+  --row: #3a3c41;
+  --nav: #414246;
+  --listbg: #414246;
+  --track: #56575b;
+  --fill: #78ceff;
+  --blue-ink: #1da0e8;
+  --blue-fill: #1da0e8;
+  --blue: #2ea0ea;
+  --blue-2: #5eb3ea;
+  --title: #3c95d4;
+  --text: #f4f5f7;
+  --muted: #9aa0a6;
+  --green: #59d567;
+  --danger: #b8444a;
+  --line: #32343a;
+  --grid: #4b4c51;
+  --edit-mark: #7ec8f8;
+  --edit-pick: #ffffff;
+  --page: #0c0d10;
+  --panel: #32343a;
+  --input-bg: #18191b;
+  --toast-bg: #1d1e22;
+  --sel: #3e5160;
+  --item: 44px;
+  --nav-h: 56px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --phone-w: 412px;
+  --phone-h: 893px;
+  --w: 412px; /* ширина модуля макета; на телефоне её задаёт fitPhone() */
+  --glyph: 51%;
+  color-scheme: dark;
+}
+
+/* Светлая тема Watercat: синие шапки, светло-голубые полосы, белые карточки.
+   Палитра снята пипеткой с оригинальных светлых скриншотов. */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-deep: #dbf3ff;
+  --row: #ffffff;
+  --nav: #ffffff;
+  --listbg: #ffffff;
+  --track: #d6f0ff;
+  --fill: #78ceff;
+  --blue-ink: #1da0e8;
+  --blue-fill: #1da0e8;
+  --blue: #1da0e8;
+  --blue-2: #1da0e8;
+  --title: #1da0e8;
+  --text: #222222;
+  --muted: #747474;
+  --green: #58d766;
+  --danger: #f4696f;
+  --line: #dbf3ff;
+  --grid: #dfe6ea;
+  --edit-mark: #1da0e8;
+  --edit-pick: #202225;
+  --page: #b9c9d6;
+  --panel: #ffffff;
+  --input-bg: #eef6fb;
+  --toast-bg: #78ceff;
+  --sel: #d6f0ff;
+  color-scheme: light;
+}
+
+/* Шапки экранов — синяя полоса с белым текстом, как в оригинале. */
+[data-theme="light"] .top.band,
+[data-theme="light"] .weight-screen .top.plain,
+[data-theme="light"] .hist-screen .top.plain,
+[data-theme="light"] .settings-screen .top.plain,
+[data-theme="light"] .alerts-screen .top.plain,
+[data-theme="light"] .register-screen .top.plain { background: var(--band, #1da0e8); }
+
+[data-theme="light"] .progress { background: var(--ptrack, #d3dee4); }
+
+[data-theme="light"] .pill { background: var(--pill, #78ceff); color: #fff; }
+
+/* Тема «Oneplus 7»: палитра снята пипеткой со скриншотов оболочки.
+   Чёрный фон, серые диалоги и панели #424242, акцент #42a5f6,
+   карточки и поля #1f1f1f, дорожки #4d4d4d, меню #303030. */
+[data-theme="oneplus"] {
+  --bg: #000000;
+  --bg-deep: #000000;
+  --row: #303030;
+  --nav: #000000;
+  --listbg: #000000;
+  --track: #4d4d4d;
+  --fill: #42a5f6;
+  --blue-ink: #42a5f6;
+  --blue-fill: #42a5f6;
+  --blue: #42a5f6;
+  --blue-2: #42a5f6;
+  --title: #ffffff;
+  --text: #ffffff;
+  --muted: #9e9e9e;
+  --green: #59d567;
+  --danger: #f4696f;
+  --line: #1c1c1c;
+  --grid: #303030;
+  --edit-mark: #42a5f6;
+  --edit-pick: #ffffff;
+  --page: #000000;
+  --panel: #424242;
+  --input-bg: #1f1f1f;
+  --toast-bg: #424242;
+  --sel: #14344e;
+  color-scheme: dark;
+}
+
+[data-theme="oneplus"] .top { background: var(--band, #000000); border-bottom: 1px solid #1a1a1a; }
+
+[data-theme="oneplus"] .alerts-screen .top.plain,
+[data-theme="oneplus"] .settings-screen .top.plain,
+[data-theme="oneplus"] .register-screen .top.plain,
+[data-theme="oneplus"] .weight-screen .top.plain,
+[data-theme="oneplus"] .hist-screen .top.plain,
+[data-theme="oneplus"] .drinks-screen > .top { background: var(--band, #000000); }
+
+[data-theme="oneplus"] .nav { background: var(--nav, #000000); border-top: 1px solid #1a1a1a; }
+
+/* Строки настроек: просторнее, разделители тонкие, как в оболочке. */
+[data-theme="oneplus"] .n-row { background: var(--listbg, #000000); border-bottom: 1px solid #1c1c1c; padding: 16px; min-height: 68px; }
+
+[data-theme="oneplus"] .n-section {
+  background: #000000;
+  color: var(--blue, #42a5f6);
+  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  padding: 20px 16px 10px;
+}
+
+[data-theme="oneplus"] .checksq::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 23px;
+  height: 23px;
+  border-radius: var(--r-round);
+  background: #d1d1d1;
+  transition: left .15s ease, background .15s ease;
+}
+
+/* Диалоги и шторки — серые, как системные; кнопки действий синими буквами. */
+[data-theme="oneplus"] .modal { background: var(--panel, #424242); color: #ffffff; border-radius: 4px; }
+
+[data-theme="oneplus"] .sheet { background: var(--panel, #424242); }
+
+[data-theme="oneplus"] .toast { background: var(--toast-bg, #424242); color: #ffffff; }
+
+[data-theme="oneplus"] .pill { background: var(--pill, #212121); }
+
+[data-theme="light"] .round.dark { background: #78ceff; color: #fff; }
+
+/* Нижняя панель: голубая, активная иконка синяя, остальные белые. */
+[data-theme="light"] .nav { background: #78ceff; }
+
+[data-theme="light"] .nav button { color: #fff; }
+
+[data-theme="light"] .nav button.on { color: #1da0e8; }
+
+/* Пресеты объёма и цели — светло-голубые пилюли с синим текстом. */
+[data-theme="light"] .preset,
+[data-theme="light"] .sheet.goal .preset,
+[data-theme="light"] .sheet.volume.menu .preset { background: #c9ecff; color: #1da0e8; }
+
+[data-theme="light"] .preset.on,
+[data-theme="light"] .sheet.goal .preset.on,
+[data-theme="light"] .sheet.volume.menu .preset.on { background: #c9ecff; outline: 2px solid #1da0e8; }
+
+/* Всплывающие уведомления: фон как у нижней панели, текст белый. */
+[data-theme="light"] .toast {
+  background: #78ceff;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(31, 84, 120, .28);
+}
+
+[data-theme="light"] .round,
+[data-theme="light"] .fab,
+[data-theme="light"] .check,
+[data-theme="light"] .svg-panel-actions button { color: #fff; }
+
+#stage {
+  width: 100%;
+  height: 100%;
+  max-width: var(--phone-w);
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.app {
+  width: 100%;
+  height: 100%;
+  max-width: var(--phone-w);
+  margin: 0 auto;
+  background: var(--bg);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  padding-top: var(--safe-t);
+}
+
+.drinks-screen .icon-btn.right .ui-mask {
+  width: 26px;
+  height: 26px;
+}
+
+.drinks-screen .icon-btn.left .ui-mask {
+  width: 16px;
+  height: 16px;
+}
+
+.app.anim .progress .fill { transition: width .45s ease; }
+
+.app.anim .cat-art.bounce { animation: pop .4s ease; }
+
+/* Still frames breathe while the Rive runtime is on its way, and keep the
+   screen alive if it cannot start at all in this window. */
+.app.anim .cat-art.soft .cat-body { transform-origin: 50% 92%; }
+
+.ui-mask {
+  display: block;
+  width: 24px;
+  height: 24px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.nav .ui-mask { width: var(--nav-ico, 26px); height: var(--nav-ico, 26px); }
+
+.nav, .nav button { overflow: visible; }
+
+.nav-ico { display: block; position: relative; }
+
+.nav-ico .ui-mask { width: 100%; height: 100%; }
+
+/* Bottom-row glyphs match the drinks drop's visible height, then sit centered. */
+.nav button[data-tab="home"] .nav-ico { width: var(--nav-ico-home, 21.22px); height: var(--nav-ico-home, 21.22px); }
+
+.nav button[data-tab="history"] .nav-ico { width: var(--nav-ico-history, 30.89px); height: var(--nav-ico-history, 30.89px); }
+
+.nav button[data-tab="weight"] .nav-ico { width: var(--nav-ico-weight, 21.89px); height: var(--nav-ico-weight, 21.89px); }
+
+.nav button[data-tab="settings"] .nav-ico { width: var(--nav-ico-settings, 24.71px); height: var(--nav-ico-settings, 24.71px); }
+
+.nav button[data-tab="alerts"] .nav-ico { width: var(--nav-ico-alerts, 25.34px); height: var(--nav-ico-alerts, 25.34px); }
+
+.app.svg-editing .nav { z-index: 29; }
+
+.bubble .drink-ico,
+.bubble .ui-mask,
+.bubble .ui-ico,
+.bubble svg,
+.round .drink-ico,
+.round .ui-mask,
+.round .ui-ico,
+.round svg,
+.round .wicon,
+.edit-toggle .ui-mask,
+.edit-toggle svg,
+.icon-btn .ui-mask,
+.icon-btn .ui-ico,
+.check .ui-ico,
+.check svg,
+.fab .ui-ico,
+.fab svg {
+  width: var(--glyph);
+  height: var(--glyph);
+}
+
+.round .wicon .ui-ico,
+.wicon .ui-ico { width: 100%; height: 100%; }
+
+.app.anim .progress .fill { transition: none; }
+
+.home-dock {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  height: calc(2 * var(--pitch));
+  z-index: 2;
+  overflow: visible;
+}
+
+.home-dock .dock-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 0 16px;
+  text-align: center;
+  line-height: 16px;
+  pointer-events: none;
+  top: calc(1.5 * var(--pitch));
+  transform: translateY(-50%);
+}
+
+.home-dock > .round,
+.home-dock > .edit-toggle,
+.home-dock > .shortcut,
+.home-dock > .pin-add,
+.home-dock > .slot {
+  position: absolute;
+  left: calc(var(--side) + var(--c) * var(--f));
+  top: calc(var(--r) * var(--pitch));
+  width: var(--ico);
+  height: var(--ico);
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+
+.home-dock > .shortcut .bubble {
+  width: 100%;
+  height: 100%;
+}
+
+.home-dock .shortcut .vol {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  width: auto;
+  min-width: 100%;
+  height: auto;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.home-dock > .pill-slot {
+  position: absolute;
+  left: calc(var(--side) + var(--c) * var(--f));
+  top: calc(var(--r) * var(--pitch));
+  width: calc(var(--f) + var(--ico));
+  height: var(--ico);
+  margin: 0;
+  transform: translate(calc(var(--ico) / -2), -50%);
+  overflow: visible;
+  z-index: 1;
+}
+
+.home-dock > .pill-slot .pill {
+  --face: 28px;
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border-radius: calc(var(--ico) / 2);
+  padding: 0;
+}
+
+.home-dock > .pill-slot .pill .mini-cat,
+.home-dock > .pill-slot .pill .mini-cup {
+  position: absolute;
+  left: calc(var(--ico) / 2);
+  top: 50%;
+  width: var(--face);
+  height: var(--face);
+  margin: 0;
+  transform: translate(-50%, -50%);
+}
+
+.home-dock > .pill-slot .pill > span {
+  position: absolute;
+  left: calc(var(--ico) / 2 + var(--face) / 2);
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.round {
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: var(--r-round);
+  border: 0;
+  padding: 0;
+  background: var(--blue);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.round:disabled { opacity: .38; }
+
+.round.dark { background: var(--row); }
+
+.round svg { width: var(--glyph); height: var(--glyph); }
+
+.round[data-act="undo"] .ui-mask {
+  width: 70%;
+  height: 70%;
+}
+
+/* поворот отдельным свойством rotate: inline-transform (подгонка иконки) его не перебьёт */
+.edit-toggle .ui-mask { transition: rotate .25s ease; }
+
+.edit-toggle.on .ui-mask { rotate: 45deg; }
+
+.edit-toggle .ui-mask { transition: none; }
+
+.home-dock > .shortcut {
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+.home-dock > .shortcut.holding {
+  transform: translate(-50%, -50%) scale(0.9);
+}
+
+.pill-slot {
+  position: relative;
+  width: var(--ico);
+  height: var(--ico);
+  justify-self: center;
+  align-self: center;
+  overflow: visible;
+}
+
+.pill-slot .pill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 210px;
+  z-index: 1;
+}
+
+.home-dock > .round.dark {
+  margin-top: 0;
+}
+
+.round[data-act="open-fitness"] .wicon.fig {
+  width: 68%;
+  height: 68%;
+}
+
+.round[data-act="open-fitness"] .wicon.fig svg {
+  width: 100%;
+  height: 100%;
+}
+
+.pill {
+  border: 0;
+  /* v140: пилюли нижнего ряда — в цвет круглых кнопок «погода/фигура» рядом
+     (.round.dark), содержимое белое, по слову владельца 02.11 */
+  background: var(--pill, var(--row));
+  /* v160: подписи пилюль синие, как объёмы под напитками и как помнит
+     владелец (слово 03.11 отменяет белые содержимое v140); на светлой теме
+     пилюля голубая — там подписи белые. */
+  color: #5aade8;
+  border-radius: 22px;
+  height: 44px;
+  padding: 0 14px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: 0.1px;
+}
+
+.pill svg { width: 26px; height: 26px; }
+
+[data-theme="light"] .pill { background: var(--pill, #78ceff); color: #fff; }
+
+/* v164: мини-иконки пилюль ЦВЕТНЫЕ, как в образце владельца 22:26: синяя
+   мордочка, стакан цвета напитка; отбеливание v140 отменено (пилюли тёмные). */
+/* v165: в светлой теме пилюля голубая — мордочка на ней белая (слово 04.11). */
+[data-theme="light"] .pill .mini-cat { filter: brightness(0) invert(1); }
+
+.nav {
+  height: calc(var(--nav-h) + var(--safe-b));
+  padding-bottom: var(--safe-b);
+  background: var(--nav);
+  display: flex;
+  flex: 0 0 auto;
+  /* Нижняя панель всегда сверху: меню выезжает из-под неё, а не поверх,
+     и затемнение диалогов её не гасит. */
+  z-index: 29;
+}
+
+.nav button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+.nav button svg { width: 26px; height: 26px; }
+
+.nav button.on { color: var(--blue); }
+
+.scrim {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  bottom: calc(var(--nav-h) + var(--safe-b));
+  background: rgba(0, 0, 0, .28);
+  z-index: 7;
+}
+
+.scrim.heavy { background: rgba(0, 0, 0, .45); }
+
+.scrim.bare { background: transparent; }
+
+.scrim.menu, .scrim.choice { background: rgba(0, 0, 0, .54); }
+
+.sheet {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--nav-h) + var(--safe-b));
+  background: var(--panel);
+  border-radius: var(--sheet-radius, 16px) var(--sheet-radius, 16px) 0 0;
+  z-index: 8;
+  padding: 12px 0 12px;
+  max-height: var(--sheet-max-h, 70%);
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet > * { flex: 0 0 auto; min-width: 0; max-width: 100%; }
+
+.sheet h2 { margin: 2px 16px 10px; font-size: 20px; font-weight: 600; }
+
+.sheet .sub { margin: -6px 16px 10px; color: var(--blue-2); font-size: 14px; }
+
+.sheet .edit-tag, .sheet .sheet-date { padding: 0 16px; }
+
+.app.anim .switch i { transition: left .15s ease; }
+
+.sheet-actions { position: relative; height: var(--sheet-act-h); flex: 0 0 auto; margin: 0 16px; }
+
+/* Список групп дублей: строки-кнопки «дата · порция ×N». */
+.dupes-modal .modal-body { max-height: 52vh; overflow: auto; }
+
+.hist-ico .ui-mask { width: 22px; height: 22px; }
+
+.entry .hcred .ui-mask { width: 16px; height: 16px; color: var(--blue-ink); background: var(--blue-ink); }
+
+.app.svg-editing .svg-hot {
+  outline: 1px dashed var(--edit-mark);
+  outline-offset: 1px;
+  box-shadow: 7px 7px 0 -4px var(--edit-mark);
+  touch-action: none;
+  cursor: move;
+  pointer-events: auto;
+}
+
+.app.svg-editing .svg-hot.svg-picked {
+  outline: 2px solid var(--edit-pick);
+  outline-offset: 2px;
+}
+
+.swipe-actions svg, .swipe-actions .ui-ico, .swipe-actions .ui-mask { width: 22px; height: 22px; }
+
+.hcred .ui-mask, .hcred .ui-ico { width: 14px; height: 14px; }
+
+.round .drink-ico { width: var(--glyph); height: var(--glyph); }
+
+.modal-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  z-index: 20;
+}
+
+.modal-scrim.cal {
+  z-index: 28;
+}
+
+.modal {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  width: min(320px, calc(100% - 40px));
+  background: var(--row);
+  border-radius: 12px;
+  padding: 18px 12px 8px;
+  z-index: 31;
+}
+
+.modal h3 { margin: 0 8px 8px; font-size: 18px; font-weight: 600; text-align: center; }
+
+.modal p { margin: 0 8px 12px; color: var(--text); line-height: 1.4; text-align: center; /* v134: длинный текст диалога не должен распирать окно сверх экрана */ max-height: 58vh; overflow-y: auto; }
+
+/* Длинные значения (отпечатки, ключи) переносятся, а не уезжают за край окна. */
+.modal p .wrapval { word-break: break-all; overflow-wrap: anywhere; }
+
+.modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+
+.modal-actions button {
+  background: transparent;
+  border: 0;
+  color: var(--blue-2);
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: .04em;
+  padding: 12px 6px;
+  text-transform: uppercase;
+  flex: 1 1 40%;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.modal .fields { display: flex; flex-direction: column; gap: 8px; padding: 4px 8px 8px; }
+
+.modal .fields label { font-size: 13px; color: var(--muted); }
+
+.toast {
+  position: absolute;
+  left: 16px; right: 16px;
+  top: calc(var(--safe-t) + 10px);
+  bottom: auto;
+  pointer-events: none;
+  background: var(--toast-bg);
+  color: #fff;
+  border-radius: 999px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  line-height: 16px;
+  min-height: 34px;
+  overflow: hidden;
+  z-index: 40;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
+
+.sheet.weight {
+  background: var(--bg);
+  border-radius: 0;
+  padding: 22px 0 0;
+}
+
+.sheet.weight .sheet-actions { height: 84px; margin: 0; }
+
+.sheet.weight .check.center { top: 0; }
+
+.sheet.weight .w-date {
+  top: 32px;
+  right: auto;
+  left: calc(75% + 16px);
+  transform: translate(-50%, -50%);
+  color: var(--blue-ink);
+  font-weight: 600;
+  font-size: 19.2px;
+  gap: 7.2px;
+}
+
+.sheet.weight .w-date span { color: var(--text); }
+
+.sheet.weight .w-date svg { width: 26.4px; height: 26.4px; }
+
+.sheet.weight.set-weight { padding-top: 18px; }
+
+.sheet.weight.set-weight .sheet-actions { height: 92px; }
+
+.sheet.weight.set-weight .check.center { top: 8px; }
+
+.sheet.goal {
+  background: var(--bg);
+  border-radius: 0;
+  padding: 12px 0 8px;
+  max-height: none;
+  top: 46%;
+}
+
+.sheet.goal .goal-presets {
+  display: flex;
+  gap: 8px;
+  padding: 4px 12px 8px;
+}
+
+.sheet.goal .preset {
+  flex: 1 1 0;
+  text-align: center;
+  background: var(--track);
+  color: var(--blue-ink);
+  border-radius: 8px;
+  padding: 9px 4px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.sheet.goal .preset.on { outline: 0; background: var(--sel); }
+
+.sheet.goal .sheet-actions { height: 96px; margin: auto 0 4px; }
+
+.sheet.goal .check.center { top: 4px; }
+
+.modal-scrim.cal { z-index: 28; background: rgba(0, 0, 0, .72); }
+
+.n-modal .modal-actions button { color: var(--blue-ink); letter-spacing: .06em; }
+
+.sheet.volume { max-height: 64%; }
+
+.sheet.volume.menu {
+  background: var(--bg);
+  border-radius: 0;
+  padding-top: 6px;
+  max-height: var(--sheet-menu-max-h, 68%);
+  overflow: hidden;
+}
+
+.sheet.volume.menu .presets { padding: 2px 12px 10px; }
+
+.sheet.volume.menu .preset {
+  background: var(--row);
+  color: var(--blue-2);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.sheet.volume.menu .preset.on {
+  outline: 2px solid #8fd0ff;
+  background: var(--sel);
+}
+
+.sheet.volume.menu .sheet-actions { height: 84px; }
+
+.sheet.weather,
+.sheet.activity { max-height: 78%; }
+
+.sheet.choice {
+  background: var(--nav);
+  border-radius: 0;
+  padding: 18px 0 6px;
+}
+
+.sheet.choice h2 {
+  margin: 2px 16px 14px;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.sheet.choice .sub {
+  margin: -6px 16px 12px;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.sheet.choice .wrow,
+.sheet.choice .save-row {
+  height: auto;
+  min-height: 56px;
+  padding: 8px 16px;
+  gap: 16px;
+  justify-content: flex-start;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.sheet.choice .wrow.on { background: var(--sel); }
+
+.sheet.choice .wrow .nm { color: var(--text); }
+
+.sheet.choice .wrow .plus {
+  margin-left: auto;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.sheet.choice .wicon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.sheet.choice .switch {
+  width: 48px;
+  height: 28px;
+  background: var(--track);
+}
+
+.sheet.choice .switch i {
+  width: 22px;
+  height: 22px;
+  top: 3px;
+  left: 3px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+}
+
+.sheet.choice .switch.on { background: #59d567; }
+
+.sheet.choice .switch.on i { left: 23px; }
+
+.sheet .note-sheet, .note-sheet { padding: 0 16px 8px; }
+
+.sheet-date { text-align: center; color: var(--text); font-size: var(--sheet-date-f, 13px); margin: 0 0 8px; }
+
+.svg-export .modal-actions { flex-wrap: wrap; }
+
+.svg-export .modal-actions button { padding: 12px 6px; }
+
+.hist-export .modal-actions button { font-size: 13px; }
+
+/* Панель редактора не должна перекрывать модальные окна. */
+.app.modal-open .svg-panel { display: none; }
+
+.sheet.enter { animation: sheet-up .28s cubic-bezier(.22, .61, .36, 1) both; }
+
+.sheet.leave {
+  animation: sheet-down .22s cubic-bezier(.55, .06, .68, .19) both;
+  pointer-events: none;
+}
+
+.scrim.enter { animation: scrim-in .28s ease both; }
+
+.scrim.leave { animation: scrim-out .22s ease both; pointer-events: none; }
+
+.sheet.enter, .sheet.leave, .scrim.enter, .scrim.leave { animation: none; }
+
+[data-theme="oneplus"] .nav { background: var(--nav, #000000); border-top: 1px solid #1a1a1a; }
+
+[data-theme="oneplus"] .nav button { color: #e3e3e3; }
+
+[data-theme="oneplus"] .nav button.on { color: #42a5f6; }
+
+[data-theme="oneplus"] .checksq svg,
+[data-theme="oneplus"] .checksq .ui-ico,
+[data-theme="oneplus"] .checksq .ui-mask { display: none; }
+
+/* Диалоги и шторки — серые, как системные; кнопки действий синими буквами. */
+[data-theme="oneplus"] .modal { background: var(--panel, #424242); color: #ffffff; border-radius: 4px; }
+
+[data-theme="oneplus"] .modal h3 { color: #ffffff; }
+
+[data-theme="oneplus"] .modal:has(.dial) h3,
+[data-theme="oneplus"] .modal:has(.dial) .wake-note { display: none; }
+
+[data-theme="oneplus"] .modal-actions button { color: #42a5f6; text-transform: uppercase; letter-spacing: .3px; font-weight: 600; }
+
+[data-theme="oneplus"] .modal-scrim { background: rgba(0, 0, 0, .62); }
+
+[data-theme="oneplus"] .sheet { background: var(--panel, #424242); }
+
+[data-theme="oneplus"] .sheet h2 { color: #ffffff; }
+
+[data-theme="oneplus"] .toast { background: var(--toast-bg, #424242); color: #ffffff; }
+
+[data-theme="oneplus"] .pill { background: var(--pill, #212121); }
