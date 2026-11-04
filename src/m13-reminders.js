@@ -54,6 +54,14 @@
     });
     return map;
   }
+  /* v159-фикс (слово владельца 04.11): свёрнутые настенные мс читаются
+     UTC-частями напрямую. Поясной прогон tzParts сдвигал дату на +4 часа и
+     после 20:00 настенного уводил слоты на завтра (вечерние напоминания
+     терялись, v158). */
+  function wallParts(ms) {
+    var d = new Date(ms);
+    return { year: String(d.getUTCFullYear()), month: pad(d.getUTCMonth() + 1), day: pad(d.getUTCDate()) };
+  }
   function wallMsNow() {
     var p = tzParts();
     return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute));
@@ -196,7 +204,7 @@
     var last = latestByIntake(state);
     var lastAt = last ? entryWallMs(last) : 0;
     for (var add = 0; add <= 8; add++) {
-      var d = tzParts(new Date(now + add * 86400000));
+      var d = wallParts(now + add * 86400000);
       var iso = d.year + "-" + d.month + "-" + d.day;
       var win = notifyWindow(state, iso);
       var from = parseHM(win.from), to = parseHM(win.to);
@@ -219,7 +227,7 @@
       if (t > limit || t <= now) continue;
       return t;
     }
-    var d0 = tzParts(new Date(now + 86400000));
+    var d0 = wallParts(now + 86400000);
     var w0 = notifyWindow(state, d0.year + "-" + d0.month + "-" + d0.day);
     var f0 = parseHM(w0.from);
     return Date.UTC(Number(d0.year), Number(d0.month) - 1, Number(d0.day), Math.floor(f0 / 60), f0 % 60);
@@ -232,7 +240,7 @@
     if (t === null) return "напоминания выключены";
     if (typeof t === "string") return t;
     var wd = new Date(t);
-    var a = tzParts(new Date(nowMs)), b = tzParts(wd);
+    var a = wallParts(nowMs), b = wallParts(t);
     var same = a.year === b.year && a.month === b.month && a.day === b.day;
     return (same ? "" : "завтра в ") + pad(wd.getUTCHours()) + ":" + pad(wd.getUTCMinutes());
   }
@@ -292,7 +300,7 @@
   });
   W.WT2N = {
     TZ: TZ, ALERT_SOUNDS: ALERT_SOUNDS, alertSoundTitle: alertSoundTitle,
-    tzParts: tzParts, wallMsNow: wallMsNow, parseHM: parseHM, shiftHM: shiftHM,
+    tzParts: tzParts, wallParts: wallParts, wallMsNow: wallMsNow, parseHM: parseHM, shiftHM: shiftHM,
     weekdayIndex: weekdayIndex, entryWallMs: entryWallMs, latestByIntake: latestByIntake,
     wallMsOfHM: wallMsOfHM, ensureAlerts: ensureAlerts, notifyWindow: notifyWindow,
     dayWindow: dayWindow, periodOpts: periodOpts, periodList: periodList,

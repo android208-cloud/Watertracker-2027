@@ -73,11 +73,11 @@ const STORE = JSON.stringify({
     const t = N.nextSlotMs(s7, now);
     const lastAt = N.entryWallMs(s7.entries[0]);
     out.chain = [typeof t === 'number', t > now, (t - lastAt) % (90 * 60000) === 0, new Date(t).getUTCHours()];
-    /* причуда донора v158: вечером (стенные >= 20:00) свёрнутые мс проходят
-       через tzParts и дата уезжает на завтра — вечерние слоты теряются.
-       Порт байт-верен, кейс фиксирует поведение как есть. */
+    /* v159-фикс (слово владельца): вечерние слоты живут — в 21:10 ближайший
+       слот сегодня 22:00, а в 23:00 честное «завтра в 05:00». */
     const eve = N.nextSlotMs(s7, N.wallMsOfHM(N.wallToday(), '21:10', false));
-    out.eve = [new Date(eve).getUTCHours(), new Date(eve).getUTCDate() !== new Date(N.wallMsOfHM(N.wallToday(), '21:10', false)).getUTCDate()];
+    out.eve = [new Date(eve).getUTCHours(), new Date(eve).toISOString().slice(0, 10) === N.wallToday()];
+    out.late = N.nextSlot(s7, N.wallMsOfHM(N.wallToday(), '23:00', false));
     return out;
   });
   ok('миграции: −60 одноразово, дефолты, битые дни заменены', JSON.stringify(r.mig) === JSON.stringify([0, true, true, 120, 60, 7]) && r.mig2 === 0, r.mig);
@@ -85,7 +85,8 @@ const STORE = JSON.stringify({
   ok('случаи: выключено и норма выпита', r.tOff.indexOf('Уведомления выключены') === 0 && r.tMet.indexOf('Норма уже выпита') === 0, [r.tOff, r.tMet]);
   ok('payload: everyMin 0 глушит, holdUntilDrink по умолчанию', r.pOff === false && r.pHold === true, [r.pOff, r.pHold]);
   ok('слот: цепочка после приёма, шаг 90, полдень', r.chain[0] === true && r.chain[1] === true && r.chain[2] === true && r.chain[3] === 13, r.chain);
-  ok('причуда донора: вечерние слоты уходят на завтра (байт-верно)', r.eve[0] === 5 && r.eve[1] === true, r.eve);
+  ok('v159: вечерний слот жив (22:00 сегодня)', r.eve[0] === 22 && r.eve[1] === true, r.eve);
+  ok('v159: за окном честное «завтра в 05:00»', r.late === 'завтра в 05:00', r.late);
   await b.close();
   console.log(fails ? 'BENCH M13: FAILS=' + fails : 'BENCH M13: ALL GREEN');
   process.exit(fails ? 1 : 0);
