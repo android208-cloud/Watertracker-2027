@@ -1,0 +1,203 @@
+/* M11 chart — CSS графиков, побайтно из донора v158 styles.css. */
+
+[data-theme="light"] .wrange { background: #b0c4cf; }
+
+[data-theme="light"] .wrange button { color: #fff; }
+
+[data-theme="light"] .wrange button.on { background: #2ba0e9; }
+
+[data-theme="light"] .chart-panel { background: #ffffff; }
+
+[data-theme="light"] .bar-label { color: #202225; }
+
+.screen::-webkit-scrollbar, .chart-scroll::-webkit-scrollbar, .xscroll::-webkit-scrollbar { display: none; }
+
+.screen, .chart-scroll, .xscroll { scrollbar-width: none; }
+
+.chart-panel { background: var(--nav); padding: 0; flex: 0 0 auto; }
+
+.chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+.chart-row {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-width: 100%;
+  width: max-content;
+  height: 218px;
+}
+
+.chart-below {
+  position: absolute;
+  bottom: 0;
+  background: var(--bg);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.goal-line {
+  position: absolute;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, #4eb6ea 0 3px, transparent 3px 6px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.col { width: 82px; flex: 0 0 82px; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 2; padding-bottom: 8px; box-sizing: border-box; }
+
+.col { content-visibility: auto; contain-intrinsic-size: 82px 190px; }
+
+.chart-spacer { flex: 0 0 auto; }
+
+.plot-space { position: relative; width: 100%; height: 182px; }
+
+.bar {
+  position: absolute;
+  bottom: 0; left: 15px;
+  width: 52px;
+  border-radius: 0;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.bar i { position: absolute; left: 0; right: 0; display: block; }
+
+.bar-label, .bar-in {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.bar-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--blue-ink);
+  z-index: 4;
+}
+
+.bar-label.above {
+  transform: translate(-50%, 50%);
+}
+
+.bar-label.on-line {
+  transform: translate(-50%, 50%);
+  background: linear-gradient(var(--nav) 50%, var(--bg) 50%);
+  padding: 0 3px;
+}
+
+.bar-in {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35);
+  z-index: 1;
+}
+
+.date-btn {
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+  padding: 0 8px;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-btn.on { background: var(--blue-fill); color: #fff; }
+
+.w-panel { flex: 0 0 auto; background: var(--bg); padding-top: 10px; }
+
+.w-center { width: 232px; margin: 0 auto; }
+
+.w-now {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.w-now b {
+  color: var(--blue-ink);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.wrange {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  margin-top: 12px;
+  background: var(--nav);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.wrange button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: 8px;
+}
+
+.wrange button.on { background: var(--blue-fill); color: #fff; }
+
+.w-period {
+  text-align: center;
+  color: var(--text);
+  font-size: 18px;
+  margin: 10px 0 0;
+}
+
+.w-period.under {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.w-swipe {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.w-track {
+  display: flex;
+  width: 200%; 
+  transform: translateX(-50%);
+}
+
+.w-page { width: 50%; flex: 0 0 50%; min-width: 0; }
+
+.wchart { width: 100%; height: 150px; display: block; }
+
+.w-now { white-space: nowrap; }
+
+[data-theme="oneplus"] .date-btn.on { background: #1487a6; color: #fff; }
