@@ -7,9 +7,9 @@
   margin: 10px 16px 0;
   padding: 10px 14px;
   border-radius: 16px;
-  background: var(--card, rgba(255, 255, 255, .05));
+  background: var(--track, #56575b);
   font: 13px/1.7 system-ui, sans-serif;
-  color: var(--fg, #dcefff);
+  color: var(--text, #dcefff);
 }
 .home-stats .row { display: flex; justify-content: space-between; gap: 8px; }
 .home-stats .row b { font-weight: 650; }
@@ -22,7 +22,7 @@
   gap: 10px;
   opacity: .55;
   font: 12px/1.5 system-ui, sans-serif;
-  color: var(--fg, #dcefff);
+  color: var(--muted, #8a8f94);
   pointer-events: none;
 }
 .cat-stage .stage-note .ui-ico, .cat-stage .stage-note .ui-mask { width: 56px; height: 56px; }
@@ -32,8 +32,8 @@
   font: 600 12px/1.4 system-ui, sans-serif;
   letter-spacing: .06em;
   text-transform: uppercase;
-  opacity: .6;
-  color: var(--fg, #dcefff);
+  opacity: .9;
+  color: var(--muted, #8a8f94);
 }
 
 .onb-kg-grid {
