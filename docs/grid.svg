@@ -1,80 +1,85 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="412" height="892" viewBox="0 0 412 892" font-family="system-ui, sans-serif">
   <!-- Разметочная сетка главного экрана Watertracker-next.
-       Линии 1–6 — вертикали (центры колонок дока), слева направо.
-       Линии 7–13 — горизонтали (центры полос экрана), сверху вниз.
-       Литеры — пересечения и широкие полосы: адрес узла = литера,
-       полный адрес = литера (вертикаль × горизонталь). Слово владельца 05.11. -->
+       Линии — буквы: вертикали А–Е (центры колонок дока, слева направо),
+       горизонтали Ж–Н (центры полос, сверху вниз): Ж полоса прогресса,
+       З шапка, И сцена, К ряд дока 0, Л ряд дока 1, М ряд дока 2, Н навигация.
+       Пересечения дока — цифры 1–18 порядково по рядам (К, Л, М).
+       Слово владельца 05.11: линии буквами, пересечения цифрами. -->
   <rect x="0" y="0" width="412" height="892" fill="#f1f2f4"/>
   <rect x="0.5" y="0.5" width="411" height="891" fill="none" stroke="#9aa7b0" stroke-width="1"/>
-
-  <!-- вертикали 1–6 -->
   <g stroke="#5aade8" stroke-width="1" stroke-dasharray="4 4" opacity="0.75">
-    <line x1="41"  y1="24" x2="41"  y2="880"/>
+    <line x1="41" y1="24" x2="41" y2="880"/>
     <line x1="107" y1="24" x2="107" y2="880"/>
     <line x1="173" y1="24" x2="173" y2="880"/>
     <line x1="239" y1="24" x2="239" y2="880"/>
     <line x1="305" y1="24" x2="305" y2="880"/>
     <line x1="371" y1="24" x2="371" y2="880"/>
-  </g>
-  <!-- горизонтали 7–13 -->
-  <g stroke="#5aade8" stroke-width="1" stroke-dasharray="4 4" opacity="0.75">
-    <line x1="24" y1="33"  x2="400" y2="33"/>
-    <line x1="24" y1="75"  x2="400" y2="75"/>
+    <line x1="24" y1="33" x2="400" y2="33"/>
+    <line x1="24" y1="75" x2="400" y2="75"/>
     <line x1="24" y1="356" x2="400" y2="356"/>
     <line x1="24" y1="609" x2="400" y2="609"/>
     <line x1="24" y1="697" x2="400" y2="697"/>
     <line x1="24" y1="785" x2="400" y2="785"/>
     <line x1="24" y1="864" x2="400" y2="864"/>
   </g>
-
-  <!-- номера линий -->
-  <g fill="#1da0e8" font-size="13" font-weight="700" text-anchor="middle">
-    <text x="41"  y="16">1</text><text x="107" y="16">2</text><text x="173" y="16">3</text>
-    <text x="239" y="16">4</text><text x="305" y="16">5</text><text x="371" y="16">6</text>
-    <text x="12" y="37">7</text><text x="12" y="79">8</text><text x="12" y="360">9</text>
-    <text x="12" y="613">10</text><text x="12" y="701">11</text><text x="12" y="789">12</text>
-    <text x="12" y="868">13</text>
+  <g fill="#1da0e8" font-size="14" font-weight="700" text-anchor="middle">
+    <text x="41" y="16">А</text><text x="107" y="16">Б</text><text x="173" y="16">В</text><text x="239" y="16">Г</text><text x="305" y="16">Д</text><text x="371" y="16">Е</text>
+    <text x="12" y="37">Ж</text><text x="12" y="79">З</text><text x="12" y="360">И</text><text x="12" y="613">К</text><text x="12" y="701">Л</text><text x="12" y="789">М</text><text x="12" y="868">Н</text>
   </g>
-
-  <!-- литеры пересечений дока: ряд 10 -->
   <g font-size="12" font-weight="700" text-anchor="middle">
     <g fill="#1da0e8">
-      <circle cx="41" cy="609" r="12"/><circle cx="107" cy="609" r="12"/><circle cx="173" cy="609" r="12"/>
-      <circle cx="239" cy="609" r="12"/><circle cx="305" cy="609" r="12"/><circle cx="371" cy="609" r="12"/>
-      <circle cx="41" cy="697" r="12"/><circle cx="107" cy="697" r="12"/><circle cx="173" cy="697" r="12"/>
-      <circle cx="239" cy="697" r="12"/><circle cx="305" cy="697" r="12"/><circle cx="371" cy="697" r="12"/>
-      <circle cx="41" cy="785" r="12"/><circle cx="107" cy="785" r="12"/><circle cx="173" cy="785" r="12"/>
-      <circle cx="239" cy="785" r="12"/><circle cx="305" cy="785" r="12"/><circle cx="371" cy="785" r="12"/>
-      <circle cx="206" cy="33" r="12"/><circle cx="206" cy="75" r="12"/><circle cx="206" cy="356" r="12"/>
-      <circle cx="206" cy="864" r="12"/>
+      <circle cx="41" cy="609" r="12"/>
+      <circle cx="107" cy="609" r="12"/>
+      <circle cx="173" cy="609" r="12"/>
+      <circle cx="239" cy="609" r="12"/>
+      <circle cx="305" cy="609" r="12"/>
+      <circle cx="371" cy="609" r="12"/>
+      <circle cx="41" cy="697" r="12"/>
+      <circle cx="107" cy="697" r="12"/>
+      <circle cx="173" cy="697" r="12"/>
+      <circle cx="239" cy="697" r="12"/>
+      <circle cx="305" cy="697" r="12"/>
+      <circle cx="371" cy="697" r="12"/>
+      <circle cx="41" cy="785" r="12"/>
+      <circle cx="107" cy="785" r="12"/>
+      <circle cx="173" cy="785" r="12"/>
+      <circle cx="239" cy="785" r="12"/>
+      <circle cx="305" cy="785" r="12"/>
+      <circle cx="371" cy="785" r="12"/>
     </g>
     <g fill="#ffffff">
-      <text x="41" y="613">А</text><text x="107" y="613">Б</text><text x="173" y="613">В</text>
-      <text x="239" y="613">Г</text><text x="305" y="613">Д</text><text x="371" y="613">Е</text>
-      <text x="41" y="701">Ж</text><text x="107" y="701">З</text><text x="173" y="701">И</text>
-      <text x="239" y="701">К</text><text x="305" y="701">Л</text><text x="371" y="701">М</text>
-      <text x="41" y="789">Н</text><text x="107" y="789">О</text><text x="173" y="789">П</text>
-      <text x="239" y="789">Р</text><text x="305" y="789">С</text><text x="371" y="789">Т</text>
-      <text x="206" y="37">У</text><text x="206" y="79">Ф</text><text x="206" y="360">Х</text>
-      <text x="206" y="868">Ц</text>
+      <text x="41" y="613">1</text>
+      <text x="107" y="613">2</text>
+      <text x="173" y="613">3</text>
+      <text x="239" y="613">4</text>
+      <text x="305" y="613">5</text>
+      <text x="371" y="613">6</text>
+      <text x="41" y="701">7</text>
+      <text x="107" y="701">8</text>
+      <text x="173" y="701">9</text>
+      <text x="239" y="701">10</text>
+      <text x="305" y="701">11</text>
+      <text x="371" y="701">12</text>
+      <text x="41" y="789">13</text>
+      <text x="107" y="789">14</text>
+      <text x="173" y="789">15</text>
+      <text x="239" y="789">16</text>
+      <text x="305" y="789">17</text>
+      <text x="371" y="789">18</text>
     </g>
   </g>
-
-  <!-- подписи: кто стоит на узле сегодня -->
   <g fill="#5c6670" font-size="10" text-anchor="middle">
-    <text x="41"  y="636">А: отмена</text>
-    <text x="371" y="636">Е: выбор напитка</text>
-    <text x="140" y="724">Ж–Л: ярлыки недавних пар</text>
-    <text x="371" y="724">М: место (избранные)</text>
-    <text x="74"  y="812">Н:О: пилюля объёма</text>
-    <text x="206" y="812">П:Р: место (чашка)</text>
-    <text x="305" y="812">С: место</text>
-    <text x="305" y="824">(погода)</text>
-    <text x="371" y="812">Т: место</text>
-    <text x="371" y="824">(фитнес)</text>
-    <text x="206" y="57">У: полоса прогресса</text>
-    <text x="206" y="99">Ф: шапка (название напитка)</text>
-    <text x="206" y="380">Х: сцена — место кота (M05/M06)</text>
-    <text x="206" y="888">Ц: навигация</text>
+    <text x="41" y="636">1: отмена</text>
+    <text x="371" y="636">6: выбор напитка</text>
+    <text x="140" y="724">7–11: ярлыки недавних пар</text>
+    <text x="371" y="724">12: место (избранные)</text>
+    <text x="74" y="812">13:14: пилюля объёма</text>
+    <text x="206" y="812">15:16: место (чашка)</text>
+    <text x="305" y="812">17: место</text><text x="305" y="824">(погода)</text>
+    <text x="371" y="812">18: место</text><text x="371" y="824">(активность)</text>
+    <text x="206" y="57">Ж: полоса прогресса</text>
+    <text x="206" y="99">З: шапка (название напитка)</text>
+    <text x="206" y="380">И: сцена — место кота (M05/M06)</text>
+    <text x="206" y="888">Н: навигация</text>
   </g>
 </svg>
