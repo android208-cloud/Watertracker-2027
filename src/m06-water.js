@@ -21,16 +21,13 @@
     var q = Math.max(0, Math.min(1, Number(p) || 0));
     return WT_Y1 - q * (WT_Y1 - WT_Y0);
   }
-  /* Фаза M06 (контракт C-026): кота нет — сосуд только чаша (372..700 холста),
-     ватерлиния честна по всей высоте чаши: 0 — дно, 1 — обод. С приездом M05
-     трафарет и формула возвращаются донорские (surface), вода окутает кота. */
-  var CUP_Y0 = 372, CUP_Y1 = 700;
-  function surfaceCup(p) {
-    var q = Math.max(0, Math.min(1, Number(p) || 0));
-    return CUP_Y1 - q * (CUP_Y1 - CUP_Y0);
-  }
+  /* Слово владельца 05.11 (правка C-026): кота нет и сосуд не чаша — круг с
+     жидкостью, отступ до краёв экрана равен А–Б. Ватерлиния честна по всей
+     высоте круга: 0 — дно, 1 — верх; слой жидкости сдвигается translateY.
+     Донорские surface/трафарет тела остаются в модуле про запас (M05). */
   function liftPct(p) {
-    return Math.round(surfaceCup(p) / WT_BOX_H * 10000) / 100;
+    var q = Math.max(0, Math.min(1, Number(p) || 0));
+    return Math.round((1 - q) * 10000) / 100;
   }
   function liftPctDonor(p) {
     return Math.round(surface(p) / WT_BOX_H * 10000) / 100;
@@ -74,10 +71,9 @@
   /* Однотонная вода: коробка с маской силуэта, внутри слой лифта. */
   function waterHtml(o) {
     var p = Math.max(0, Math.min(1, Number(o.frac) || 0));
-    if (p <= 0.001) return '<div class="cat-water" hidden></div>';
     var y0 = o.liftPct != null ? Number(o.liftPct) : liftPct(p);
-    var mask = maskUri(o.clipD || CUP_INNER);
-    return '<div class="cat-water"><div class="cat-water-box" style="mask-image:url(&quot;' + mask + '&quot;);-webkit-mask-image:url(&quot;' + mask + '&quot;)">' +
+    var mask = orbMaskUri();
+    return '<div class="cat-water wt-orb-water' + (p <= 0.001 ? '" hidden' : '"') + '><div class="cat-water-box" style="mask-image:url(&quot;' + mask + '&quot;);-webkit-mask-image:url(&quot;' + mask + '&quot;)">' +
       '<div class="cat-waterlift" style="transform:translateY(' + y0 + '%)">' +
       '<div class="cat-flat" style="background:' + (o.color || "#2ddaf9") + '"></div>' +
       "</div></div></div>";
@@ -86,17 +82,15 @@
   /* Векторный стакан: задняя стенка с ручкой (под водой) и передняя с бликами
      (поверх). Холст 944x766, как у силуета воды; стекло — полупрозрачные
      заливки и обводки, без растра. */
-  var CUP_INNER = "M212 372 C212 560 320 700 472 700 C624 700 732 560 732 372 Z";
-  var CUP_BACK = '<svg class="cat-cup cat-cup-back" viewBox="0 0 944 766" aria-hidden="true">' +
-    '<path d="M188 372 C150 372 120 402 120 440 C120 478 150 508 188 508 L212 508 L212 478 L192 478 C168 478 150 462 150 440 C150 418 168 402 192 402 L212 402 L212 372 Z" fill="rgba(150,190,210,0.30)" stroke="rgba(190,225,240,0.55)" stroke-width="10"/>' +
-    '<path d="' + CUP_INNER + '" fill="rgba(140,180,205,0.22)" stroke="rgba(190,225,240,0.50)" stroke-width="12"/>' +
-    '<path d="M392 700 L392 722 C392 738 428 748 472 748 C516 748 552 738 552 722 L552 700 Z" fill="rgba(140,180,205,0.30)" stroke="rgba(190,225,240,0.50)" stroke-width="10"/>' +
+  /* Круг-сосуд: маска — круг в холсте 1000x1000, кольцо — векторная обводка. */
+  var ORB_MASK_D = "<circle cx='500' cy='500' r='496' fill='#000'/>";
+  var ORB_RING = '<svg class="cat-cup cat-orb-ring" viewBox="0 0 1000 1000" aria-hidden="true">' +
+    '<circle cx="500" cy="500" r="492" fill="none" stroke="rgba(190,225,240,0.55)" stroke-width="14"/>' +
+    '<path d="M212 320 C180 420 180 560 224 668" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="18" stroke-linecap="round"/>' +
     "</svg>";
-  var CUP_FRONT = '<svg class="cat-cup cat-cup-front" viewBox="0 0 944 766" aria-hidden="true">' +
-    '<ellipse cx="472" cy="372" rx="262" ry="42" fill="rgba(200,232,246,0.20)" stroke="rgba(205,235,248,0.75)" stroke-width="12"/>' +
-    '<path d="M262 420 C282 560 360 636 452 646" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="16" stroke-linecap="round"/>' +
-    '<path d="M668 430 C660 520 620 588 560 620" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="12" stroke-linecap="round"/>' +
-    "</svg>";
+  function orbMaskUri() {
+    return uri("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'>" + ORB_MASK_D + "</svg>");
+  }
 
   /* Водитель лифта: видимый процент скользит к цели синусом ин-аут (донор). */
   var vis = null, tw = null, raf = null;
@@ -127,15 +121,13 @@
 
   W.WT2W = {
     surface: surface,
-    surfaceCup: surfaceCup,
     liftPctDonor: liftPctDonor,
-    CUP_INNER: CUP_INNER,
     liftPct: liftPct,
     maskUri: maskUri,
     liquidColor: liquidColor,
     waterHtml: waterHtml,
-    cupBack: CUP_BACK,
-    cupFront: CUP_FRONT,
+    orbRing: ORB_RING,
+    orbMaskUri: orbMaskUri,
     syncTarget: syncTarget,
     visible: visible,
     LIFT_MS: LIFT_MS

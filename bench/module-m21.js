@@ -159,7 +159,7 @@ const histNums = () => {
   /* --- поток «выпил» --- */
   await p.click('[data-tab="home"]');
   const before = await p.evaluate(() => window.__waterApp.state.entries.length);
-  await p.click('.cat-btn');
+  await p.click('.wt-orb');
   await p.waitForFunction(n => window.__waterApp.state.entries.length === n, before + 1);
   const drank = await p.evaluate(() => {
     const st = window.__waterApp.state;

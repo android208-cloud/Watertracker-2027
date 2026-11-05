@@ -384,11 +384,9 @@
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
       '</div>' +
       '<div class="home-body">' +
-      '<div class="cat-stage"><button type="button" class="cat-btn" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
-      /* M06: вода в векторном стакане на линии И; кот приедет в M05. */
-      '<span class="cat-art">' + Wd().cupBack +
+      '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
       Wd().waterHtml({ frac: level, color: Wd().liquidColor(state), liftPct: Wd().visible() }) +
-      Wd().cupFront + "</span></button></div>" +
+      Wd().orbRing + "</button></div>" +
       '<div class="home-dock">' +
       hint +
       '<button type="button" class="round" style="--c:0;--r:0" data-act="undo" aria-label="Отменить последнюю запись">' + uiIcon("undo") + "</button>" +

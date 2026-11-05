@@ -11,3 +11,38 @@
 .cat-art .cat-cup-back { z-index: 2; }
 .cat-art .cat-water { position: absolute; inset: 0; z-index: 3; }
 .cat-art .cat-cup-front { z-index: 5; }
+
+/* Слово владельца 05.11: сосуд — круг с жидкостью; отступ до краёв экрана
+   равен А–Б (--f с каждой стороны); центр круга — на линии И (центр сцены). */
+.cat-stage .wt-orb {
+  position: absolute;
+  left: var(--f);
+  right: var(--f);
+  top: 50%;
+  transform: translateY(-50%);
+  aspect-ratio: 1 / 1;
+  max-height: 96%;
+  margin: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.cat-stage .wt-orb .cat-water,
+.cat-stage .wt-orb .cat-cup {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cat-stage .wt-orb .cat-water { z-index: 3; }
+.cat-stage .wt-orb .cat-orb-ring { z-index: 5; }
+
+/* Коробка воды в круге — квадрат (маска-круг не тянется в эллипс). */
+.cat-stage .wt-orb .cat-water-box {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}

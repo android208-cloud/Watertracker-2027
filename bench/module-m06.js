@@ -39,7 +39,7 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
     const vol = window.WT2S.dayStats(st, window.WT2N.waterToday(st)).volume;
     const frac = vol / goal;
     const tr = getComputedStyle(document.querySelector('.cat-waterlift')).transform;
-    return { frac, want: window.WT2W.liftPct(frac), tr, surface: window.WT2W.surfaceCup(frac) };
+    return { frac, want: window.WT2W.liftPct(frac), tr };
   });
   const trPct = (() => { const m = /matrix\(1, 0, 0, 1, 0, (-?[\d.]+)\)/.exec(lvl.tr); if (!m) return null;
     /* translateY в % даёт matrix в px от высоты бокса; считаем через offsetHeight */ return null; })();
@@ -53,18 +53,31 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
     const mtx = new DOMMatrixReadOnly(getComputedStyle(lift).transform);
     return { wantPx: +wantPx.toFixed(1), gotPx: +mtx.m42.toFixed(1), boxH: +box.height.toFixed(1) };
   });
-  ok('уровень: ватерлиния чаши = surfaceCup(доля дня), лифт в px совпадает', Math.abs(lvl2.wantPx - lvl2.gotPx) <= 1, { ...lvl2, frac: +lvl.frac.toFixed(4) });
+  ok('уровень: ватерлиния круга = доля дня, лифт в px совпадает', Math.abs(lvl2.wantPx - lvl2.gotPx) <= 1, { ...lvl2, frac: +lvl.frac.toFixed(4) });
 
   /* 2. ватерлиния внутри чаши на всём диапазоне долей */
   const range = await p.evaluate(() => {
     const out = [];
     [0, 0.25, 0.5, 0.75, 1].forEach(q => {
-      const y = window.WT2W.surfaceCup(q);
-      out.push(y >= 372 && y <= 700);
+      const y = window.WT2W.liftPct(q);
+      out.push(y >= 0 && y <= 100);
     });
     return out.every(Boolean);
   });
-  ok('уровень: ватерлиния живёт в чаше 372–700 на всех долях', range);
+  ok('уровень: ватерлиния круга живёт в 0–100% на всех долях', range);
+
+  /* 2б. круг: отступ до краёв экрана равен А–Б, центр на линии И */
+  const orb = await p.evaluate(() => {
+    const o = document.querySelector('.wt-orb').getBoundingClientRect();
+    const st = document.querySelector('.cat-stage').getBoundingClientRect();
+    const u = document.querySelector('[data-act="undo"]').getBoundingClientRect();
+    const d = document.querySelector('.drink-now').getBoundingClientRect();
+    const f = ((d.left + d.width / 2) - (u.left + u.width / 2)) / 5;
+    return { left: +o.left.toFixed(1), right: +(window.innerWidth - o.right).toFixed(1), f: +f.toFixed(1),
+      cy: +(o.top + o.height / 2).toFixed(1), sceneCy: +(st.top + st.height / 2).toFixed(1), sq: +o.width.toFixed(1) === +o.height.toFixed(1) };
+  });
+  ok('круг: отступ до краёв = А–Б (--f), центр на линии И, форма круг',
+    Math.abs(orb.left - orb.f) <= 1 && Math.abs(orb.right - orb.f) <= 1 && Math.abs(orb.cy - orb.sceneCy) <= 2 && orb.sq, orb);
 
   /* 3. однотон: одна краска = взвешенная смесь цветов дня */
   const col = await p.evaluate(() => {
@@ -89,7 +102,7 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
 
   /* 6. лифт: после порции вода скользит синусом, без телепорта */
   const before = await p.evaluate(() => window.WT2W.visible());
-  await p.click('.cat-btn');
+  await p.click('.wt-orb');
   await p.waitForTimeout(700);
   const mid1 = await p.evaluate(() => window.WT2W.visible());
   await p.waitForTimeout(1000);
@@ -113,12 +126,12 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
   p2.on('pageerror', e => errs.push(e.message));
   await p2.addInitScript(`localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([], 1950)}));`);
   await p2.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p2.waitForFunction(() => window.__waterApp && document.querySelector('.cat-cup-back'));
+  await p2.waitForFunction(() => window.__waterApp && document.querySelector('.cat-orb-ring'));
   const zero = await p2.evaluate(() => ({
     hidden: !!document.querySelector('.cat-water[hidden]'),
-    cup: !!document.querySelector('.cat-cup-back') && !!document.querySelector('.cat-cup-front')
+    ring: !!document.querySelector('.cat-orb-ring')
   }));
-  ok('ноль дня: вода скрыта, векторный стакан стоит', zero.hidden && zero.cup, zero);
+  ok('ноль дня: вода скрыта, кольцо круга стоит', zero.hidden && zero.ring, zero);
   await p2.close();
 
   /* 8. светлая тема: стакан читается на голубом */
