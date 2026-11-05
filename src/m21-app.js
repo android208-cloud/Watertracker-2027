@@ -67,6 +67,7 @@
   function O() { return W.WT2O; }
   function U() { return W.WT2U; }
   function Wd() { return W.WT2W; }
+  function Bc() { return W.WT2B; }
   function K() { return W.UiKit; }
   function esc(s) { return U().esc(s); }
   function uiIcon(n) { return U().uiIcon(n); }
@@ -347,6 +348,7 @@
     var st = S().dayStats(state, today);
     var goal = st.goal, drunk = st.volume;
     var level = goal > 0 ? drunk / goal : 0;
+    var rampB = W.WT2B ? W.WT2B.ramp(state, today) : { flat: true, top: null, colors: null };
     var fill = Math.max(0, Math.min(1, level)) * 100;
     var mr = L().catMood(state, today, N().wallMsNow());
     if (mr.soft && state._softDay !== today) {
@@ -385,7 +387,10 @@
       '</div>' +
       '<div class="home-body">' +
       '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
-      Wd().waterHtml({ frac: level, color: Wd().liquidColor(state), liftPct: Wd().visible() }) +
+      Wd().waterHtml({ frac: level, color: Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top),
+        rampColors: rampB.flat ? null : (Bc().visibleRamp() || rampB.colors),
+        spanPct: Bc().beltSpanPct(Wd().visible() == null ? Wd().liftPct(level) : Wd().visible()),
+        liftPct: Wd().visible() }) +
       Wd().orbRing + "</button></div>" +
       '<div class="home-dock">' +
       hint +
@@ -600,7 +605,14 @@
     /* M06: цель лифта — текущий уровень; водитель скользит синусом (C-026). */
     if (W.WT2W && document.querySelector(".cat-stage")) {
       var stH = S().dayStats(state, N().waterToday(state));
-      W.WT2W.syncTarget(stH.goal > 0 ? stH.volume / stH.goal : 0);
+      var fr = stH.goal > 0 ? stH.volume / stH.goal : 0;
+      W.WT2W.syncTarget(fr);
+      /* M08: водители цвета и рампы, плавно (донор smooth && !animation). */
+      if (W.WT2B) {
+        var rB = W.WT2B.ramp(state, N().waterToday(state));
+        W.WT2B.syncColorTarget(rB.flat ? W.WT2W.liquidColor(state) : rB.top, !state.animation);
+        W.WT2B.syncBeltTarget(rB.flat ? null : rB.colors, !state.animation);
+      }
     }
     U().fitPhone();
     U().bindPhone();
