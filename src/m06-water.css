@@ -46,3 +46,22 @@
   max-height: none;
   margin: 0;
 }
+
+/* M07 wave: дрейф гребней и поясные слои в круге (композитор, ноль перекрасок). */
+.cat-stage .wt-orb .cat-wave {
+  position: absolute;
+  left: 0;
+  width: 320%;
+  height: 102.4%;
+  pointer-events: none;
+  will-change: transform;
+}
+.cat-stage .wt-orb .cat-wave-in { width: 100%; height: 100%; display: block; }
+.cat-stage .wt-orb .cat-beltstack {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  overflow: hidden;
+}
+.cat-stage .wt-orb .cat-beltband { position: absolute; left: 0; width: 100%; }

@@ -388,7 +388,10 @@
       '<div class="home-body">' +
       '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
       Wd().waterHtml({ frac: level, color: Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top),
-        rampColors: rampB.flat ? null : (Bc().visibleRamp() || rampB.colors),
+        belts: rampB.flat ? null : (rampB.belts.map(function (bl, i) {
+          var vc = Bc().visibleBelts();
+          return { c: (vc && vc[i]) || bl.c, from: bl.from, to: bl.to };
+        })),
         spanPct: Bc().beltSpanPct(Wd().visible() == null ? Wd().liftPct(level) : Wd().visible()),
         liftPct: Wd().visible() }) +
       Wd().orbRing + "</button></div>" +
@@ -611,7 +614,7 @@
       if (W.WT2B) {
         var rB = W.WT2B.ramp(state, N().waterToday(state));
         W.WT2B.syncColorTarget(rB.flat ? W.WT2W.liquidColor(state) : rB.top, !state.animation);
-        W.WT2B.syncBeltTarget(rB.flat ? null : rB.colors, !state.animation);
+        W.WT2B.syncBeltTarget(rB.flat ? null : rB.colors, !state.animation, rB.flat ? null : rB.belts.map(function (x) { return x.c; }));
       }
     }
     U().fitPhone();

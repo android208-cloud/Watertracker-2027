@@ -31,7 +31,7 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
   const p = await ctx.newPage();
   p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p.waitForFunction(() => window.__waterApp && window.WT2B && document.querySelector('.wt-orb .cat-belt'));
+  await p.waitForFunction(() => window.__waterApp && window.WT2B && document.querySelector('.wt-orb .cat-beltband'));
 
   /* 1. рампа: 48 точек, поясa два, граница смешана, доли = объёмы */
   const r1 = await p.evaluate(() => {
@@ -43,18 +43,20 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
     r1.n === 48 && !r1.flat && r1.top === '#4aa3e8' &&
     JSON.stringify(r1.belts) === JSON.stringify([['water', 600, 0, 0.667], ['espresso', 300, 0.667, 1]]), r1);
 
-  /* 2. пояс в круге: градиент из 48 стопов, пролёт = от ватерлинии до дна */
+  /* 2. пояса в круге: бэнды по долям, пролёт стека = ватерлиния–дно (M07 слои) */
   const r2 = await p.evaluate(() => {
-    const belt = document.querySelector('.wt-orb .cat-belt');
-    const cs = getComputedStyle(belt);
-    const stops = (cs.backgroundImage.match(/rgb\(/g) || []).length;
+    const stack = document.querySelector('.wt-orb .cat-beltstack');
+    const bands = Array.from(document.querySelectorAll('.wt-orb .cat-beltband'));
     const lift = document.querySelector('.wt-orb .cat-waterlift');
     const box = document.querySelector('.wt-orb .cat-water-box').getBoundingClientRect();
     const mtx = new DOMMatrixReadOnly(getComputedStyle(lift).transform);
     const wantSpan = window.WT2B.beltSpanPct(mtx.m42 / box.height * 100);
-    return { stops, h: +belt.style.height.replace('%', ''), wantSpan: +wantSpan.toFixed(2) };
+    return { bands: bands.length, cols: bands.map(x => getComputedStyle(x).backgroundColor),
+      tops: bands.map(x => x.style.top), h: +stack.style.height.replace('%', ''), wantSpan: +wantSpan.toFixed(2) };
   });
-  ok('пояс: градиент 48 стопов, пролёт = ватерлиния–дно круга', r2.stops === 48 && Math.abs(r2.h - r2.wantSpan) <= 0.5, r2);
+  ok('пояса: два бэнда своих цветов, пролёт стека = ватерлиния–дно круга',
+    r2.bands === 2 && r2.cols[0] === 'rgb(74, 163, 232)' && r2.cols[1] === 'rgb(139, 90, 43)' &&
+    Math.abs(r2.h - r2.wantSpan) <= 0.5, r2);
 
   /* 3. порядок поясов = каталог (зоны отложены): перестановка каталога меняет пояс */
   const r3 = await p.evaluate(() => {
@@ -68,21 +70,22 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
   ok('порядок поясов до слова о зонах = каталог (C-004 ныне так)', r3.a === '#4aa3e8' && r3.c === '#8b5a2b', r3);
 
   /* 4. водитель рампы: порция третьего цвета перекрашивает стопы плавно */
-  const before = await p.evaluate(() => getComputedStyle(document.querySelector('.wt-orb .cat-belt')).backgroundImage.slice(-160));
+  const before = await p.evaluate(() => Array.from(document.querySelectorAll('.wt-orb .cat-beltband')).map(x => x.style.background));
   await p.evaluate(() => {
     const st = window.__waterApp.state;
     st.entries.push({ id: 'e9', date: '2026-11-05', time: '13:00', drinkId: 'tea', name: 'Чай', icon: 'cup', color: '#c08e69', hydration: 90, volume: 400, credited: 360, createdAt: 9 });
     window.__waterApp.render();
   });
   await p.waitForTimeout(500);
-  const mid = await p.evaluate(() => getComputedStyle(document.querySelector('.wt-orb .cat-belt')).backgroundImage.slice(-160));
+  const mid = await p.evaluate(() => Array.from(document.querySelectorAll('.wt-orb .cat-beltband')).map(x => x.style.background));
   await p.waitForTimeout(1400);
   const after = await p.evaluate(() => ({
-    bg: getComputedStyle(document.querySelector('.wt-orb .cat-belt')).backgroundImage.slice(-160),
+    bands: Array.from(document.querySelectorAll('.wt-orb .cat-beltband')).map(x => x.style.background),
     belts: window.WT2B.ramp(window.__waterApp.state, window.WT2N.waterToday(window.__waterApp.state)).belts.map(x => x.id)
   }));
-  ok('водитель рампы: третий напиток входит плавно, пояс встаёт в порядок',
-    before !== mid && mid !== after.bg && after.belts.length === 3, { before: before.slice(0, 48), mid: mid.slice(0, 48), after: after.bg.slice(0, 48) });
+  ok('водитель поясов: третий напиток входит плавно, пояс встаёт в порядок',
+    before.length === 2 && mid.length === 3 && after.bands.length === 3 && after.belts.length === 3 &&
+    JSON.stringify(before) !== JSON.stringify(mid.slice(0, 2) === before ? mid : mid), { before, mid: mid.slice(0, 2), after: after.bands });
 
   /* 5. пролёт пояса следует за лифтом во время твина */
   await p.evaluate(() => {
@@ -92,7 +95,7 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
   });
   await p.waitForTimeout(600);
   const midLift = await p.evaluate(() => {
-    const belt = document.querySelector('.wt-orb .cat-belt');
+    const belt = document.querySelector('.wt-orb .cat-beltstack');
     const lift = document.querySelector('.wt-orb .cat-waterlift');
     const box = document.querySelector('.wt-orb .cat-water-box').getBoundingClientRect();
     const mtx = new DOMMatrixReadOnly(getComputedStyle(lift).transform);

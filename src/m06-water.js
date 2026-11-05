@@ -73,11 +73,10 @@
     var p = Math.max(0, Math.min(1, Number(o.frac) || 0));
     var y0 = o.liftPct != null ? Number(o.liftPct) : liftPct(p);
     var mask = orbMaskUri();
-    /* M08: непустая видимая рампа = поясной слой; плоская/пустая — однотон. */
-    var rc = o.rampColors;
-    var belted = rc && rc.length > 1 && rc.some(function (c) { return c !== rc[0]; });
-    var inner = belted
-      ? W.WT2B.beltDiv(rc, o.spanPct != null ? o.spanPct : (W.WT2B ? W.WT2B.beltSpanPct(y0) : 100 - y0))
+    /* M07/M08: внутренность слоя подъёма строит волновой модуль: однотон с
+       гребнями ватерлинии или пояса с волнистыми стыками (слово 05.11). */
+    var inner = W.WT2V
+      ? W.WT2V.waterInner({ belts: o.belts, color: o.color, spanPct: o.spanPct != null ? o.spanPct : 100 - y0 })
       : '<div class="cat-flat" style="background:' + (o.color || "#2ddaf9") + '"></div>';
     return '<div class="cat-water wt-orb-water' + (p <= 0.001 ? '" hidden' : '"') + '><div class="cat-water-box" style="mask-image:url(&quot;' + mask + '&quot;);-webkit-mask-image:url(&quot;' + mask + '&quot;)">' +
       '<div class="cat-waterlift" style="transform:translateY(' + y0 + '%)">' +
@@ -106,9 +105,9 @@
     for (var i = 0; i < lifts.length; i++) lifts[i].style.transform = "translateY(" + vis + "%)";
     /* M08: пролёт пояса следует за видимой ватерлинией (донор applyWaterVis). */
     if (W.WT2B && W.WT2B.beltSpanPct) {
-      var belts = document.querySelectorAll(".cat-art .cat-belt, .wt-orb .cat-belt");
+      var stacks = document.querySelectorAll(".cat-art .cat-beltstack, .wt-orb .cat-beltstack");
       var hPct = Math.round(W.WT2B.beltSpanPct(vis) * 100) / 100;
-      for (var bi = 0; bi < belts.length; bi++) belts[bi].style.height = hPct + "%";
+      for (var bi = 0; bi < stacks.length; bi++) stacks[bi].style.height = hPct + "%";
     }
   }
   function step() {

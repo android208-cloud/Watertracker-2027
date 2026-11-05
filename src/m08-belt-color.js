@@ -102,12 +102,16 @@
   /* --- водители цвета и рампы (донор app.js, COL_MS 1500, rAF) --- */
   var colVis = null, colTw = null, colRaf = null;
   var beltVis = null, beltTw = null, beltRaf = null;
+  var beltColsVis = null, beltColsTw = null;
   function nowMs() { return window.performance && performance.now ? performance.now() : Date.now(); }
   function applyColorVis() {
     if (!colVis) return;
     var css = "rgb(" + colVis.map(Math.round).join(",") + ")";
     var flats = document.querySelectorAll(".cat-art .cat-flat, .wt-orb .cat-flat");
     for (var i = 0; i < flats.length; i++) flats[i].style.background = css;
+    /* M07: гребни ватерлинии без поясного индекса красит водитель цвета. */
+    var crs = document.querySelectorAll(".wt-orb path[data-wl]:not([data-bi]), .cat-art path[data-wl]:not([data-bi])");
+    for (var k = 0; k < crs.length; k++) crs[k].setAttribute("fill", css);
   }
   function stepColorVis() {
     colRaf = requestAnimationFrame(function () {
@@ -133,6 +137,20 @@
     var css = beltGradCss(beltVis.map(function (c) { return "rgb(" + c.map(Math.round).join(",") + ")"; }));
     var belts = document.querySelectorAll(".cat-art .cat-belt, .wt-orb .cat-belt");
     for (var i = 0; i < belts.length; i++) belts[i].style.background = css;
+    /* M07: поясные бэнды и гребни стыков красятся по своим индексам. */
+    if (beltColsVis) {
+      var hexes = beltColsVis.map(function (c) { return "rgb(" + c.map(Math.round).join(",") + ")"; });
+      var bands = document.querySelectorAll(".wt-orb .cat-beltband, .cat-art .cat-beltband");
+      for (var b = 0; b < bands.length; b++) {
+        var bi = Number(bands[b].getAttribute("data-bi"));
+        if (hexes[bi]) bands[b].style.background = hexes[bi];
+      }
+      var crs = document.querySelectorAll(".wt-orb path[data-bi], .cat-art path[data-bi]");
+      for (var k = 0; k < crs.length; k++) {
+        var ci = Number(crs[k].getAttribute("data-bi"));
+        if (hexes[ci]) crs[k].setAttribute("fill", hexes[ci]);
+      }
+    }
   }
   function stepBeltVis() {
     beltRaf = requestAnimationFrame(function () {
@@ -141,15 +159,25 @@
       beltVis = pr >= 1 ? beltTw.to : beltTw.from.map(function (c, i) {
         return c.map(function (v, k) { return v + (beltTw.to[i][k] - v) * pr; });
       });
+      if (beltColsTw) {
+        beltColsVis = pr >= 1 ? beltColsTw.to : beltColsTw.from.map(function (c, i) {
+          return c.map(function (v, k) { return v + (beltColsTw.to[i][k] - v) * pr; });
+        });
+      }
       applyBeltVis();
       if (pr >= 1) { beltTw = null; beltRaf = null; return; }
       stepBeltVis();
     });
   }
-  function syncBeltTarget(colors, smooth) {
-    if (!colors || !colors.length) { beltVis = null; beltTw = null; return; }
+  function syncBeltTarget(colors, smooth, beltCols) {
+    if (!colors || !colors.length) { beltVis = null; beltTw = null; beltColsVis = null; beltColsTw = null; return; }
     var target = colors.map(rgb);
     if (target.some(function (x) { return !x; })) return;
+    if (beltCols) {
+      var tc = beltCols.map(rgb);
+      if (!beltColsVis || beltColsVis.length !== tc.length) beltColsVis = tc;
+      else beltColsTw = { from: beltColsVis.map(function (c) { return c.slice(); }), to: tc, t0: nowMs() };
+    }
     if (!beltVis || beltVis.length !== target.length) { beltVis = target; applyBeltVis(); return; }
     if (!smooth) { beltVis = target; beltTw = null; applyBeltVis(); return; }
     beltTw = { from: beltVis.map(function (c) { return c.slice(); }), to: target, t0: nowMs() };
@@ -157,6 +185,7 @@
   }
   function visibleColor() { return colVis ? "rgb(" + colVis.map(Math.round).join(",") + ")" : null; }
   function visibleRamp() { return beltVis ? beltVis.map(function (c) { return "rgb(" + c.map(Math.round).join(",") + ")"; }) : null; }
+  function visibleBelts() { return beltColsVis ? beltColsVis.map(function (c) { return "rgb(" + c.map(Math.round).join(",") + ")"; }) : null; }
 
   W.WT2B = {
     BELT_N: BELT_N,
@@ -172,6 +201,7 @@
     syncBeltTarget: syncBeltTarget,
     visibleColor: visibleColor,
     visibleRamp: visibleRamp,
+    visibleBelts: visibleBelts,
     mix: mix
   };
 })(window);
