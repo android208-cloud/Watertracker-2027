@@ -66,6 +66,7 @@
   function Y() { return W.WT2Y; }
   function O() { return W.WT2O; }
   function U() { return W.WT2U; }
+  function Wd() { return W.WT2W; }
   function K() { return W.UiKit; }
   function esc(s) { return U().esc(s); }
   function uiIcon(n) { return U().uiIcon(n); }
@@ -383,7 +384,11 @@
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
       '</div>' +
       '<div class="home-body">' +
-      '<div class="cat-stage"><button type="button" class="cat-btn" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл"></button></div>' +
+      '<div class="cat-stage"><button type="button" class="cat-btn" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
+      /* M06: вода в векторном стакане на линии И; кот приедет в M05. */
+      '<span class="cat-art">' + Wd().cupBack +
+      Wd().waterHtml({ frac: level, color: Wd().liquidColor(state), liftPct: Wd().visible() }) +
+      Wd().cupFront + "</span></button></div>" +
       '<div class="home-dock">' +
       hint +
       '<button type="button" class="round" style="--c:0;--r:0" data-act="undo" aria-label="Отменить последнюю запись">' + uiIcon("undo") + "</button>" +
@@ -594,6 +599,11 @@
     afterRender();
   }
   function afterRender() {
+    /* M06: цель лифта — текущий уровень; водитель скользит синусом (C-026). */
+    if (W.WT2W && document.querySelector(".cat-stage")) {
+      var stH = S().dayStats(state, N().waterToday(state));
+      W.WT2W.syncTarget(stH.goal > 0 ? stH.volume / stH.goal : 0);
+    }
     U().fitPhone();
     U().bindPhone();
     initSwipes();
