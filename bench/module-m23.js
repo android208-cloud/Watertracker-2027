@@ -86,6 +86,20 @@ const E = (id, h, m, vol) => ({ id, date: TODAY, time: h + ':' + m, drinkId: 'wa
   });
   ok('колбэк моста: пак применён, save и render позваны, тост результата', cb.ok && cb.e === 2 && cb.saved === 1 && cb.rendered === 1 && /добавлено/.test(cb.toasted), cb);
 
+  /* 7. пак с настройками: файловая дорога везёт и их (слово 02.11) */
+  const setSync = await p.evaluate(() => {
+    const pack = JSON.parse(window.WT2F.packText(window.__waterApp.state));
+    pack.settings = { theme: 'light', cupLabel: 'left', rowCustom: false, habitAuto: 1, paceGoals: {}, notifications: { enabled: true, everyMin: 90 } };
+    const fresh = JSON.parse(JSON.stringify(window.__waterApp.state));
+    fresh.theme = 'dark';
+    fresh.entries = [];
+    let toasted = '';
+    const res = window.WT2F.fileResult(fresh, JSON.stringify(pack), null, { toast: t => { toasted = t; } });
+    return { ok: res.ok, set: res.settingsApplied, theme: fresh.theme, every: fresh.notifications.everyMin, toasted };
+  });
+  ok('файл везёт настройки вместе со статистикой (слово 02.11)',
+    setSync.ok && setSync.set === true && setSync.theme === 'light' && setSync.every === 90 && /настройки применены/.test(setSync.toasted), setSync);
+
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
   await b.close();
   console.log('BENCH M23: ' + (fail ? 'FAILS=' + fail : 'ALL GREEN') + ' (' + pass + '/' + (pass + fail) + ')');

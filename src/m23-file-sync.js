@@ -51,9 +51,17 @@
       if (hooks.toast) hooks.toast("Файл не похож на пак watercat-24");
       return { ok: false };
     }
+    /* Слово владельца 02.11: настройки синхронизируются вместе со статистикой —
+       файловая дорога везёт тот же пак, значит и настройки. */
+    var settingsApplied = false;
+    if (pack.settings && W.WT2Y.applySettings) {
+      settingsApplied = W.WT2Y.applySettings(state, pack.settings, {});
+    }
     if (hooks.save) hooks.save();
-    if (hooks.toast) hooks.toast("Из файла: добавлено " + res.added + ", пропущено " + res.dropped);
+    if (hooks.toast) hooks.toast("Из файла: добавлено " + res.added + ", пропущено " + res.dropped +
+      (settingsApplied ? ", настройки применены" : ""));
     if (hooks.render) hooks.render();
+    res.settingsApplied = !!settingsApplied;
     return res;
   }
   W.WT2F = {
