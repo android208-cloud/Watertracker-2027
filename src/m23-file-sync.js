@@ -51,17 +51,16 @@
       if (hooks.toast) hooks.toast("Файл не похож на пак watercat-24");
       return { ok: false };
     }
-    /* Слово владельца 02.11: настройки синхронизируются вместе со статистикой —
-       файловая дорога везёт тот же пак, значит и настройки. */
-    var settingsApplied = false;
-    if (pack.settings && W.WT2Y.applySettings) {
-      settingsApplied = W.WT2Y.applySettings(state, pack.settings, {});
-    }
+    /* Настройки пака — только явным выбором владельца в диалоге после
+       восстановления (осторожность владельца 05.11): записи едут сразу,
+       настройки ждут кнопки. */
+    var hasSettings = !!(pack.settings && W.WT2Y.applySettings);
+    if (hasSettings && hooks.askSettings) hooks.askSettings(pack.settings);
     if (hooks.save) hooks.save();
     if (hooks.toast) hooks.toast("Из файла: добавлено " + res.added + ", пропущено " + res.dropped +
-      (settingsApplied ? ", настройки применены" : ""));
+      (hasSettings ? "; настройки — выбором в диалоге" : ""));
     if (hooks.render) hooks.render();
-    res.settingsApplied = !!settingsApplied;
+    res.hasSettings = hasSettings;
     return res;
   }
   W.WT2F = {
@@ -72,8 +71,16 @@
     request: request,
     fileResult: fileResult
   };
-  /* мост зовёт нас по имени */
+  /* мост зовёт нас по имени; крупные паки приходят кусками */
+  var chunkBuf = [];
+  W.wtFileChunk = function (seq, part) { chunkBuf[seq] = part; };
+  W.wtFileDone = function () {
+    var text = chunkBuf.join("");
+    chunkBuf = [];
+    if (W.__wtFileHook) W.__wtFileHook(text, null);
+  };
   W.wtFileResult = function (text, err) {
+    chunkBuf = [];
     if (W.__wtFileHook) W.__wtFileHook(text, err);
   };
 })(window);

@@ -665,9 +665,9 @@
     }
     if (ui.modal === "dialog" && ui.dialogSpec) {
       var d = ui.dialogSpec;
-      out += U().dialog({ ui: d.kind || "dialog", cls: "modal", scrimAct: "dialog-cancel",
-        title: esc(d.title || ""), body: "<p>" + esc(d.text || "") + "</p>",
-        actions: [{ act: "dialog-cancel", label: "Отмена" }, { act: d.okAct || "dialog-ok", label: d.ok || "Готово" }] });
+      out += U().dialog({ ui: d.kind || "dialog", cls: "modal", scrimAct: d.scrimAct || "dialog-cancel",
+        title: esc(d.title || ""), body: d.body || "<p>" + esc(d.text || "") + "</p>",
+        actions: d.actions || [{ act: "dialog-cancel", label: "Отмена" }, { act: d.okAct || "dialog-ok", label: d.ok || "Готово" }] });
     }
     return out;
   }
@@ -706,7 +706,23 @@
         F().fileResult(state, text, err, {
           toast: toast,
           save: function () { C().save(state); },
-          render: render
+          render: render,
+          /* Осторожность владельца 05.11: настройки из файла — только явным
+             выбором в диалоге после восстановления записей. */
+          askSettings: function (st) {
+            ui.pendingSettings = st;
+            ui.modal = "dialog";
+            ui.dialogSpec = {
+              title: "Файл содержит настройки",
+              body: "<p>Записи восстановлены. Применить также настройки из файла: тему, цель, напоминания?</p>",
+              actions: [
+                { act: "file-skip-settings", label: "Только записи" },
+                { act: "file-apply-settings", label: "Применить и настройки" }
+              ],
+              scrimAct: "file-skip-settings"
+            };
+            render();
+          }
         });
       };
     }
@@ -929,6 +945,16 @@
         C().save(state); ui.sheet = null; ui.weightDraft = null; render(); toast("Вес записан");
       }
       return;
+    }
+    if (act === "file-apply-settings") {
+      W.WT2Y.applySettings(state, ui.pendingSettings || {}, {});
+      C().save(state);
+      ui.pendingSettings = null; ui.modal = null; ui.dialogSpec = null;
+      render(); toast("Настройки применены"); return;
+    }
+    if (act === "file-skip-settings") {
+      ui.pendingSettings = null; ui.modal = null; ui.dialogSpec = null;
+      render(); toast("Настройки не применялись"); return;
     }
     if (act === "file-save") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
