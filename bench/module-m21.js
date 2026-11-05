@@ -115,6 +115,32 @@ const histNums = () => {
     nextSeats.stats === false && nextSeats.chart === false && donorSeats.hint === nextSeats.hint,
     { donorSeats, nextSeats });
 
+  /* --- правило пилюли: значок в центре левой окружности (слово 05.11) --- */
+  await p.click('[data-tab="home"]');
+  await p.waitForSelector('.home-dock .pill');
+  const pillRule = await p.evaluate(() => {
+    const pill = document.querySelector('.home-dock .pill');
+    const ico = pill.querySelector('.ui-mask');
+    const pr = pill.getBoundingClientRect(), ir = ico.getBoundingClientRect();
+    const cs = getComputedStyle(ico);
+    return { circle: [Math.round(pr.x + pr.height / 2), Math.round(pr.y + pr.height / 2)],
+      ico: [Math.round(ir.x + ir.width / 2), Math.round(ir.y + ir.height / 2)],
+      face: [Math.round(ir.width), Math.round(ir.height)], pos: cs.position };
+  });
+  ok('правило пилюли: значок 28px абсолютно в центре левой окружности',
+    Math.abs(pillRule.circle[0] - pillRule.ico[0]) <= 1 && Math.abs(pillRule.circle[1] - pillRule.ico[1]) <= 1 &&
+    pillRule.face[0] === 28 && pillRule.pos === 'absolute', pillRule);
+  const pillLight = await p.evaluate(() => {
+    document.querySelector('[data-tab="settings"]').click();
+    document.querySelector('[data-act="pick-theme"][data-v="light"]').click();
+    document.querySelector('[data-tab="home"]').click();
+    const ico = document.querySelector('.home-dock .pill .ui-mask');
+    return getComputedStyle(ico).filter;
+  });
+  ok('правило пилюли: светлая тема отбеливает лицо на голубой пилюле (C-007)', pillLight.indexOf('brightness(0)') === 0, pillLight);
+  await p.click('[data-tab="settings"]');
+  await p.click('[data-act="pick-theme"][data-v="dark"]');
+
   /* --- поток «выпил» --- */
   await p.click('[data-tab="home"]');
   const before = await p.evaluate(() => window.__waterApp.state.entries.length);

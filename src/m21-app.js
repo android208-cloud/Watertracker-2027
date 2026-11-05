@@ -383,7 +383,10 @@
       '<button type="button" class="round" style="--c:0;--r:0" data-act="undo" aria-label="Отменить последнюю запись">' + uiIcon("undo") + "</button>" +
       '<button type="button" class="round drink-now" style="--c:5;--r:0;background:' + (drink ? drink.color : "#2ea0ea") + '" data-act="open-drinks" aria-label="Выбор напитка: ' + esc(drink ? drink.name : "") + '">' + (drink ? glyph(drink.icon) : "") + "</button>" +
       slots +
-      U().pillHtml({ slot: { c: 0, r: 2 }, act: "open-volume", icon: uiIcon("drop"), label: state.profile.volume + " мл" }) +
+      /* Правило пилюли (слово владельца 05.11): значок — в центре левой
+         окружности; слот лица дока dona принимает классы mini-cat/mini-cup,
+         ими же светлая тема отбеливает лицо на голубой пилюле (C-007). */
+      U().pillHtml({ slot: { c: 0, r: 2 }, act: "open-volume", icon: uiIcon("drop").replace('class="ui-mask"', 'class="ui-mask mini-cat"'), label: state.profile.volume + " мл" }) +
       "</div></div>";
   }
 
