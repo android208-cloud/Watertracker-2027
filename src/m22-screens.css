@@ -1,0 +1,121 @@
+/* M22 — канон второстепенных экранов (слово владельца 05.11, макеты
+   hist-layout v2 и weight-layout v1): линии О, Ж (ось шапки), И1/И/И2
+   (квант списка 48), М (центр FAB). Шапка семейной высоты садится осью на
+   Ж = --pitch/2: полоса над ней 17.6 = Ж - band/2 (запас под статус-бар).
+   З на второстепенных экранах не участвует. */
+/* Переменные шага живут у донора только на .screen.home-screen: второстепенным
+   экранам канона отдаём тот же модуль от --w (fitPhone ставит его на #app). */
+.hist-screen,
+.weight-screen {
+  --side: calc(var(--w) * 0.10);
+  --f: calc(var(--w) * 0.16);
+  --pitch: calc(var(--f) * 4 / 3);
+  --ico: calc(var(--f) * 0.78);
+  /* длина полосы шапки своим именем: донорский --band вне главной — ЦВЕТ
+     (fallback светлой темы), тенить его нельзя. */
+  --band-len: calc(var(--f) * 0.80);
+}
+.hist-screen > header.top,
+.weight-screen > header.top {
+  margin-top: calc(var(--pitch) / 2 - var(--band-len) / 2);
+}
+/* FAB центром на линии М: низ = экран - М - радиус; в опорном кадре
+   892 - 784.6 - 32 = 75.4 = nav-h 56 + 19.4. */
+#app > .fab {
+  bottom: calc(var(--nav-h) + var(--safe-b) + 19.4px);
+}
+/* Пилюля в шапке второстепенного экрана: стандартные габариты пилюли. */
+.top .head-pill {
+  height: 44px;
+  border-radius: 22px;
+  padding: 0 18px;
+  border: 0;
+  background: var(--row, #3a3d42);
+  color: var(--text, #e8eaed);
+  font: 600 14px system-ui, sans-serif;
+}
+/* Неделя капсулами: семь колонок во всю ширину, капсула 44xR22, пояса
+   обрезаются радиусом, наивысшая касается верха (динамический потолок). */
+.wt-caps {
+  display: flex;
+  align-items: flex-end;
+  position: relative;
+  height: 238px;
+  margin: 6px 0 0;
+}
+.wt-caps .wt-goal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgba(90, 173, 232, .55);
+}
+.wt-cap-col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  position: relative;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.wt-cap-col .wt-cap-val {
+  font: 700 10px system-ui, sans-serif;
+  color: #5aade8;
+  margin-bottom: 4px;
+  min-height: 12px;
+}
+.wt-cap-col .wt-cap {
+  width: 44px;
+  border-radius: 22px;
+  overflow: hidden;
+  position: relative;
+  flex: 0 0 auto;
+}
+.wt-cap-col .wt-cap i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: block;
+}
+.wt-cap-col .wt-cap-date {
+  font: 400 10px system-ui, sans-serif;
+  color: var(--muted, #9aa0a6);
+  margin-top: 6px;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+.wt-cap-col.on .wt-cap-date {
+  background: #2ea0ea;
+  color: #fff;
+  font-weight: 700;
+}
+/* График веса: линейный, семья графика M11 (оси, сетка, подписи). */
+.wt-wgraph {
+  position: relative;
+  height: 200px;
+  margin: 14px 12px 0;
+}
+.wt-wgraph svg { width: 100%; height: 100%; display: block; }
+.wt-wcur {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 2px;
+  font: 400 15px system-ui, sans-serif;
+  color: var(--text, #e8eaed);
+}
+.wt-wcur b { font-size: 17px; color: #5aade8; }
+
+/* Канон v2 сильнее донора: подшапка веса равна строке (И1-И = И-И2 = 48),
+   донорские 42px уходят (слово владельца 05.11). */
+.weight-screen .hist-head { height: 48px; }
+
+[data-theme="light"] .hist-screen > header.top .head-pill,
+[data-theme="light"] .weight-screen > header.top .head-pill {
+  background: var(--row, #ffffff);
+  color: var(--text, #1b1e21);
+}

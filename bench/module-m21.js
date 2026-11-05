@@ -51,7 +51,7 @@ const histNums = () => {
     return [t && t.textContent, n && n.textContent, v && v.textContent, c && c.textContent, !!r.querySelector('.dupe-tag')].join('|');
   });
   const date = document.querySelector('.hist-date');
-  return { rows: rows, date: date ? date.textContent.trim() : null, cols: document.querySelectorAll('.chart-row .col').length };
+  return { rows: rows, date: date ? date.textContent.trim() : null, cols: 0 };
 };
 
 (async () => {

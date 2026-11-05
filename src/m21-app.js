@@ -68,6 +68,7 @@
   function U() { return W.WT2U; }
   function Wd() { return W.WT2W; }
   function Bc() { return W.WT2B; }
+  function Q() { return W.WT2Q; }
   function F() { return W.WT2F; }
   function K() { return W.UiKit; }
   function esc(s) { return U().esc(s); }
@@ -337,9 +338,42 @@
     var bands = H().bandsHtml(bars);
     return H().rowHtml(bars, w, scale, selected, bands);
   }
+  /* Канон v2 (слово 05.11): неделя семью капсулами во всю ширину, капсула
+     44xR22, пояса обрезаются радиусом, наивысшая касается верха (потолок
+     динамический, слово 04.11). Донорская лента-скролл ушла: прототип не закон. */
   function chartPanel(selected) {
-    return '<div class="chart-panel"><div class="chart-scroll"><div class="chart-row">' +
-      buildChart(selected) + "</div></div></div>";
+    var dates = [];
+    for (var i = 6; i >= 0; i--) dates.push(L().addDays(selected, -i));
+    var bars = S().bars(state, selected);
+    var byDate = {};
+    bars.forEach(function (b) { byDate[b.date] = b; });
+    var goal = S().dayStats(state, selected).goal;
+    var mx = goal;
+    dates.forEach(function (d) { var b = byDate[d]; if (b && b.raw > mx) mx = b.raw; });
+    var PLOT = 200;
+    var goalPx = Math.round(goal / mx * PLOT);
+    var cols = dates.map(function (d) {
+      var b = byDate[d];
+      var raw = b ? b.raw : 0;
+      var px = raw > 0 ? Math.max(6, Math.round(raw / mx * PLOT)) : 0;
+      var segs = "";
+      if (px && b && b.segs.length) {
+        var sum = 0;
+        b.segs.forEach(function (sg) { sum += sg.raw; });
+        var top = 0;
+        b.segs.forEach(function (sg, si) {
+          var hh = Math.floor(sg.raw / sum * px);
+          if (hh <= 0) return;
+          segs += '<i style="top:' + top + "px;height:" + hh + "px;background:" + sg.color + '"></i>';
+          top += hh;
+        });
+      }
+      return '<button type="button" class="wt-cap-col' + (d === selected ? " on" : "") + '" data-act="hist-day" data-v="' + d + '" aria-label="' + d + '">' +
+        '<span class="wt-cap-val">' + (raw || "") + "</span>" +
+        (px ? '<span class="wt-cap" style="height:' + px + 'px">' + segs + "</span>" : '<span class="wt-cap" style="height:0"></span>') +
+        '<span class="wt-cap-date">' + d.slice(8, 10) + "." + d.slice(5, 7) + "</span></button>";
+    }).join("");
+    return '<div class="wt-caps"><span class="wt-goal" style="bottom:' + (goalPx + 28) + 'px"></span>' + cols + "</div>";
   }
 
   /* ---- экраны ---- */
@@ -436,7 +470,7 @@
     if (!rows) rows = '<div class="empty">Нет записей</div>';
     return "" +
       K().header({ ui: "history", cls: "top plain", title: "История и статистика",
-        right: U().roundBtn({ ui: "volumes-open", role: "head", side: "right", act: "open-volumes", aria: "Объёмы напитков", icon: uiIcon("chevron") }) }) +
+        right: '<button type="button" class="head-pill" data-act="open-volumes">Объёмы</button>' }) +
       chartPanel(selected) +
       '<div class="hist-head"><span class="hist-ico" aria-hidden="true">' + uiIcon("restore") + '</span><span>История</span><span class="grow"></span>' +
       '<button type="button" class="hist-date" data-act="open-cal-hist" aria-label="Открыть календарь и перейти к дню">' + fmtLong(selected) + "</button></div>" +
@@ -518,9 +552,35 @@
       "</div>";
   }
 
-  function pageWeightSoon() {
-    return K().header({ ui: "weight", cls: "top plain", title: "Вес" }) +
-      '<div class="empty">Экран веса приедет следующим рейсом</div>';
+  /* Экран веса (M22, макет weight-layout v1): скелет истории, та же сетка. */
+  function pageWeight() {
+    var today = N().wallToday();
+    var range = ui.weightRange || "month";
+    var anchor = ui.weightAnchor || today;
+    var tombs = J().tombMap(state, "w");
+    var ws = (state.weights || []).filter(function (w) {
+      return !J().tombBlocks(tombs, J().weightKey(w), J().entryTouch(w));
+    })
+      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0); });
+    var live = ws.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var cur = live.length ? live[live.length - 1].kg : state.weightKg;
+    var rows = ws.map(function (w) {
+      return K().swipeRow({ ui: "weight", sid: "w-" + w.id,
+        actions: [
+          { act: "edit-weight", id: w.id, aria: "Изменить", icon: uiIcon("pencilMask") },
+          { act: "del-weight", id: w.id, cls: "danger", aria: "Удалить", icon: uiIcon("trash") }
+        ],
+        front: '<div class="swipe-front entry"><span class="who"><span class="htime">' + w.date.slice(5, 7) + "." + w.date.slice(0, 4) +
+          '</span></span><span class="hvol">' + Q().fmtKg(w.kg) + " кг</span></div>" });
+    }).join("");
+    if (!rows) rows = '<div class="empty">Нет взвешиваний — добавьте первое плюсом</div>';
+    return K().header({ ui: "weight", cls: "top plain", title: "История веса",
+        right: '<button type="button" class="head-pill" data-act="weight-range">' + Q().rangeLabel(range) + "</button>" }) +
+      '<div class="wt-wcur"><span>Текущий вес</span><b>' + Q().fmtKg(cur) + " кг</b></div>" +
+      '<div class="wt-wgraph">' + Q().chartSvg(live, range, anchor) + "</div>" +
+      '<div class="hist-head"><span class="hist-ico" aria-hidden="true">' + uiIcon("restore") + "</span><span>История</span><span class='grow'></span>" +
+      '<span class="hist-date">' + anchor.slice(8, 10) + "." + anchor.slice(5, 7) + "." + anchor.slice(0, 4) + "</span></div>" +
+      '<div class="hist-list">' + rows + "</div>";
   }
 
   function onbScreen() {
@@ -531,6 +591,13 @@
   /* ---- оверлеи ---- */
   function overlayHtml() {
     var out = "";
+    /* M22: FAB центром на линии М: история — добавить запись, вес — взвешивание. */
+    if (!ui.sheet && !ui.modal && !ui.page && ui.tab === "history") {
+      out += U().roundBtn({ ui: "add", role: "fab", act: "open-add", aria: "Добавить запись", icon: uiIcon("plus") });
+    }
+    if (!ui.sheet && !ui.modal && !ui.page && ui.tab === "weight") {
+      out += U().roundBtn({ ui: "add-weight", role: "fab", act: "open-weight-add", aria: "Добавить взвешивание", icon: uiIcon("plus") });
+    }
     if (ui.sheet === "volume") {
       var items = (state.drinks || []).slice(0, 8).map(function (d) {
         return { id: d.id, on: d.id === ui.volumeDrinkId, color: d.color,
@@ -540,6 +607,28 @@
         body: K().drinkPickRow({ ui: "volsheet", items: items, act: "pick-volume-drink" }) +
           U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ui.volumeDraft, act: "vol-chip" }),
         tail: '<button type="button" class="check center" data-act="commit-volume" aria-label="Готово">' + uiIcon("check") + "</button>" });
+    } else if (ui.sheet === "add-entry") {
+      var ad = ui.addDraft || { drinkId: state.profile.drinkId, volume: state.profile.volume };
+      var aitems = (state.drinks || []).slice(0, 8).map(function (d) {
+        return { id: d.id, on: d.id === ad.drinkId, color: d.color, name: esc(d.name), bubble: bubble(d) };
+      });
+      out += U().sheet({ ui: "addentry", cls: "volume", title: "Добавить запись",
+        body: K().drinkPickRow({ ui: "addsheet", items: aitems, act: "add-drink" }) +
+          U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ad.volume, act: "add-vol-chip" }),
+        tail: '<button type="button" class="check center" data-act="add-entry-save" aria-label="Записать">' + uiIcon("check") + "</button>" });
+    } else if (ui.sheet === "weight-add" || ui.sheet === "weight-edit") {
+      var wd = ui.weightDraft || { kg: "", date: N().wallToday() };
+      out += U().sheet({ ui: "weightadd", title: ui.sheet === "weight-edit" ? "Изменить взвешивание" : "Новое взвешивание",
+        body: '<div class="field"><label>Вес, кг</label><input type="number" step="0.1" min="1" max="400" data-act="weight-kg" value="' + esc(String(wd.kg)) + '"></div>' +
+          '<div class="field"><label>Дата</label><input type="date" data-act="weight-date" value="' + esc(wd.date) + '"></div>',
+        tail: '<button type="button" class="check center" data-act="weight-save" aria-label="Сохранить">' + uiIcon("check") + "</button>" });
+    } else if (ui.sheet === "weight-range") {
+      var rr = ui.weightRange || "month";
+      out += U().sheet({ ui: "weightrange", title: "Период графика",
+        body: U().optionList({ ui: "wr", act: "weight-range-pick",
+          items: [["week", "Неделя"], ["month", "Месяц"], ["year", "Год"]].map(function (it) {
+            return { value: it[0], label: it[1], on: rr === it[0] };
+          }) }) });
     } else if (ui.sheet === "alert-period") {
       var n = N().ensureAlerts(state);
       var opts = PERIODS.map(function (m) {
@@ -602,7 +691,7 @@
     if (ui.page === "drinks") { main = pageDrinks(); screenClass = "screen drinks-screen"; }
     else if (ui.page === "volumes") { main = pageVolumes(); screenClass = "screen hist-screen volumes-screen"; }
     else if (ui.tab === "history") { main = pageHistory(); screenClass = "screen hist-screen"; }
-    else if (ui.tab === "weight") { main = pageWeightSoon(); screenClass = "screen weight-screen"; }
+    else if (ui.tab === "weight") { main = pageWeight(); screenClass = "screen weight-screen"; }
     else if (ui.tab === "settings") { main = pageSettings(); screenClass = "screen settings-screen"; }
     else if (ui.tab === "alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
     else { main = pageHome(); screenClass = "screen home-screen"; }
@@ -787,6 +876,60 @@
       return;
     }
     if (act === "cloud-save") { cloudUpload("manual"); return; }
+    if (act === "hist-day") { ui.historyDate = t.dataset.v; render(); return; }
+    if (act === "open-add") {
+      ui.addDraft = { drinkId: state.profile.drinkId, volume: state.profile.volume };
+      ui.sheet = "add-entry"; render(); return;
+    }
+    if (act === "add-drink") { ui.addDraft = ui.addDraft || {}; ui.addDraft.drinkId = t.dataset.v; render(); return; }
+    if (act === "add-vol-chip") { ui.addDraft = ui.addDraft || {}; ui.addDraft.volume = Number(t.dataset.v); render(); return; }
+    if (act === "add-entry-save") {
+      var ad = ui.addDraft || { drinkId: state.profile.drinkId, volume: state.profile.volume };
+      var dObj = (state.drinks || []).filter(function (d) { return d.id === ad.drinkId; })[0];
+      if (!dObj) return;
+      var now = new Date();
+      J().addEntry(state, { date: N().wallToday(), time: ("0" + now.getHours()).slice(-2) + ":" + ("0" + now.getMinutes()).slice(-2),
+        drink: dObj, volume: Number(ad.volume) || state.profile.volume });
+      C().save(state); ui.sheet = null; render();
+      toast("Записано: " + dObj.name + " " + (Number(ad.volume) || state.profile.volume) + " мл");
+      return;
+    }
+    if (act === "open-weight-add") {
+      ui.weightDraft = { kg: "", date: N().wallToday() };
+      ui.sheet = "weight-add"; render(); return;
+    }
+    if (act === "weight-range") { ui.sheet = "weight-range"; render(); return; }
+    if (act === "weight-range-pick") {
+      ui.weightRange = t.dataset.v; ui.weightAnchor = N().wallToday();
+      ui.sheet = null; render(); return;
+    }
+    if (act === "edit-weight") {
+      var wE = (state.weights || []).filter(function (w) { return w.id === t.dataset.id; })[0];
+      if (!wE) return;
+      ui.weightDraft = { kg: wE.kg, date: wE.date, id: wE.id };
+      ui.sheet = "weight-edit"; render(); return;
+    }
+    if (act === "del-weight") {
+      var wD = (state.weights || []).filter(function (w) { return w.id === t.dataset.id; })[0];
+      if (!wD) return;
+      J().markDeleted(state, [wD], "w");
+      C().save(state); render(); toast("Запись удалена"); return;
+    }
+    if (act === "weight-save") {
+      var wd = ui.weightDraft || {};
+      var kg = Number(wd.kg);
+      if (!kg || kg <= 0 || kg > 400) { toast("Введите вес в кг"); return; }
+      if (wd.id) {
+        var wX = (state.weights || []).filter(function (w) { return w.id === wd.id; })[0];
+        if (wX) { wX.kg = kg; wX.date = wd.date || wX.date; }
+        C().save(state); ui.sheet = null; ui.weightDraft = null; render(); toast("Запись изменена");
+      } else {
+        state.weights = state.weights || [];
+        state.weights.push({ id: J().uid(), date: wd.date || N().wallToday(), kg: kg, createdAt: Date.now() });
+        C().save(state); ui.sheet = null; ui.weightDraft = null; render(); toast("Вес записан");
+      }
+      return;
+    }
     if (act === "file-save") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
     if (act === "cloud-sync") {
@@ -828,6 +971,12 @@
 
   /* ---- клик-делегация (донор: подавление догоняющего клика) ---- */
   function bindEvents() {
+    document.addEventListener("change", function (e) {
+      var el = e.target;
+      if (!el || !el.dataset) return;
+      if (el.dataset.act === "weight-kg") { ui.weightDraft = ui.weightDraft || {}; ui.weightDraft.kg = el.value; }
+      if (el.dataset.act === "weight-date") { ui.weightDraft = ui.weightDraft || {}; ui.weightDraft.date = el.value; }
+    });
     document.addEventListener("click", function (e) {
       if (suppressClick) { suppressClick = false; return; }
       if (swallowClickEl && (swallowClickEl === e.target || swallowClickEl.contains(e.target))) {
