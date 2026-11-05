@@ -1,64 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="412" height="892" viewBox="0 0 412 892" font-family="monospace">
-<line x1="41" y1="0" x2="41" y2="892" stroke="#7CFC9A" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="32" y="4" width="18" height="18" rx="4" fill="#14301d"/><text x="41" y="17" fill="#7CFC9A" font-size="12" text-anchor="middle">1</text>
-<line x1="107" y1="0" x2="107" y2="892" stroke="#7CFC9A" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="98" y="4" width="18" height="18" rx="4" fill="#14301d"/><text x="107" y="17" fill="#7CFC9A" font-size="12" text-anchor="middle">2</text>
-<line x1="173" y1="0" x2="173" y2="892" stroke="#7CFC9A" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="164" y="4" width="18" height="18" rx="4" fill="#14301d"/><text x="173" y="17" fill="#7CFC9A" font-size="12" text-anchor="middle">3</text>
-<line x1="239" y1="0" x2="239" y2="892" stroke="#7CFC9A" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="230" y="4" width="18" height="18" rx="4" fill="#14301d"/><text x="239" y="17" fill="#7CFC9A" font-size="12" text-anchor="middle">4</text>
-<line x1="305" y1="0" x2="305" y2="892" stroke="#7CFC9A" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="296" y="4" width="18" height="18" rx="4" fill="#14301d"/><text x="305" y="17" fill="#7CFC9A" font-size="12" text-anchor="middle">5</text>
-<line x1="371" y1="0" x2="371" y2="892" stroke="#7CFC9A" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="362" y="4" width="18" height="18" rx="4" fill="#14301d"/><text x="371" y="17" fill="#7CFC9A" font-size="12" text-anchor="middle">6</text>
-<line x1="0" y1="609" x2="412" y2="609" stroke="#7CC8FC" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="4" y="600" width="18" height="18" rx="4" fill="#122a3a"/><text x="13" y="613" fill="#7CC8FC" font-size="12" text-anchor="middle">7</text>
-<line x1="0" y1="697" x2="412" y2="697" stroke="#7CC8FC" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="4" y="688" width="18" height="18" rx="4" fill="#122a3a"/><text x="13" y="701" fill="#7CC8FC" font-size="12" text-anchor="middle">8</text>
-<line x1="0" y1="785" x2="412" y2="785" stroke="#7CC8FC" stroke-opacity="0.55" stroke-width="1"/>
-<rect x="4" y="776" width="18" height="18" rx="4" fill="#122a3a"/><text x="13" y="789" fill="#7CC8FC" font-size="12" text-anchor="middle">9</text>
-<line x1="0" y1="30" x2="412" y2="30" stroke="#F5C542" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="6 5"/>
-<rect x="390" y="21" width="18" height="18" rx="4" fill="#33290f"/><text x="399" y="34" fill="#F5C542" font-size="11" text-anchor="middle">10</text>
-<line x1="0" y1="79" x2="412" y2="79" stroke="#F5C542" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="6 5"/>
-<rect x="390" y="70" width="18" height="18" rx="4" fill="#33290f"/><text x="399" y="83" fill="#F5C542" font-size="11" text-anchor="middle">11</text>
-<line x1="0" y1="105" x2="412" y2="105" stroke="#F5C542" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="6 5"/>
-<rect x="390" y="96" width="18" height="18" rx="4" fill="#33290f"/><text x="399" y="109" fill="#F5C542" font-size="11" text-anchor="middle">12</text>
-<line x1="0" y1="836" x2="412" y2="836" stroke="#F5C542" stroke-opacity="0.6" stroke-width="1" stroke-dasharray="6 5"/>
-<rect x="390" y="827" width="18" height="18" rx="4" fill="#33290f"/><text x="399" y="840" fill="#F5C542" font-size="11" text-anchor="middle">13</text>
-<circle cx="41" cy="609" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="41" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">A</text>
-<circle cx="107" cy="609" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="107" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">B</text>
-<circle cx="173" cy="609" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="173" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">C</text>
-<circle cx="239" cy="609" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="239" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">D</text>
-<circle cx="305" cy="609" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="305" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">E</text>
-<circle cx="371" cy="609" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="371" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">F</text>
-<circle cx="41" cy="697" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="41" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">G</text>
-<circle cx="107" cy="697" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="107" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">H</text>
-<circle cx="173" cy="697" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="173" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">I</text>
-<circle cx="239" cy="697" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="239" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">J</text>
-<circle cx="305" cy="697" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="305" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">K</text>
-<circle cx="371" cy="697" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="371" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">L</text>
-<circle cx="41" cy="785" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="41" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">M</text>
-<circle cx="107" cy="785" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="107" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">N</text>
-<circle cx="173" cy="785" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="173" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">O</text>
-<circle cx="239" cy="785" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="239" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">P</text>
-<circle cx="305" cy="785" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="305" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Q</text>
-<circle cx="371" cy="785" r="10" fill="#000" fill-opacity="0.72" stroke="#fff" stroke-opacity="0.85" stroke-width="1"/>
-<text x="371" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">R</text>
+<line x1="41" y1="24" x2="41" y2="880" stroke="#7CFC9A" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="32" y="2" width="18" height="18" rx="4" fill="#14301d"/><text x="41" y="15" fill="#7CFC9A" font-size="12" text-anchor="middle">1</text>
+<line x1="107" y1="24" x2="107" y2="880" stroke="#7CFC9A" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="98" y="2" width="18" height="18" rx="4" fill="#14301d"/><text x="107" y="15" fill="#7CFC9A" font-size="12" text-anchor="middle">2</text>
+<line x1="173" y1="24" x2="173" y2="880" stroke="#7CFC9A" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="164" y="2" width="18" height="18" rx="4" fill="#14301d"/><text x="173" y="15" fill="#7CFC9A" font-size="12" text-anchor="middle">3</text>
+<line x1="239" y1="24" x2="239" y2="880" stroke="#7CFC9A" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="230" y="2" width="18" height="18" rx="4" fill="#14301d"/><text x="239" y="15" fill="#7CFC9A" font-size="12" text-anchor="middle">4</text>
+<line x1="305" y1="24" x2="305" y2="880" stroke="#7CFC9A" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="296" y="2" width="18" height="18" rx="4" fill="#14301d"/><text x="305" y="15" fill="#7CFC9A" font-size="12" text-anchor="middle">5</text>
+<line x1="371" y1="24" x2="371" y2="880" stroke="#7CFC9A" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="362" y="2" width="18" height="18" rx="4" fill="#14301d"/><text x="371" y="15" fill="#7CFC9A" font-size="12" text-anchor="middle">6</text>
+<line x1="24" y1="33" x2="400" y2="33" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="24" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="37" fill="#7CC8FC" font-size="11" text-anchor="middle">7</text>
+<line x1="24" y1="75" x2="400" y2="75" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="66" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="79" fill="#7CC8FC" font-size="11" text-anchor="middle">8</text>
+<line x1="24" y1="356" x2="400" y2="356" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="347" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="360" fill="#7CC8FC" font-size="11" text-anchor="middle">9</text>
+<line x1="24" y1="609" x2="400" y2="609" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="600" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="613" fill="#7CC8FC" font-size="11" text-anchor="middle">10</text>
+<line x1="24" y1="697" x2="400" y2="697" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="688" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="701" fill="#7CC8FC" font-size="11" text-anchor="middle">11</text>
+<line x1="24" y1="785" x2="400" y2="785" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="776" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="789" fill="#7CC8FC" font-size="11" text-anchor="middle">12</text>
+<line x1="24" y1="864" x2="400" y2="864" stroke="#7CC8FC" stroke-opacity="0.5" stroke-width="1"/>
+<rect x="2" y="855" width="20" height="18" rx="4" fill="#122a3a"/><text x="12" y="868" fill="#7CC8FC" font-size="11" text-anchor="middle">13</text>
+<circle cx="41" cy="609" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="41" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">А</text>
+<circle cx="107" cy="609" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="107" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Б</text>
+<circle cx="173" cy="609" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="173" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">В</text>
+<circle cx="239" cy="609" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="239" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Г</text>
+<circle cx="305" cy="609" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="305" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Д</text>
+<circle cx="371" cy="609" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="371" y="613" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Е</text>
+<circle cx="41" cy="697" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="41" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Ж</text>
+<circle cx="107" cy="697" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="107" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">З</text>
+<circle cx="173" cy="697" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="173" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">И</text>
+<circle cx="239" cy="697" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="239" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">К</text>
+<circle cx="305" cy="697" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="305" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Л</text>
+<circle cx="371" cy="697" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="371" y="701" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">М</text>
+<circle cx="41" cy="785" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="41" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Н</text>
+<circle cx="107" cy="785" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="107" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">О</text>
+<circle cx="173" cy="785" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="173" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">П</text>
+<circle cx="239" cy="785" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="239" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Р</text>
+<circle cx="305" cy="785" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="305" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">С</text>
+<circle cx="371" cy="785" r="10" fill="#000" fill-opacity="0.75" stroke="#fff" stroke-opacity="0.9" stroke-width="1"/>
+<text x="371" y="789" fill="#fff" font-size="11" text-anchor="middle" font-weight="bold">Т</text>
+<circle cx="206" cy="33" r="10" fill="#33290f" fill-opacity="0.9" stroke="#F5C542" stroke-width="1"/>
+<text x="206" y="37" fill="#F5C542" font-size="11" text-anchor="middle" font-weight="bold">У</text>
+<circle cx="206" cy="75" r="10" fill="#33290f" fill-opacity="0.9" stroke="#F5C542" stroke-width="1"/>
+<text x="206" y="79" fill="#F5C542" font-size="11" text-anchor="middle" font-weight="bold">Ф</text>
+<circle cx="206" cy="356" r="10" fill="#33290f" fill-opacity="0.9" stroke="#F5C542" stroke-width="1"/>
+<text x="206" y="360" fill="#F5C542" font-size="11" text-anchor="middle" font-weight="bold">Х</text>
+<circle cx="206" cy="864" r="10" fill="#33290f" fill-opacity="0.9" stroke="#F5C542" stroke-width="1"/>
+<text x="206" y="868" fill="#F5C542" font-size="11" text-anchor="middle" font-weight="bold">Ц</text>
 </svg>
