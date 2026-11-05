@@ -362,28 +362,29 @@
       slots += '<button type="button" class="shortcut' + (cutOn ? " on" : "") + '" style="--c:' + j + ';--r:1;--ring:' + s.drink.color + '" data-act="apply-shortcut" data-id="' + s.drink.id + '" data-volume="' + s.volume + '">' +
         bubble(s.drink, "fill") + '<span class="vol">' + s.volume + "</span></button>";
     }
-    var n = N().ensureAlerts(state);
-    var pct = Math.round((goal > 0 ? drunk / goal : 0) * 100);
-    var nextLine = n.enabled ? "Ближайший напомин: " + N().nextSlot(state) : "Напоминания выключены";
-    var stats = '<div class="home-stats">' +
-      '<div class="row"><span>Выпито</span><b>' + drunk + " из " + goal + " мл (" + pct + "%)</b></div>" +
-      '<div class="row"><span>Зачтено</span><b>' + st.credited + " мл</b></div>" +
-      '<div class="row muted"><span>' + esc(nextLine) + "</span></div>" +
-      "</div>";
+    var hint = "";
+    if (!cuts.length) hint = '<p class="hint dock-hint">Ярлыки появятся из истории. Пример — в настройках.</p>';
+    /* Таблица мест дока (прототип; слово владельца 05.11: элемент не приехал —
+       место пустое и невидимое, геометрия держится):
+       ряд 0: c0 отмена, c5 выбор напитка;
+       ряд 1: c0–c4 ярлыки недавних пар, c5 избранные ряды (место пусто до слова);
+       ряд 2: c0–c1 пилюля объёма, c2–c3 чашка, c4 погода, c5 активность
+              (места пусты до M05/M08 и служб погоды/активности).
+       Сцена над доком — место кота (M05/M06): пустой cat-btn держит геометрию
+       и тап-зону записи порции, невидим. */
     return "" +
       /* v141: полоса прогресса — самая верхняя на главном экране (слово 02.11). */
       '<div class="top home-bar-top"><div class="progress' + (mr.soft ? " soft" : "") + '"><div class="fill" style="width:' + fill + '%"></div><div class="label">' + drunk + "/" + goal + "</div></div></div>" +
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
       '<div class="home-body">' +
-      '<div class="cat-stage"><button type="button" class="cat-btn" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
-      '<span class="stage-note">' + uiIcon("drop") + "<span>Кот приедет следующим рейсом — тап уже пишет порцию</span></span>" +
-      "</button></div>" +
+      '<div class="cat-stage"><button type="button" class="cat-btn" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл"></button></div>' +
       '<div class="home-dock">' +
+      hint +
       '<button type="button" class="round" style="--c:0;--r:0" data-act="undo" aria-label="Отменить последнюю запись">' + uiIcon("undo") + "</button>" +
       '<button type="button" class="round drink-now" style="--c:5;--r:0;background:' + (drink ? drink.color : "#2ea0ea") + '" data-act="open-drinks" aria-label="Выбор напитка: ' + esc(drink ? drink.name : "") + '">' + (drink ? glyph(drink.icon) : "") + "</button>" +
       slots +
       U().pillHtml({ slot: { c: 0, r: 2 }, act: "open-volume", icon: uiIcon("drop"), label: state.profile.volume + " мл" }) +
-      "</div></div>" + stats + chartPanel(today);
+      "</div></div>";
   }
 
   function pageHistory() {

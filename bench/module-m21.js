@@ -86,6 +86,35 @@ const histNums = () => {
   ok('гейт донор==следующий: полоса и ярлыки главной', JSON.stringify(donorHome) === JSON.stringify(nextHome), { donorHome, nextHome });
   ok('гейт донор==следующий: лента истории (строки, дубли, дата, столбцы)', JSON.stringify(donorHist) === JSON.stringify(nextHist), { donorHist, nextHist });
 
+  /* --- посадочные места дока: центры узлов и высота сцены донор==следующий --- */
+  const seatProbe = () => {
+    const c = sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; };
+    const st = document.querySelector('.cat-stage').getBoundingClientRect();
+    return {
+      undo: c('[data-act="undo"]'), drink: c('.drink-now'),
+      pill: c('.pill-slot .pill'), stage: [Math.round(st.height), Math.round(st.top)],
+      stats: !!document.querySelector('.home-stats'), chart: !!document.querySelector('.home-screen .chart-panel'),
+      hint: (document.querySelector('.dock-hint') || {}).textContent || null
+    };
+  };
+  const pn = await ctx.newPage();
+  await pn.goto('http://127.0.0.1:8085/wt2/index.html');
+  await pn.waitForFunction(() => window.__waterApp && document.querySelector('.progress .label'));
+  const nextSeats = await pn.evaluate(seatProbe);
+  await pn.close();
+  const pdd = await ctx.newPage();
+  await pdd.goto('http://127.0.0.1:8085/water-tracker/index.html');
+  await pdd.waitForFunction(() => document.querySelector('.progress .label'));
+  const donorSeats = await pdd.evaluate(seatProbe);
+  await pdd.close();
+  ok('места дока: центры узлов и сцена донор==следующий, статистики/графика на главной нет',
+    JSON.stringify(donorSeats.undo) === JSON.stringify(nextSeats.undo) &&
+    JSON.stringify(donorSeats.drink) === JSON.stringify(nextSeats.drink) &&
+    JSON.stringify(donorSeats.pill) === JSON.stringify(nextSeats.pill) &&
+    JSON.stringify(donorSeats.stage) === JSON.stringify(nextSeats.stage) &&
+    nextSeats.stats === false && nextSeats.chart === false && donorSeats.hint === nextSeats.hint,
+    { donorSeats, nextSeats });
+
   /* --- поток «выпил» --- */
   await p.click('[data-tab="home"]');
   const before = await p.evaluate(() => window.__waterApp.state.entries.length);

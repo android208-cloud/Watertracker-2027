@@ -3,30 +3,6 @@
    полоса статистики главного экрана, сцена-заглушка кота, заголовки секций
    настроек, сетка килограммов онбординга. */
 
-.home-stats {
-  margin: 10px 16px 0;
-  padding: 10px 14px;
-  border-radius: 16px;
-  background: var(--track, #56575b);
-  font: 13px/1.7 system-ui, sans-serif;
-  color: var(--text, #dcefff);
-}
-.home-stats .row { display: flex; justify-content: space-between; gap: 8px; }
-.home-stats .row b { font-weight: 650; }
-.home-stats .muted { opacity: .72; font-size: 12px; }
-
-.cat-stage .stage-note {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  opacity: .55;
-  font: 12px/1.5 system-ui, sans-serif;
-  color: var(--muted, #8a8f94);
-  pointer-events: none;
-}
-.cat-stage .stage-note .ui-ico, .cat-stage .stage-note .ui-mask { width: 56px; height: 56px; }
-
 .set-sec {
   margin: 18px 16px 6px;
   font: 600 12px/1.4 system-ui, sans-serif;
@@ -55,6 +31,3 @@
   border-color: #2ea0ea;
   color: #fff;
 }
-
-/* График на главном экране: та же панель, что в «Истории», с её же высотой. */
-.home-screen .chart-panel { flex: 0 0 auto; }
