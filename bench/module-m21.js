@@ -89,10 +89,9 @@ const histNums = () => {
   /* --- посадочные места дока: центры узлов и высота сцены донор==следующий --- */
   const seatProbe = () => {
     const c = sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; };
-    const st = document.querySelector('.cat-stage').getBoundingClientRect();
     return {
       undo: c('[data-act="undo"]'), drink: c('.drink-now'),
-      pill: c('.pill-slot .pill'), stage: [Math.round(st.height), Math.round(st.top)],
+      pill: c('.pill-slot .pill'),
       stats: !!document.querySelector('.home-stats'), chart: !!document.querySelector('.home-screen .chart-panel'),
       hint: (document.querySelector('.dock-hint') || {}).textContent || null
     };
@@ -111,9 +110,25 @@ const histNums = () => {
     JSON.stringify(donorSeats.undo) === JSON.stringify(nextSeats.undo) &&
     JSON.stringify(donorSeats.drink) === JSON.stringify(nextSeats.drink) &&
     JSON.stringify(donorSeats.pill) === JSON.stringify(nextSeats.pill) &&
-    JSON.stringify(donorSeats.stage) === JSON.stringify(nextSeats.stage) &&
     nextSeats.stats === false && nextSeats.chart === false && donorSeats.hint === nextSeats.hint,
     { donorSeats, nextSeats });
+
+  /* --- канон v2 верха (слово 05.11): бар на Ж, шапка на З, О-З = К-Л --- */
+  await p.click('[data-tab="home"]');
+  await p.waitForSelector('.home-dock .pill');
+  const topCanon = await p.evaluate(() => {
+    const cy = e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; };
+    const pitch = cy(document.querySelector('.home-dock .pill')) - cy(document.querySelector('.home-dock .shortcut'));
+    const band = parseFloat(getComputedStyle(document.querySelector('.wt-topzone > header.top')).height);
+    return { pitch: +pitch.toFixed(1),
+      bar: +cy(document.querySelector('.top.home-bar-top .progress')).toFixed(1),
+      head: +cy(document.querySelector('.home-screen h1')).toFixed(1),
+      stageTop: +document.querySelector('.cat-stage').getBoundingClientRect().top.toFixed(1),
+      wantBar: +(pitch / 2).toFixed(1), wantHead: +pitch.toFixed(1), wantStage: +(pitch + band / 2).toFixed(1) };
+  });
+  ok('канон v2 верха: центр полосы на Ж (О-З/2), шапка на З (О-З = К-Л), сцена от З + band/2',
+    Math.abs(topCanon.bar - topCanon.wantBar) <= 1 && Math.abs(topCanon.head - topCanon.wantHead) <= 1 &&
+    Math.abs(topCanon.stageTop - topCanon.wantStage) <= 1, topCanon);
 
   /* --- правило пилюли: значок в центре левой окружности (слово 05.11) --- */
   await p.click('[data-tab="home"]');

@@ -31,3 +31,25 @@
   border-color: #2ea0ea;
   color: #fff;
 }
+
+/* Канон v2 верха (слово владельца 05.11): край холста О, пояс О–З равен шагу
+   дока (К–Л); центр полосы прогресса на линии Ж (середина О–З), шапка на
+   линии З. Системный статус-бар прибавляется сверху холста и сетку не ломает.
+   Никаких пиксельных констант — только формулы от --pitch и --band. */
+.home-screen > .wt-topzone {
+  flex: 0 0 auto;
+  height: calc(var(--pitch) + var(--band) / 2);
+  position: relative;
+}
+.wt-topzone > .top {
+  height: var(--band);
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.wt-topzone > .top.home-bar-top {
+  /* донорский padding-top 4px (v147) в зоне гасим: ось тела полосы = top + ico/2 */
+  padding-top: 0;
+  top: calc(var(--pitch) / 2 - var(--ico) / 2);
+}
+.wt-topzone > header.top { top: calc(var(--pitch) - var(--band) / 2); }

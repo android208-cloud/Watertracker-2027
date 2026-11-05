@@ -378,8 +378,10 @@
        15:16 место чашки, 17 место погоды, 18 место активности; сцена — линия И. */
     return "" +
       /* v141: полоса прогресса — самая верхняя на главном экране (слово 02.11). */
+      '<div class="wt-topzone">' +
       '<div class="top home-bar-top"><div class="progress' + (mr.soft ? " soft" : "") + '"><div class="fill" style="width:' + fill + '%"></div><div class="label">' + drunk + "/" + goal + "</div></div></div>" +
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
+      '</div>' +
       '<div class="home-body">' +
       '<div class="cat-stage"><button type="button" class="cat-btn" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл"></button></div>' +
       '<div class="home-dock">' +
