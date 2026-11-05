@@ -75,9 +75,14 @@
     var mask = orbMaskUri();
     /* M07/M08: внутренность слоя подъёма строит волновой модуль: однотон с
        гребнями ватерлинии или пояса с волнистыми стыками (слово 05.11). */
-    var inner = W.WT2V
-      ? W.WT2V.waterInner({ belts: o.belts, color: o.color, spanPct: o.spanPct != null ? o.spanPct : 100 - y0 })
-      : '<div class="cat-flat" style="background:' + (o.color || "#2ddaf9") + '"></div>';
+    var inner;
+    if (W.WT2V && W.WT2V.enabled()) {
+      inner = W.WT2V.waterInner({ belts: o.belts, color: o.color, spanPct: o.spanPct != null ? o.spanPct : 100 - y0 });
+    } else if (o.rampColors && o.rampColors.length > 1 && o.rampColors.some(function (c) { return c !== o.rampColors[0]; })) {
+      inner = W.WT2B.beltDiv(o.rampColors, o.spanPct != null ? o.spanPct : 100 - y0);
+    } else {
+      inner = '<div class="cat-flat" style="background:' + (o.color || "#2ddaf9") + '"></div>';
+    }
     return '<div class="cat-water wt-orb-water' + (p <= 0.001 ? '" hidden' : '"') + '><div class="cat-water-box" style="mask-image:url(&quot;' + mask + '&quot;);-webkit-mask-image:url(&quot;' + mask + '&quot;)">' +
       '<div class="cat-waterlift" style="transform:translateY(' + y0 + '%)">' +
       inner +

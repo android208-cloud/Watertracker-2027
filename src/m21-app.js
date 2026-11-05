@@ -388,6 +388,7 @@
       '<div class="home-body">' +
       '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
       Wd().waterHtml({ frac: level, color: Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top),
+        rampColors: rampB.flat ? null : (Bc().visibleRamp() || rampB.colors),
         belts: rampB.flat ? null : (rampB.belts.map(function (bl, i) {
           var vc = Bc().visibleBelts();
           return { c: (vc && vc[i]) || bl.c, from: bl.from, to: bl.to };

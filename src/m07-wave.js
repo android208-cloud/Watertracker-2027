@@ -120,7 +120,15 @@
     return out;
   }
 
+  /* Релизный флаг (слово владельца 05.11): волна не включена в релиз до
+     разбора граблей, увиданных глазом; флаг wt2-waves=1 будит модуль
+     (стенды m07/m08 ставят его сами). */
+  function enabled() {
+    try { return window.localStorage.getItem("wt2-waves") === "1"; } catch (e) { return false; }
+  }
+
   W.WT2V = {
+    enabled: enabled,
     crestPath: crestPath,
     ensureWaveKeys: ensureWaveKeys,
     waveLayer: waveLayer,

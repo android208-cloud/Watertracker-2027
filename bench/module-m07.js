@@ -23,7 +23,7 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
 
   /* однотон: три гребня ватерлинии, средний полупрозрачный */
   const c1 = await b.newContext({ viewport: { width: 412, height: 892 } });
-  await c1.addInitScript(`localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  await c1.addInitScript(`localStorage.setItem('wt2-waves','1');localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
   const p1 = await c1.newPage();
   p1.on('pageerror', e => errs.push(e.message));
   await p1.goto('http://127.0.0.1:8085/wt2/index.html');
@@ -44,7 +44,7 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
 
   /* пояса: бэнды + волнистые стыки цвета нижнего пояса */
   const c2 = await b.newContext({ viewport: { width: 412, height: 892 } });
-  await c2.addInitScript(`localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')])}));`);
+  await c2.addInitScript(`localStorage.setItem('wt2-waves','1');localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')])}));`);
   const p2 = await c2.newPage();
   p2.on('pageerror', e => errs.push(e.message));
   await p2.goto('http://127.0.0.1:8085/wt2/index.html');

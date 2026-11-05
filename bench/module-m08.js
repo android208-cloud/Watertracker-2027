@@ -25,7 +25,7 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
   const ctx = await b.newContext({ viewport: { width: 412, height: 892 } });
   const errs = [];
   /* день из двух напитков разных цветов: вода 600 + эспрессо 300 */
-  await ctx.addInitScript(`localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([
+  await ctx.addInitScript(`localStorage.setItem('wt2-waves','1');localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([
     E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')
   ])}));`);
   const p = await ctx.newPage();
