@@ -547,6 +547,11 @@
       '<div class="set-sec">Файл</div>' +
       K().row({ ui: "file-save", act: "file-save", title: "Сохранить в файл" }) +
       K().row({ ui: "file-open", act: "file-open", title: "Восстановить из файла" }) +
+      /* M24 (слово 05.11): приложение само читает интерфейсный пак из файла. */
+      '<div class="set-sec">Интерфейс</div>' +
+      K().row({ ui: "iface-open", act: "iface-open", title: "Загрузить интерфейс из файла" }) +
+      K().row({ ui: "iface-save", act: "iface-save", title: "Сохранить интерфейс в файл" }) +
+      K().row({ ui: "iface-reset", act: "iface-reset", title: "Сбросить интерфейс к канону" }) +
       '<div class="set-sec">О приложении</div>' +
       '<div class="n-row set-ver"><span class="ttl">Версия …</span><span class="pct">' + APP_VERSION + " (" + VERSION_CODE + ")</span></div>" +
       "</div>";
@@ -699,10 +704,21 @@
       U().navHtml(ui) + overlayHtml() + U().toastHtml(ui);
     afterRender();
   }
+  function I() { return W.WT2I; }
   function afterRender() {
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
       W.__wtFileHook = function (text, err) {
+        /* M24: один файловый транспорт, диспетчер по kind пака. */
+        if (text != null && !err) {
+          try {
+            var pk0 = JSON.parse(text);
+            if (pk0 && pk0.kind === "watercat-iface") {
+              I().fileResult(text, null, { toast: toast, render: render });
+              return;
+            }
+          } catch (e) { /* не JSON — пусть M23 скажет своё слово */ }
+        }
         F().fileResult(state, text, err, {
           toast: toast,
           save: function () { C().save(state); },
@@ -751,6 +767,11 @@
       }
     }
     if (W.WT2X) W.WT2X.syncBars();
+    /* M24: метки объектов для интерфейсного пака (редактор и применение). */
+    if (W.WT2I) {
+      var appRoot = document.getElementById("app");
+      W.WT2I.labelOids(appRoot, W.WT2I.screenIdOf(ui));
+    }
     if (R()) R().emit("ui:render", { tab: ui.tab, page: ui.page });
   }
   function closeSheet() { ui.sheet = null; render(); }
@@ -958,6 +979,9 @@
     }
     if (act === "file-save") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
+    if (act === "iface-open") { I().request(ui, toast); return; }
+    if (act === "iface-save") { I().saveToBridge(toast); return; }
+    if (act === "iface-reset") { I().reset(); toast("Интерфейс сброшен к канону"); render(); return; }
     if (act === "cloud-sync") {
       if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
         toast("Синхронизация доступна в приложении Android"); return;
@@ -1024,6 +1048,7 @@
     U().ICON_BASE_SET("assets/icons/");
     N().ensureAlerts(state);
     applyTheme();
+    if (W.WT2I) W.WT2I.bootApply();
     bindEvents();
     var env = {
       shell: ui, render: render, closeSheet: closeSheet,
