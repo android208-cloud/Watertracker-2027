@@ -68,6 +68,7 @@
   function U() { return W.WT2U; }
   function Wd() { return W.WT2W; }
   function Bc() { return W.WT2B; }
+  function F() { return W.WT2F; }
   function K() { return W.UiKit; }
   function esc(s) { return U().esc(s); }
   function uiIcon(n) { return U().uiIcon(n); }
@@ -508,6 +509,10 @@
       K().row({ ui: "cloud-sign", act: "cloud-sign", title: cloud.signedIn ? "Выйти из Google" : "Войти через Google" }) +
       K().row({ ui: "cloud-sync", act: "cloud-sync", title: "Синхронизировать сейчас" }) +
       K().row({ ui: "cloud-save", act: "cloud-save", title: "Сохранить копию" }) +
+      /* M23 (слово 05.11): файл — главная дорога переноса, пак тот же, что у облака. */
+      '<div class="set-sec">Файл</div>' +
+      K().row({ ui: "file-save", act: "file-save", title: "Сохранить в файл" }) +
+      K().row({ ui: "file-open", act: "file-open", title: "Восстановить из файла" }) +
       '<div class="set-sec">О приложении</div>' +
       '<div class="n-row set-ver"><span class="ttl">Версия …</span><span class="pct">' + APP_VERSION + " (" + VERSION_CODE + ")</span></div>" +
       "</div>";
@@ -606,6 +611,16 @@
     afterRender();
   }
   function afterRender() {
+    /* M23: колбэк файлового моста живёт один раз на приложение. */
+    if (W.WT2F && !W.__wtFileHook) {
+      W.__wtFileHook = function (text, err) {
+        F().fileResult(state, text, err, {
+          toast: toast,
+          save: function () { C().save(state); },
+          render: render
+        });
+      };
+    }
     /* M06: цель лифта — текущий уровень; водитель скользит синусом (C-026). */
     if (W.WT2W && document.querySelector(".cat-stage")) {
       var stH = S().dayStats(state, N().waterToday(state));
@@ -772,6 +787,8 @@
       return;
     }
     if (act === "cloud-save") { cloudUpload("manual"); return; }
+    if (act === "file-save") { F().save(state, ui, toast); return; }
+    if (act === "file-open") { F().request(ui, toast); return; }
     if (act === "cloud-sync") {
       if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
         toast("Синхронизация доступна в приложении Android"); return;
