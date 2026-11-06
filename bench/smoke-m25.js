@@ -335,6 +335,37 @@ function ok(cond, name) {
   ok(!((await S(p)).drinks.some(d => d.id === created.id)), 'напиток удалён');
   await click(p, '[data-tab="settings"]');
 
+  console.log('Модуль 8: циферблат:');
+  await click(p, '[data-act="open-look"]');
+  ok(await has(p, '[data-act="toggle"][data-key="dialTime"]'), 'строка «циферблат» видна во «Внешнем виде»');
+  ok(await has(p, '[data-act="toggle"][data-key="vibroDial"]'), 'строка «вибро циферблата» видна');
+  await click(p, '[data-act="toggle"][data-key="dialTime"]');
+  ok((await S(p)).dialTime === true, 'state.dialTime включён');
+  await click(p, '[data-act="toggle"][data-key="vibroDial"]');
+  ok((await S(p)).vibroDial === false, 'state.vibroDial выключен');
+  await click(p, '[data-act="toggle"][data-key="vibroDial"]');
+  /* диалог времени с циферблатом вместо колёс */
+  await click(p, 'header [data-act="back"]');
+  await click(p, '[data-act="open-folder-alerts"]');
+  await click(p, '[data-act="open-alert-period"]');
+  await click(p, '[data-act="open-gap"][data-kind="after"]');
+  ok(await has(p, '.dial'), 'диалог времени показывает циферблат');
+  ok(!(await has(p, '.modal .wheel-block')), 'колёс в диалоге нет при dialTime');
+  await shot(p, 'modal-gap-dial');
+  const face = await (await p.$('.dial-face')).boundingBox();
+  const cx = face.x + face.width / 2, cy = face.y + face.height / 2;
+  const r = face.width / 2 - 14;
+  await p.mouse.move(cx, cy - r);
+  await p.mouse.down();
+  await p.mouse.move(cx + r * 0.7, cy + r * 0.7, { steps: 12 });
+  await p.mouse.up();
+  await p.waitForTimeout(200);
+  const dial = await p.evaluate(() => window.__waterApp.ui.dial);
+  ok(!!dial && (dial.h !== 2 || dial.m !== 0), 'drag по циферблату меняет значение', JSON.stringify(dial));
+  await click(p, 'button[data-act="gap-cancel"]');
+  await click(p, 'header [data-act="back"]'); /* alert-period → настройки */
+  await click(p, '[data-tab="settings"]');
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');

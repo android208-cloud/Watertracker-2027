@@ -39,6 +39,7 @@ const VIEWS = [
   { id: 'settings-advanced',  theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-advanced"]'], ['wait', '[data-act="ask-delete-all"]']] },
   { id: 'settings-alerts',    theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['wait', '[data-act="open-alert-freq"]']] },
   { id: 'settings-light',     theme: 'light', nav: [['tab', 'settings']], waitExtra: '.set-ver' },
+  { id: 'modal-gap-dial',     theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-look"]'], ['click', '[data-act="toggle"][data-key="dialTime"]'], ['click', 'header [data-act="back"]'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-period"]'], ['click', '[data-act="open-gap"][data-kind="after"]'], ['wait', '.dial']] },
   { id: 'page-create',        theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-drinks"]'], ['click', '[data-act="add-drink"]'], ['wait', 'input[data-field="drink-name"]']] },
   { id: 'page-sort',          theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-drinks"]'], ['click', '[data-act="open-sort"]'], ['wait', '.sort-list']] },
   { id: 'page-icons',         theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-drinks"]'], ['click', '[data-act="add-drink"]'], ['click', '[data-act="open-icons"]'], ['wait', '.igrid']] },

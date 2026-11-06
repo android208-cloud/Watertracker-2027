@@ -881,6 +881,38 @@
   function dialActive() { return resolvedTheme() === "oneplus" || !!state.dialTime; }
 
 
+  function vibroTick() {
+    if (state.vibroDial === false) return;
+    try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+  }
+
+  /* Стрелка и шапка обновляются на месте, без перерисовки экрана: во время
+     драга DOM заменять нельзя — потеряется pointer-capture. */
+  function paintDialInPlace() {
+    var root = document.querySelector(".dial");
+    if (!root || !ui.dial) return;
+    var face = root.querySelector(".dial-face");
+    if (!face) return;
+    var h = ui.dial.h, m = ui.dial.m, view = ui.dial.view;
+    var ang = view === "h" ? (h % 12) * 30 : m * 6;
+    var ring = view === "h" && !(h >= 1 && h <= 12) ? 26 : 40;
+    var a = ang * Math.PI / 180;
+    var sx = 50 + ring * Math.sin(a), sy = 50 - ring * Math.cos(a);
+    var sel = face.querySelector(".dial-sel");
+    if (sel) { sel.style.left = sx.toFixed(2) + "%"; sel.style.top = sy.toFixed(2) + "%"; }
+    var hand = face.querySelector(".dial-hand");
+    if (hand) { hand.style.height = ring + "%"; hand.style.transform = "rotate(" + ang + "deg)"; }
+    var dps = root.querySelectorAll(".dial-head .dp");
+    if (dps[0]) dps[0].textContent = (h < 10 ? "0" : "") + h;
+    if (dps[1]) dps[1].textContent = (m < 10 ? "0" : "") + m;
+  }
+
+  /* v95 (слово владельца 26.10.2026: «выбор должен засчитываться при
+     отпускании пальца»): отпускание пальца и тап по шапке «ЧЧ:ММ» обменивают
+     ТОЛЬКО блок .dial на месте, а не перерисовывают всё приложение. Прежний
+     render() на живом устройстве стоил сотен миллисекунд — следующий палец
+     попадал в пустоту, и циферблат «работал не очень хорошо». Прием тот же,
+     что у панели календаря (v94). Страховка: блока нет — полный render(). */
   function renderDialBlock() {
     var root = document.querySelector(".dial");
     if (!root || !root.parentNode || !ui.dial) { render(); return; }
@@ -2604,7 +2636,7 @@
     var SM = window.SettingsModel;
     if (!SM || SM.__wt2Wrapped) return SM;
     var SEAT_IDS = {
-      dialTime: 1, vibroDial: 1, animation: 1, warnExceed: 1, waveBox: 1 };
+      animation: 1, warnExceed: 1, waveBox: 1 };
     function seatCustom(r) {
       if (!r || r.type !== "custom") return false;
       if (r.custom === "wave" || r.custom === "liqBlock" || r.custom === "bubBlock") return !window.LiquidColor;
