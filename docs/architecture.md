@@ -395,3 +395,41 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
 - Проверки: smoke-m25 123/123 (14 гейтов: drag-сортировка, создание с цветом
   и иконкой, свайп-удаление); pixel-m25 page-create/sort/icons/colors = 0 px
   (байт-в-байт); регрессия m01..m25 ALL GREEN.
+
+### M25, модуль 8 шага 2 — циферблат (слово «модуль 8», 06.11)
+
+- dial-блок донора (3798-3900): циферблат вместо колёс в диалогах времени,
+  drag меняет значение, вибро-тик уважает vibroDial===false.
+- Добраны vibroTick/paintDialInPlace (донор), SEAT_IDS сидов: animation,
+  warnExceed, waveBox; строки «Виброотклик циферблата»/«Циферблат вместо
+  барабанов» живы; dialTime→циферблат в диалогах.
+- Проверки: smoke 130/130; pixel modal-gap-dial 0 px (байт-в-байт);
+  look 4.23% объяснён как сид-сдвиг скрытых мест (п. грабли 69).
+
+### M25, модуль 9 шага 2 — календарь и шит веса (слово «модуль 9», 06.11)
+
+- Шит веса донора вместо старого weight-add/weight-edit: колёса kg-int/
+  kg-dec (wheelBlock), круглая кнопка save-weight, кнопка даты
+  open-weight-cal, скрытый input.wt-dateinp (showPicker-цепочка v107).
+- Календарь донора: calendarHtml/shiftPeriod/renderCalPanel/calMarksFor/
+  applyCalToHistory; модалка в overlay при ui.modal==="calendar"; точки
+  дней (calMarks), cal-picked, cal-actions (cal-today только для hist —
+  и он же закрывает календарь, донор v94), cal-shift data-delta.
+- Акты: open-weight/edit-weight/save-weight/open-weight-cal/open-cal-hist/
+  cal-today/cal-shift/cal-pick/cal-ok/close-calendar. save-weight:
+  «Нужна дата и вес от 20 до 300», keepId-правка, markDeleted только того
+  же дня (v83), freshW markAlive.
+- Системные тумблеры (systemDrums/systemCalendar/systemClock) ожили по
+  донору 9057-9075: включаются только при наличии API, иначе toast
+  «…в приложении для Android»; в Chromium systemCalendar доступен через
+  showPicker. Старое правило «system*-тумблеры не оживлять» снято порядком
+  шага 2. На паке владельца строки не рисуются ни у донора, ни у next
+  (sLayout владельца) — вне объёма модуля.
+- wt-dateinp в change-делегации: iso>today→today, weightDraft.date, render.
+- Убраны next-заглушки, затенявшие донора: open-cal-hist
+  («Календарь приедет со своим модулем»), старый next edit-weight-блок,
+  старая weight-ветка overlay.
+- Проверки: smoke 140/140 (14 гейтов модуля 9); pixel sheet-weight и
+  modal-calendar = 0 px (байт-в-байт, панели сверены глазами); регрессия
+  m01..m25 GREEN, кроме m07 (волна): bench протух ещё до модуля 9 —
+  ждёт .cat-beltband кота, которого нет по слову 06.11 (не регрессия).

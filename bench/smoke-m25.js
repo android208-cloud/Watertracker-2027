@@ -366,6 +366,41 @@ function ok(cond, name) {
   await click(p, 'header [data-act="back"]'); /* alert-period → настройки */
   await click(p, '[data-tab="settings"]');
 
+  console.log('Модуль 9: календарь:');
+  await click(p, '[data-tab="weight"]');
+  await click(p, '[data-act="open-weight"]');
+  ok(await has(p, '.sheet.weight .kg-pick, .sheet.weight .sys-launch'), 'шит веса: колёса кг');
+  ok(await has(p, '[data-act="open-weight-cal"]'), 'кнопка даты в шите веса');
+  ok(await p.evaluate(() => !!document.querySelector('.wt-dateinp')), 'скрытый input date в разметке (v107)');
+  await shot(p, 'sheet-weight');
+  await click(p, '[data-act="open-weight-cal"]');
+  ok(await has(p, '.cal-day'), 'наш календарь с точками открыт');
+  await shot(p, 'modal-calendar');
+  await click(p, '[data-act="cal-shift"][data-delta="-1"]');
+  const month1 = await p.evaluate(() => window.__waterApp.ui.calMonth);
+  ok(/^\d{4}-\d{2}$/.test(month1 || ''), 'cal-shift листает месяц', month1);
+  await click(p, '[data-act="cal-shift"][data-delta="1"]');
+  const calD0 = await p.evaluate(() => window.__waterApp.ui.calDate);
+  await click(p, '[data-act="cal-pick"][data-date="' + calD0 + '"]');
+  const picked = await p.evaluate(() => window.__waterApp.ui.calDate);
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(picked || ''), 'cal-pick выбирает день', picked);
+  await click(p, '[data-act="cal-ok"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.weightDraft.date)) === picked, 'дата встала в черновик веса');
+  await click(p, '[data-act="save-weight"]');
+  const st9 = await S(p);
+  ok(st9.weights.some(w => w.date === picked), 'вес сохранён на выбранный день');
+  /* календарь истории */
+  await click(p, '[data-tab="history"]');
+  await click(p, '[data-act="open-cal-hist"]');
+  ok(await has(p, '[data-act="cal-today"]'), 'календарь истории с кнопкой «Сегодня»');
+  await click(p, '[data-act="cal-today"]');
+  const month2 = await p.evaluate(() => window.__waterApp.ui.calMonth);
+  ok(!(await has(p, '.cal-day')) && month2 === new Date().toISOString().slice(0, 7),
+    'cal-today: календарь истории закрылся (донор v94), месяц текущий', month2);
+  await click(p, '[data-tab="settings"]');
+  /* системные тумблеры на паке владельца не рисуются ни у донора, ни у next
+     (sLayout владельца) — вне объема модуля 9; механизм календаря проверен выше */
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');

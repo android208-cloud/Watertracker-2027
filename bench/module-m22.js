@@ -199,17 +199,33 @@ const longDate = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.s
   await p.click('.wrange button[data-range="year"]');
   await p.waitForTimeout(150);
   await p.click('.fab');
-  await p.waitForSelector('[data-act="weight-save"]');
-  await p.fill('[data-act="weight-kg"]', '60.2');
-  await p.fill('[data-act="weight-date"]', dOff(-2));
-  await p.click('[data-act="weight-save"]');
-  await p.waitForFunction(() => (window.__waterApp.state.weights || []).some(x => x.kg === 60.2));
+  await p.waitForSelector('[data-act="save-weight"]');
+  const kgDraft = await p.evaluate(() => Number(window.__waterApp.ui.weightDraft.kg));
+  /* свободная дата в пределах года: донор заменяет запись того же дня */
+  const freeDate = await p.evaluate(() => {
+    const have = {};
+    (window.__waterApp.state.weights || []).forEach(x => { have[x.date] = 1; });
+    for (let k = 2; k <= 60; k++) {
+      const d = new Date(Date.now() - k * 864e5).toISOString().slice(0, 10);
+      if (!have[d] && d.slice(0, 4) === new Date().toISOString().slice(0, 4)) return d;
+    }
+    return null;
+  });
+  /* дата — донорским календарем (модуль 9) */
+  await p.click('[data-act="open-weight-cal"]');
+  await p.waitForSelector('.cal-day');
+  await p.click('[data-act="cal-pick"][data-date="' + freeDate + '"]');
+  await p.click('button[data-act="cal-ok"]');
+  await p.click('[data-act="save-weight"]');
+  await p.waitForFunction((d) => (window.__waterApp.state.weights || []).some(x => x.date === d), freeDate);
+  /* Год у веса — скользящее окно страниц: свежая дата может уйти на
+     следующую страницу, поэтому проверяем state и «Текущий вес». */
   const wAdd = await p.evaluate(() => ({
-    rows: document.querySelectorAll('.w-list .swipe').length,
+    alive: (window.__waterApp.state.weights || []).filter(x => !x.deleted).length,
     now: document.querySelector('.w-now b').textContent
   }));
-  ok('вес: FAB пишет взвешивание, строка и «Текущий вес» обновляются',
-    wAdd.rows === expYear + 1 && wAdd.now.indexOf('60.2') === 0, wAdd);
+  ok('вес: FAB пишет взвешивание через шит донора, запись живая и «Текущий вес» обновляется',
+    wAdd.alive === 4 && wAdd.now.indexOf(String(kgDraft)) === 0, wAdd);
 
   /* 10. уведомления: каркас донора (разделы, строки, свичи) */
   await p.click('[data-tab="alerts"]');

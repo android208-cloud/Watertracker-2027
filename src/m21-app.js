@@ -2513,6 +2513,7 @@
   }
 
   function uid() { return J().uid(); } /* m03 */
+  function entryDay(e) { return J().entryDay(state, e); } /* донорский алиас m03 */
   function tzParts(d) { return N().tzParts(d); }
 
   function cupTarget(te, iso, mr) {
@@ -2778,8 +2779,108 @@
   }
 
 
+  function applyCalToHistory() {
+    var d = ui.calDate && ui.calDate <= todayStr() ? ui.calDate : todayStr();
+    ui.historyDate = d;
+    if (ui.histBars) {
+      for (var i = 0; i < ui.histBars.length; i++) {
+        if (ui.histBars[i].date === d) {
+          ui.chartLeft = Math.max(0, i * 82 - 120);
+          break;
+        }
+      }
+    }
+    ui.histWin = null;
+    ui._chartLeftLocked = 1;
+  }
+
+  function calMarksFor() {
+    var marks = {};
+    var sums = {};
+    state.entries.forEach(function (e) {
+      var dd = entryDay(e);
+      sums[dd] = (sums[dd] || 0) + (e.volume || 0);
+    });
+    Object.keys(sums).forEach(function (dd) { marks[dd] = sums[dd] >= goalFor(dd) ? "ok" : "under"; });
+    return marks;
+  }
+
+  function shiftPeriod(range, anchor, delta) {
+    anchor = anchor || todayStr();
+    if (range === "year") return (Number(anchor.slice(0, 4)) + delta) + "-01-01";
+    if (range === "month") {
+      var y = Number(anchor.slice(0, 4));
+      var m = Number(anchor.slice(5, 7)) - 1 + delta;
+      var d = new Date(Date.UTC(y, m, 1));
+      return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-01";
+    }
+    return L.addDays(weekStart(anchor), delta * 7);
+  }
+
+  function renderCalPanel() {
+    var old = document.querySelector(".cal-panel");
+    if (!old || !old.parentNode) { render(); return; }
+    var tmp = document.createElement("div");
+    tmp.innerHTML = calendarHtml(ui.calDate || (ui.weightDraft && ui.weightDraft.date) || todayStr(), ui.calMonth || todayStr().slice(0, 7));
+    var fresh = tmp.querySelector(".cal-panel");
+    if (!fresh) { render(); return; }
+    old.parentNode.replaceChild(fresh, old);
+  }
+
+  function calendarHtml(selected, monthIso) {
+    var names = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+    var gen = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+    var heads = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+    var today = todayStr();
+    /* Календарь истории (спека 26.10.2026, схема меток владельца):
+       синяя точка — норма выполнена, красная — недопоил, нет точки — записей нет;
+       дни раньше первой записи базы неактивны. Для даты веса меток нет. */
+    var marks = null, minIso = null;
+    if (ui.calTarget === "hist") {
+      /* v94: метки кэшируются на сеанс календаря (создан при открытии,
+         сброшен при закрытии). База на тысячи записей пересчитывалась на
+         каждый шаг месяца — именно это тормозило листание. */
+      marks = ui.calMarks || null;
+      if (!marks) { marks = calMarksFor(); ui.calMarks = marks; }
+      minIso = ui.histBars && ui.histBars.length ? ui.histBars[0].date : null;
+    }
+    var y = Number(monthIso.slice(0, 4));
+    var m = Number(monthIso.slice(5, 7));
+    var firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    var lead = firstDow === 0 ? 6 : firstDow - 1;
+    var days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    var cells = "";
+    for (var i = 0; i < lead; i++) cells += '<span class="cal-day blank"></span>';
+    for (var d = 1; d <= days; d++) {
+      var iso = monthIso + "-" + pad2(d);
+      if (iso > today) {
+        cells += '<span class="cal-day future">' + d + "</span>";
+      } else if (minIso && iso < minIso) {
+        cells += '<span class="cal-day past-off">' + d + "</span>";
+      } else {
+        var dot = marks && marks[iso] ? (marks[iso] === "ok" ? " dot-ok" : " dot-under") : "";
+        cells += '<button type="button" class="cal-day' + dot + (iso === selected ? " on" : "") + '" data-act="cal-pick" data-date="' + iso + '">' + d + "</button>";
+      }
+    }
+    var sm = Number(selected.slice(5, 7)) - 1;
+    var picked = Number(selected.slice(8, 10)) + " " + gen[sm] + " " + selected.slice(0, 4) + " г.";
+    var nextStart = shiftPeriod("month", monthIso + "-01", 1);
+    var nextBtn = nextStart <= today
+      ? '<button type="button" data-act="cal-shift" data-delta="1" aria-label="Следующий месяц"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M9.5 6.5 15 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+      : '<span class="cal-nav-gap"></span>';
+    return '<div class="modal-scrim cal" data-act="close-calendar"></div><div class="cal-panel" role="dialog" aria-label="Дата">' +
+      '<div class="cal-title">Дата</div>' +
+      '<div class="cal-picked">' + picked + "</div>" +
+      '<div class="cal-nav"><button type="button" data-act="cal-shift" data-delta="-1" aria-label="Предыдущий месяц"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M14.5 6.5 9 12l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span>' +
+      names[m - 1] + " " + y + " г.</span>" + nextBtn + "</div>" +
+      '<div class="cal-week">' + heads.map(function (h) { return "<span>" + h + "</span>"; }).join("") + "</div>" +
+      '<div class="cal-grid">' + cells + "</div>" +
+      '<div class="cal-actions">' + (ui.calTarget === "hist" ? '<button type="button" data-act="cal-today">Сегодня</button>' : "") + '<button type="button" data-act="close-calendar">Отмена</button><button type="button" data-act="cal-ok">Ок</button></div></div>';
+  }
+
   function overlayHtml() {
     var out = "";
+    if (ui.modal === "calendar") out += calendarHtml(ui.calDate || (ui.weightDraft && ui.weightDraft.date) || todayStr(), ui.calMonth || todayStr().slice(0, 7));
     if (!ui.page && ui.sheet === "activity") {
       /* Второй близнец: тот же кубик, другие данные. */
       var actToday = todayStr();
@@ -2815,7 +2916,7 @@
       out += U().roundBtn({ ui: "add", role: "fab", act: "open-add", aria: "Добавить запись", icon: uiIcon("plus") });
     }
     if (!ui.sheet && !ui.modal && !ui.page && ui.tab === "weight") {
-      out += U().roundBtn({ ui: "add-weight", role: "fab", act: "open-weight-add", aria: "Добавить взвешивание", icon: uiIcon("plus") });
+      out += U().roundBtn({ ui: "add-weight", role: "fab", act: "open-weight", aria: "Добавить", icon: uiIcon("plus") });
     }
     if (!ui.page && ui.sheet === "volume") {
       var volumeControl = useSystemDrums()
@@ -2842,14 +2943,31 @@
         body: K().drinkPickRow({ ui: "addsheet", items: aitems, act: "add-drink" }) +
           U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ad.volume, act: "add-vol-chip" }),
         tail: '<button type="button" class="check center" data-act="add-entry-save" aria-label="Записать">' + uiIcon("check") + "</button>" });
-    } else if (ui.sheet === "weight-add" || ui.sheet === "weight-edit") {
-      var wd = ui.weightDraft || { kg: "", date: N().wallToday() };
-      out += U().sheet({ ui: "weightadd", title: ui.sheet === "weight-edit" ? "Изменить взвешивание" : "Новое взвешивание",
-        body: '<div class="field"><label>Вес, кг</label><input type="number" step="0.1" min="1" max="400" data-act="weight-kg" value="' + esc(String(wd.kg)) + '"></div>' +
-          '<div class="field"><label>Дата</label><input type="date" data-act="weight-date" value="' + esc(wd.date) + '"></div>',
-        tail: '<button type="button" class="check center" data-act="weight-save" aria-label="Сохранить">' + uiIcon("check") + "</button>" });
-
-    } else if (ui.sheet === "entry-edit") {
+    }
+    if (ui.sheet === "weight") {
+      var wd = ui.weightDraft || { date: todayStr(), kg: state.weightKg };
+      var parts = splitKg(wd.kg);
+      var weightControl = useSystemDrums()
+        ? sysLaunch("sys-weight", fmtKg(wd.kg))
+        : (window.UiKit ? K().wheelBlock({ ui: "weight-onb",
+            cls: "kg-pick",
+            items: [{ wheel: { name: "kg-int", value: parts.whole, min: 20, max: 300, step: 1, item: 60 } },
+                    { sep: ",", aria: true },
+                    { wheel: { name: "kg-dec", value: parts.frac, min: 0, max: 9, step: 1, item: 60 } },
+                    { unit: "кг" }]
+          }) : "");
+      out += K().sheet({
+        ui: "weight", scrimCls: " heavy", cls: "weight",
+        body: weightControl,
+        tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "save-weight", role: "check", pos: "center", act: "save-weight", aria: "Сохранить вес", icon: uiIcon("check") }) +
+          K().roundBtn({ ui: "weight-cal", role: "time", cls: "w-date", act: "open-weight-cal", aria: "Выбрать дату", icon: calendarIcon(), text: fmtShort(wd.date) }) +
+          /* v107: вход живёт в разметке шита заранее (рабочий сниппет владельца):
+             часть WebView молча не показывает пикер для input, созданного в
+             том же тике, что и showPicker. */
+          '<input type="date" class="wt-dateinp" value="' + wd.date + '" max="' + todayStr() + '" tabindex="-1" aria-hidden="true">' + "</div>"
+      });
+    }
+    if (ui.sheet === "entry-edit") {
       out += U().sheet({ ui: "entryedit", cls: "goal", title: "Объём записи",
         body: U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ui.editDraft ? ui.editDraft.volume : 0, act: "edit-vol-chip" }),
         tail: '<button type="button" class="check center" data-act="commit-edit" aria-label="Сохранить">' + uiIcon("check") + "</button>" });
@@ -3491,7 +3609,6 @@
       render(); return;
     }
     if (act === "pick-day") { ui.historyDate = ds.date; ui.chartLeft = null; render(); return; }
-    if (act === "open-cal-hist") { toast("Календарь приедет со своим модулем"); return; }
     if (act === "open-volumes") { ui.page = "volumes"; render(); return; }
     if (act === "open-theme") { ui.modal = "theme"; render(); return; }
     if (act === "theme-cancel") { ui.modal = null; render(); return; }
@@ -4092,6 +4209,158 @@
       render();
       return;
     }
+    if (act === "open-weight") {
+      var latest = state.weights.slice().sort(function (a, b) { return a.date.localeCompare(b.date); }).pop();
+      ui.weightDraft = { date: todayStr(), kg: latest ? latest.kg : state.weightKg };
+      ui.sheet = "weight";
+      ui.modal = null;
+      ui.openSwipe = null;
+      render();
+      return;
+    }
+    if (act === "edit-weight") {
+      var found = null;
+      for (var wi = 0; wi < state.weights.length; wi++) if (state.weights[wi].id === t.dataset.id) found = state.weights[wi];
+      if (!found) return;
+      ui.weightDraft = { id: found.id, date: found.date, kg: found.kg };
+      ui.sheet = "weight";
+      ui.modal = null;
+      ui.openSwipe = null;
+      render();
+      return;
+    }
+    if (act === "save-weight") {
+      var kg;
+      if (useSystemDrums() && ui.weightDraft) kg = ui.weightDraft.kg;
+      else {
+        var whole = readWheel("kg-int", 0);
+        var frac = readWheel("kg-dec", 0);
+        kg = Math.round((whole + frac / 10) * 10) / 10;
+      }
+      var date = ui.weightDraft && ui.weightDraft.date;
+      if (!date || !(kg >= 20 && kg <= 300)) { toast("Нужна дата и вес от 20 до 300"); return; }
+      var keepId = ui.weightDraft && ui.weightDraft.id;
+      /* v84: правка измерения (тот же keepId, другой вес/дата) метит старую
+         версию удалённой — иначе второе устройство оставит себе обе. */
+      var prevW = keepId ? state.weights.filter(function (w) { return w.id === keepId; })[0] : null;
+      if (prevW && J().weightKey(prevW) !== [date, Math.round(kg * 10)].join("|")) J().markDeleted(state, [prevW], "w");
+      /* v83: удалёнными помечаем только измерения того же дня, которые
+         заменяются свежим. Прежняя версия (w.date !== date) по ошибке метила
+         ВСЮ остальную историю — следующая же синхронизация вычищала её
+         (инцидент 25.10, docs/weight-tombstone-incident.md). */
+      J().markDeleted(state, state.weights.filter(function (w) { return w.id !== keepId && w.date === date; }), "w");
+      state.weights = state.weights.filter(function (w) { return w.id !== keepId && w.date !== date; });
+      var freshW = { id: keepId || uid(), date: date, kg: kg, createdAt: Date.now() };
+      J().markAlive(state, freshW, "w");
+      state.weights.push(freshW);
+      state.weights.sort(function (a, b) { return a.date.localeCompare(b.date); });
+      state.weightKg = state.weights[state.weights.length - 1].kg;
+      syncRecommended();
+      stampWeightGoals(date, kg);
+      ui.weightAnchor = date;
+      ui.modal = null;
+      ui.weightDraft = null;
+      save();
+      closeSheetThen(function () { toast("Вес записан"); });
+      return;
+    }
+    if (act === "open-weight-cal") {
+      var picked = (ui.weightDraft && ui.weightDraft.date) || todayStr();
+      if (picked > todayStr()) picked = todayStr();
+      if (useSystemCalendar()) {
+        /* v110: цепочка без тишины, порядок по контракту: в APK первым мост
+           (MaterialDatePicker — вид скрина 2, которого Blink в WebView не
+           даёт); в браузере моста нет — ваша showPicker-схема на входе из
+           разметки; нет ни того ни другого — наш календарь с точками. */
+        if (useNative("Date")) {
+          askNativeDate({ title: "Дата", value: picked, max: todayStr() }, function (iso) {
+            if (iso > todayStr()) iso = todayStr();
+            if (ui.weightDraft) ui.weightDraft.date = iso;
+            render();
+          });
+          return;
+        }
+        var din = document.querySelector(".wt-dateinp");
+        if (din && webHasDatePick()) {
+          try {
+            din.showPicker();
+            return;
+          } catch (e) {
+            if (state.devMode) toast("showPicker: " + (e && e.name ? e.name : "ошибка"));
+          }
+        }
+        /* падаем в наш календарь ниже */
+      }
+      ui.calDate = picked;
+      ui.calMonth = picked.slice(0, 7);
+      ui.calTarget = "weight";
+      ui.calMarks = null; /* v94: кэш меток живёт один сеанс календаря */
+      ui.modal = "calendar";
+      render();
+      return;
+    }
+    if (act === "open-cal-hist") {
+      /* Календарь из заголовка истории (спека 26.10.2026): переход к дню. */
+      var hd = ui.historyDate || todayStr();
+      if (hd > todayStr()) hd = todayStr();
+      ui.calDate = hd;
+      ui.calMonth = hd.slice(0, 7);
+      ui.calTarget = "hist";
+      ui.calMarks = null; /* v94: свежий кэш меток на каждый сеанс */
+      ui.modal = "calendar";
+      render();
+      return;
+    }
+    if (act === "cal-today") {
+      /* v96 (мини-спека владельца 27.10): «Сегодня» — водный день, как во
+         всём приложении (начало суток 02:00). Между 00:00 и 02:00
+         календарный день уже «завтрашний», записей там нет, и кнопка
+         уводила историю на пустой день. Днём waterToday() === todayStr(),
+         поведение не меняется. */
+      ui.calDate = waterToday();
+      ui.calMonth = ui.calDate.slice(0, 7);
+      ui.calMarks = null; /* v94 */
+      if (ui.calTarget === "hist") {
+        applyCalToHistory();
+        ui.modal = null;
+        ui.calTarget = null;
+      }
+      render();
+      return;
+    }
+    if (act === "cal-shift") {
+      var base = (ui.calMonth || todayStr().slice(0, 7)) + "-01";
+      var delta = Number(t.dataset.delta) || 0;
+      var nextMonth = shiftPeriod("month", base, delta);
+      if (delta > 0 && nextMonth > todayStr()) return;
+      ui.calMonth = nextMonth.slice(0, 7);
+      renderCalPanel(); /* v94: только панель, не всё приложение */
+      return;
+    }
+    if (act === "cal-pick") {
+      if (t.dataset.date && t.dataset.date <= todayStr()) ui.calDate = t.dataset.date;
+      renderCalPanel(); /* v94: тап по дню тоже не перерисовывает всё */
+      return;
+    }
+    if (act === "cal-ok") {
+      if (ui.calTarget === "hist") {
+        applyCalToHistory();
+      } else if (ui.weightDraft && ui.calDate && ui.calDate <= todayStr()) {
+        ui.weightDraft.date = ui.calDate;
+      }
+      ui.modal = null;
+      ui.calTarget = null;
+      ui.calMarks = null; /* v94 */
+      render();
+      return;
+    }
+    if (act === "close-calendar") {
+      ui.modal = null;
+      ui.calTarget = null;
+      ui.calMarks = null; /* v94 */
+      render();
+      return;
+    }
     if (act === "toggle") {
       /* M25: ключи донора (app.js 9025) + прежние ключи next — одни поля M13.
          Ключи модулей-сидений (animation/warnExceed/dialTime/vibroDial/devMode/
@@ -4173,12 +4442,6 @@
       ui.weightRange = ds.range; ui.weightAnchor = N().wallToday();
       render(); return;
     }
-    if (act === "edit-weight") {
-      var wE = (state.weights || []).filter(function (w) { return w.id === t.dataset.id; })[0];
-      if (!wE) return;
-      ui.weightDraft = { kg: wE.kg, date: wE.date, id: wE.id };
-      ui.sheet = "weight-edit"; render(); return;
-    }
     if (act === "del-weight") {
       var wD = (state.weights || []).filter(function (w) { return w.id === t.dataset.id; })[0];
       if (!wD) return;
@@ -4252,6 +4515,15 @@
   function bindEvents() {
     document.addEventListener("change", function (e) {
       var el = e.target;
+      if (el && el.classList && el.classList.contains("wt-dateinp")) {
+        var iso = el.value;
+        if (iso) {
+          if (iso > todayStr()) iso = todayStr();
+          if (ui.weightDraft) ui.weightDraft.date = iso;
+          render();
+        }
+        return;
+      }
       if (!el || !el.dataset) return;
       if (el.dataset.act === "weight-kg") { ui.weightDraft = ui.weightDraft || {}; ui.weightDraft.kg = el.value; }
       if (el.dataset.act === "weight-date") { ui.weightDraft = ui.weightDraft || {}; ui.weightDraft.date = el.value; }
