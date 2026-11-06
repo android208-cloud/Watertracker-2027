@@ -19,6 +19,20 @@
 .weight-screen > header.top {
   margin-top: calc(var(--pitch) / 2 - var(--band-len) / 2);
 }
+/* Верх истории по образцу владельца 06.11 (донор styles 1192–1210): серая
+   полоса --track, заголовок влево 20/600, круглая стрелка вместо пилюли. */
+.hist-screen > header.top {
+  background: var(--track);
+  justify-content: flex-start;
+  padding: 0 16px;
+}
+.hist-screen > header.top h1 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+}
+[data-theme="light"] .hist-screen > header.top { background: var(--band, #1da0e8); }
+[data-theme="light"] .hist-screen > header.top h1 { color: #fff; }
 /* FAB центром на линии М: низ = экран - М - радиус; в опорном кадре
    892 - 784.6 - 32 = 75.4 = nav-h 56 + 19.4. */
 #app > .fab {

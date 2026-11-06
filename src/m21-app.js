@@ -483,8 +483,10 @@
     }).join("");
     if (!rows) rows = '<div class="empty">Нет записей</div>';
     return "" +
+      /* Верх истории — как на образце владельца 06.11 (донор-спека): заголовок
+         влево на серой полосе, справа круглая стрелка-шевроон в «Объёмы». */
       K().header({ ui: "history", cls: "top plain", title: "История и статистика",
-        right: '<button type="button" class="head-pill" data-act="open-volumes">Объёмы</button>' }) +
+        right: U().roundBtn({ ui: "volumes-open", role: "head", side: "right", act: "open-volumes", aria: "Объёмы напитков", icon: uiIcon("chevron") }) }) +
       chartPanel(selected) +
       '<div class="hist-head"><span class="hist-ico" aria-hidden="true">' + uiIcon("restore") + '</span><span>История</span><span class="grow"></span>' +
       '<button type="button" class="hist-date" data-act="open-cal-hist" aria-label="Открыть календарь и перейти к дню">' + fmtLong(selected) + "</button></div>" +

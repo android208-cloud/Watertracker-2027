@@ -48,7 +48,7 @@ const near = (a, b) => Math.abs(a - b) <= 1;
     const box = document.querySelector('.wt-caps');
     const cols = Array.from(document.querySelectorAll('.wt-caps .wt-cap-col'));
     const lastCap = cols[cols.length - 1].querySelector('.wt-cap');
-    const pill = q('.head-pill');
+    const pill = { height: 0 };  /* пилюлю истории заменила стрелка (слово 06.11) */
     const ico = cols[0].getBoundingClientRect().width;  /* --ico отдаёт calc() сырьём */
     const boxR = box.getBoundingClientRect();
     const vis = cols.filter(c => { const r = c.getBoundingClientRect(); return r.left >= boxR.left - 1 && r.right <= boxR.right + 1; });
@@ -59,12 +59,19 @@ const near = (a, b) => Math.abs(a - b) <= 1;
       centers: vis.map(c => { const r = c.getBoundingClientRect(); return Math.round(r.left + r.width / 2); }),
       scrollable: box.scrollWidth > box.clientWidth, atRight: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1,
       ico: ico, expCenters: [0, 1, 2, 3, 4].map(i => Math.round((412 - 5 * ico) / 2 + ico * (i + 0.5))),
+      arrow: !!document.querySelector('.hist-screen > header.top .icon-btn.right'),
+      pill: !!document.querySelector('.hist-screen > header.top .head-pill'),
+      h1fs: parseFloat(getComputedStyle(document.querySelector('.hist-screen > header.top h1')).fontSize),
+      h1x: Math.round(document.querySelector('.hist-screen > header.top h1').getBoundingClientRect().left),
+      hdrBg: getComputedStyle(document.querySelector('.hist-screen > header.top')).backgroundColor,
+      trackBg: getComputedStyle(document.querySelector('.hist-screen')).backgroundColor || '',
       pillH: pill.height, on: cols[cols.length - 1].className.indexOf('on') >= 0 };
   });
   ok('история: канон линий (Ж 44, И1 314, И 362, строка 48, FAB на М) + пять колонок шириной с круглую кнопку главного (--ico), центрированы в кадре, капсула 44 R22, лента длиннее кадра и стоит у правого края',
     near(hist.headAxis, 44) && near(hist.subTop, 314) && near(hist.rowTop, 362) && near(hist.rowH, 48) && near(hist.fabC, 784.6) &&
     hist.visN === 5 && hist.centers.join(',') === hist.expCenters.join(',') && near(hist.colW, hist.ico) &&
-    near(hist.capW, 44) && String(hist.capR).startsWith('22px') && hist.scrollable && hist.atRight && hist.on, hist);
+    near(hist.capW, 44) && String(hist.capR).startsWith('22px') && hist.scrollable && hist.atRight && hist.on &&
+    hist.arrow && !hist.pill && hist.h1fs === 20 && hist.h1x <= 17, hist);
 
   /* 1b. прокрутка ленты: упор влево — первый столбец, не далее */
   const scr = await p.evaluate(async () => {
@@ -82,8 +89,8 @@ const near = (a, b) => Math.abs(a - b) <= 1;
   ok('прокрутка: влево упор в первый столбец, отрицательный скролл не проходит, возврат к правому краю',
     scr.c0 === scr.firstExp && scr.clamped && scr.backRight, scr);
 
-  /* 2. пилюля «Объёмы» ведёт на экран объёмов */
-  await p.click('.head-pill');
+  /* 2. стрелка в шапке истории ведёт на экран объёмов (слово 06.11) */
+  await p.click('.hist-screen > header.top .icon-btn.right');
   await p.waitForFunction(() => window.__waterApp.ui.page === 'volumes');
   ok('история: пилюля «Объёмы» открывает экран объёмов', true);
   await p.click('[data-tab="history"]');
