@@ -1,4 +1,5 @@
-/* Стенд M22 — история v2 (семь капсул, канон второстепенных экранов) и экран
+/* Стенд M22 — история v2 (лента капсул: пять в кадре А–Е, прокрутка с упором
+   в первый столбец; канон второстепенных экранов) и экран
    веса тем же скелетом (макеты hist-layout v2 / weight-layout v1, слово 05.11). */
 const { chromium } = require('/home/user/pw/node_modules/playwright');
 let pass = 0, fail = 0;
@@ -12,6 +13,7 @@ const FIX = JSON.stringify({
   onboarded: 1, historyDismissed: 1, alertPermAsked: 1, profile: { drinkId: 'water', volume: 350 },
   drinks: [{ id: 'water', name: 'Вода', hydration: 100, icon: 'drop', color: '#4aa3e8' }, { id: 'espresso', name: 'Эспрессо', hydration: 70, icon: 'takeaway', color: '#8b5a2b' }],
   entries: [
+    { id: 'e0', date: '2026-10-27', time: '09:00', drinkId: 'water', name: 'Вода', icon: 'drop', color: '#4aa3e8', hydration: 100, volume: 300, credited: 300, createdAt: 0 },
     { id: 'e1', date: '2026-11-05', time: '05:01', drinkId: 'water', name: 'Вода', icon: 'drop', color: '#4aa3e8', hydration: 100, volume: 200, credited: 200, createdAt: 1 },
     { id: 'e2', date: '2026-11-04', time: '09:00', drinkId: 'espresso', name: 'Эспрессо', icon: 'takeaway', color: '#8b5a2b', hydration: 70, volume: 350, credited: 245, createdAt: 2 },
     { id: 'e3', date: '2026-11-03', time: '09:00', drinkId: 'water', name: 'Вода', icon: 'drop', color: '#4aa3e8', hydration: 100, volume: 2400, credited: 2400, createdAt: 3 }
@@ -43,19 +45,37 @@ const near = (a, b) => Math.abs(a - b) <= 1;
     const sub = q('.hist-head');
     const row = q('.hist-list .swipe');
     const fab = q('.fab');
+    const box = document.querySelector('.wt-caps');
     const cols = Array.from(document.querySelectorAll('.wt-caps .wt-cap-col'));
-    const cap = cols[6].querySelector('.wt-cap').getBoundingClientRect();
+    const lastCap = cols[cols.length - 1].querySelector('.wt-cap');
     const pill = q('.head-pill');
+    const vis = cols.filter(c => { const r = c.getBoundingClientRect(); return r.left >= -1 && r.right <= 413; });
     return { headAxis: head.top + head.height / 2, subTop: sub.top, rowTop: row.top, rowH: row.height,
-      fabC: fab.top + fab.height / 2, n: cols.length, capW: cap.width, capR: getComputedStyle(cols[6].querySelector('.wt-cap')).borderRadius,
-      centers: cols.map(c => { const r = c.getBoundingClientRect(); return Math.round(r.left + r.width / 2); }),
-      pillH: pill.height, on: cols[6].className.indexOf('on') >= 0 };
+      fabC: fab.top + fab.height / 2, n: cols.length, visN: vis.length,
+      capW: lastCap.getBoundingClientRect().width, capR: getComputedStyle(lastCap).borderRadius,
+      colW: cols[0].getBoundingClientRect().width,
+      centers: vis.map(c => { const r = c.getBoundingClientRect(); return Math.round(r.left + r.width / 2); }),
+      scrollable: box.scrollWidth > box.clientWidth, atRight: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1,
+      pillH: pill.height, on: cols[cols.length - 1].className.indexOf('on') >= 0 };
   });
-  ok('история: канон линий (Ж 44, И1 314, И 362, строка 48, FAB на М)',
-    near(hist.headAxis, 44) && near(hist.subTop, 314) && near(hist.rowTop, 362) && near(hist.rowH, 48) && near(hist.fabC, 784.6), hist);
-  ok('история: семь капсул шириной 44, радиус 22, центры равномерно, выбранный день подсвечен',
-    hist.n === 7 && near(hist.capW, 44) && hist.capR === '22px' && hist.on &&
-    hist.centers.every((c, i) => near(c, (i + 0.5) * 412 / 7)), { centers: hist.centers });
+  ok('история: канон линий (Ж 44, И1 314, И 362, строка 48, FAB на М) + пять колонок в кадре А–Е (центры 74..338, колонка 66, капсула 44 R22), лента длиннее кадра и стоит у правого края',
+    near(hist.headAxis, 44) && near(hist.subTop, 314) && near(hist.rowTop, 362) && near(hist.rowH, 48) && near(hist.fabC, 784.6) &&
+    hist.visN === 5 && hist.centers.join(',') === '74,140,206,272,338' && near(hist.colW, 66) &&
+    near(hist.capW, 44) && String(hist.capR).startsWith('22px') && hist.scrollable && hist.atRight && hist.on, hist);
+
+  /* 1b. прокрутка ленты: упор влево — первый столбец, не далее */
+  const scr = await p.evaluate(async () => {
+    const box = document.querySelector('.wt-caps');
+    const firstC = () => { const r = document.querySelector('.wt-caps .wt-cap-col').getBoundingClientRect(); return Math.round(r.left + r.width / 2); };
+    box.scrollLeft = 0; await new Promise(r => setTimeout(r, 60));
+    const c0 = firstC();
+    box.scrollLeft = -300; await new Promise(r => setTimeout(r, 60));
+    const clamped = box.scrollLeft === 0 && firstC() === 74;
+    box.scrollLeft = box.scrollWidth; await new Promise(r => setTimeout(r, 60));
+    return { c0, clamped, backRight: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1 };
+  });
+  ok('прокрутка: влево упор в первый столбец (центр 74), отрицательный скролл не проходит, возврат к правому краю',
+    scr.c0 === 74 && scr.clamped && scr.backRight, scr);
 
   /* 2. пилюля «Объёмы» ведёт на экран объёмов */
   await p.click('.head-pill');
@@ -78,10 +98,10 @@ const near = (a, b) => Math.abs(a - b) <= 1;
     added.vol === 250 && added.drink === 'water' && /Записано/.test(added.toast || ''), added);
 
   /* 4. колонка-капсула выбирает день ленты */
-  await p.click('.wt-caps .wt-cap-col:nth-child(5)');
+  await p.click('.wt-caps .wt-cap-col[data-v="2026-11-03"]');
   await p.waitForTimeout(200);
   const sel = await p.evaluate(() => ({ date: window.__waterApp.ui.historyDate, head: document.querySelector('.hist-head .hist-date').textContent }));
-  ok('история: тап по капсуле выбирает день ленты', sel.date === '2026-11-02' && sel.head === '02.11.2026', sel);
+  ok('история: тап по капсуле выбирает день ленты', sel.date === '2026-11-03' && sel.head === '03.11.2026', sel);
 
   /* 5. вес: канон линий, строки, текущий вес, график */
   await p.click('[data-tab="weight"]');

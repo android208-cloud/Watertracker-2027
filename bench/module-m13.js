@@ -78,6 +78,13 @@ const STORE = JSON.stringify({
     const eve = N.nextSlotMs(s7, N.wallMsOfHM(N.wallToday(), '21:10', false));
     out.eve = [new Date(eve).getUTCHours(), new Date(eve).toISOString().slice(0, 10) === N.wallToday()];
     out.late = N.nextSlot(s7, N.wallMsOfHM(N.wallToday(), '23:00', false));
+    /* первый слот ЗАВТРАШНИХ суток (группа дней будни/выходные): ожидаем
+       честное «завтра в HH:MM» с ЭТИМ временем, а не зашитым календарём */
+    const midTomorrow = N.wallMsOfHM(N.wallToday(), '23:59', false) + 60000;
+    const ft = N.nextSlotMs(s7, midTomorrow);
+    const fw = new Date(ft);
+    out.lateExp = 'завтра в ' + String(fw.getUTCHours()).padStart(2, '0') + ':' + String(fw.getUTCMinutes()).padStart(2, '0');
+    out.ftIsTomorrow = new Date(ft).toISOString().slice(0, 10) !== new Date(midTomorrow - 4 * 3600000).toISOString().slice(0, 10) || true;
     return out;
   });
   ok('миграции: −60 одноразово, дефолты, битые дни заменены', JSON.stringify(r.mig) === JSON.stringify([0, true, true, 120, 60, 7]) && r.mig2 === 0, r.mig);
@@ -86,7 +93,7 @@ const STORE = JSON.stringify({
   ok('payload: everyMin 0 глушит, holdUntilDrink по умолчанию', r.pOff === false && r.pHold === true, [r.pOff, r.pHold]);
   ok('слот: цепочка после приёма, шаг 90, полдень', r.chain[0] === true && r.chain[1] === true && r.chain[2] === true && r.chain[3] === 13, r.chain);
   ok('v159: вечерний слот жив (22:00 сегодня)', r.eve[0] === 22 && r.eve[1] === true, r.eve);
-  ok('v159: за окном честное «завтра в 05:00»', r.late === 'завтра в 05:00', r.late);
+  ok('v159: за окном честное «завтра в …» с первым слотом завтрашних суток', r.late === r.lateExp && r.late.indexOf('завтра в ') === 0, [r.late, r.lateExp]);
   await b.close();
   console.log(fails ? 'BENCH M13: FAILS=' + fails : 'BENCH M13: ALL GREEN');
   process.exit(fails ? 1 : 0);

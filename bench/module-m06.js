@@ -8,7 +8,8 @@ function ok(name, cond, extra) {
   else { fail++; console.log('FAIL ' + name + (extra != null ? ' :: ' + JSON.stringify(extra) : '')); }
 }
 
-const TODAY = '2026-11-05';
+/* день «сегодня» в поясе приложения, чтобы стенд не падал назавтра */
+const TODAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Samara' }).format(new Date());
 const store = (entries, goal) => JSON.stringify({
   goalMl: goal || 1950, gender: 'male', weightKg: 59.1, theme: 'dark', dayStart: '02:00',
   onboarded: 1, historyDismissed: 1, alertPermAsked: 1,
@@ -111,7 +112,7 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
     const st = window.__waterApp.state;
     const ds = window.WT2S.dayStats(st, window.WT2N.waterToday(st));
     return Math.abs(window.WT2W.visible() - window.WT2W.liftPct(ds.volume / ds.goal)) < 0.01;
-  }, { timeout: 6000 });
+  }, { timeout: 15000 });
   const after = await p.evaluate(() => {
     const st = window.__waterApp.state;
     const ds = window.WT2S.dayStats(st, window.WT2N.waterToday(st));

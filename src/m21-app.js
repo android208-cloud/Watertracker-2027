@@ -341,9 +341,23 @@
   /* Канон v2 (слово 05.11): неделя семью капсулами во всю ширину, капсула
      44xR22, пояса обрезаются радиусом, наивысшая касается верха (потолок
      динамический, слово 04.11). Донорская лента-скролл ушла: прототип не закон. */
-  function chartPanel(selected) {
+  /* Лента столбцов (слово владельца 06.11): пять колонок в кадре канона
+     (А–Е, pitch 66), лента тянется в прошлое до первой записи, но не длиннее
+     90 колонок; прокрутка с упорами: влево — не далее первого столбца. */
+  function ribbonDates(selected) {
+    var first = null;
+    (state.entries || []).forEach(function (e) {
+      if (e.date <= selected && (first == null || e.date < first)) first = e.date;
+    });
+    var floor = L().addDays(selected, -89);
+    if (first == null || first < floor) first = floor;
     var dates = [];
-    for (var i = 6; i >= 0; i--) dates.push(L().addDays(selected, -i));
+    for (var d = first; d <= selected; d = L().addDays(d, 1)) dates.push(d);
+    while (dates.length < 5) dates.unshift(L().addDays(dates[0], -1));
+    return dates;
+  }
+  function chartPanel(selected) {
+    var dates = ribbonDates(selected);
     var bars = S().bars(state, selected);
     var byDate = {};
     bars.forEach(function (b) { byDate[b.date] = b; });
@@ -373,7 +387,7 @@
         (px ? '<span class="wt-cap" style="height:' + px + 'px">' + segs + "</span>" : '<span class="wt-cap" style="height:0"></span>') +
         '<span class="wt-cap-date">' + d.slice(8, 10) + "." + d.slice(5, 7) + "</span></button>";
     }).join("");
-    return '<div class="wt-caps"><span class="wt-goal" style="bottom:' + (goalPx + 28) + 'px"></span>' + cols + "</div>";
+    return '<div class="wt-caps"><div class="wt-caps-in"><span class="wt-goal" style="bottom:' + (goalPx + 28) + 'px"></span>' + cols + "</div></div>";
   }
 
   /* ---- экраны ---- */
@@ -758,6 +772,21 @@
     U().bindPhone();
     initSwipes();
     initSwipeTaps();
+    /* M22 v3 (слово 06.11): прокрутка столбцов, упор влево — первый столбец. */
+    var cp = document.querySelector(".wt-caps");
+    if (cp) {
+      var cpMax = cp.scrollWidth - cp.clientWidth;
+      cp.scrollLeft = ui.capsLeft == null ? cpMax : Math.min(Math.max(0, ui.capsLeft), cpMax);
+      if (!cp._bound) {
+        cp._bound = true;
+        cp.addEventListener("scroll", function () {
+          var mx = cp.scrollWidth - cp.clientWidth;
+          if (cp.scrollLeft < 0) cp.scrollLeft = 0;
+          if (cp.scrollLeft > mx) cp.scrollLeft = mx;
+          ui.capsLeft = cp.scrollLeft;
+        });
+      }
+    }
     var sc = document.querySelector(".chart-scroll");
     if (sc) {
       sc.scrollLeft = ui.chartLeft == null ? sc.scrollWidth : ui.chartLeft;

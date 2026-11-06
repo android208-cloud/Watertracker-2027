@@ -32,6 +32,10 @@
   #ov svg { position: absolute; inset: 0; width: 412px; height: 892px; }
   .gline { stroke: rgba(255,80,80,.55); stroke-width: 1; }
   .gline.v { stroke: rgba(90,160,255,.5); }
+  .gline.own { stroke: rgba(90,230,140,.65); }
+  .glabel.own { fill: rgba(120,240,160,.95); }
+  .ghit.own { stroke: rgba(90,230,140,.6); }
+  .lkline { stroke: rgba(255,200,60,.8); stroke-width: 1; stroke-dasharray: 3 3; }
   .glabel { font: 10px system-ui; fill: rgba(255,120,120,.9); }
   .glabel.v { fill: rgba(130,180,255,.9); }
   .ghit { fill: rgba(255,255,255,.06); stroke: rgba(255,255,255,.25); stroke-width: 1; cursor: grab; }
@@ -54,7 +58,9 @@
 <body>
 <header>
   <h1>Студия интерфейса</h1>
-  <button class="btn on" id="btnSnap" title="Прилипание к линиям сетки">Липучка</button>
+  <button class="btn on" id="btnSnap" title="Прилипание к осям, краям и другим объектам с фиксацией связи">Липучка</button>
+  <button class="btn" id="btnAddH" title="Добавить свою горизонтальную ось">+ось ─</button>
+  <button class="btn" id="btnAddV" title="Добавить свою вертикальную ось">+ось |</button>
   <button class="btn" id="btnUndo" title="Откатить последнее изменение (Ctrl+Z)">Откат</button>
   <button class="btn" id="btnResetObj">Сбросить объект</button>
   <button class="btn pri" id="btnExport">Экспорт файла</button>
@@ -129,12 +135,14 @@
   }
 
   /* ---- черновик ---- */
-  function blankDraft() { return { kind: "watercat-iface", v: 1, grid: {}, gridLines: {}, screens: {} }; }
+  function blankDraft() { return { kind: "watercat-iface", v: 1, grid: {}, gridLines: {}, axes: {}, links: [], screens: {} }; }
   function loadDraft() {
     try {
       var raw = localStorage.getItem(LS_DRAFT);
       var d = raw ? JSON.parse(raw) : null;
-      return d && d.kind === "watercat-iface" ? d : blankDraft();
+      if (!d || d.kind !== "watercat-iface") return blankDraft();
+      d.axes = d.axes || {}; d.links = d.links || [];
+      return d;
     } catch (e) { return blankDraft(); }
   }
   function saveDraft() { try { localStorage.setItem(LS_DRAFT, JSON.stringify(draft)); } catch (e) {} }
@@ -175,7 +183,8 @@
   function applyLive() {
     if (!appReady()) return;
     W2().WT2I.packApply(draft);
-    drawGrid(); drawSel();
+    solveLinks();
+    drawGrid(); drawSel(); drawLinks();
   }
 
   /* ---- демо-данные редактора (настоящая база не трогается) ---- */
@@ -183,24 +192,17 @@
     var w = window; /* редактор и приложение на одном origin: их localStorage общий */
     /* детерминированный «генератор» 14 дней записей и весов */
     var s = 20261105, rnd = function () { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+    /* Слово владельца 06.11: в историях редактора по ОДНОЙ строке; вторая
+       запись далёкого дня нужна лишь чтобы лента столбцов умела прокрутку. */
     var entries = [], id = 1, day = new Date(Date.UTC(2026, 10, 5));
-    for (var d = 0; d < 14; d++) {
-      var date = new Date(day.getTime() - d * 86400000).toISOString().slice(0, 10);
-      var cnt = 3 + Math.floor(rnd() * 4);
-      for (var k = 0; k < cnt; k++) {
-        var hh = 7 + Math.floor(rnd() * 14), mm = Math.floor(rnd() * 60);
-        var vol = [200, 250, 300, 330, 350, 400, 500][Math.floor(rnd() * 7)];
-        entries.push({ id: "s" + id, date: date, time: ("0" + hh).slice(-2) + ":" + ("0" + mm).slice(-2),
-          drinkId: "water", name: "Вода", icon: "drop", color: "#4aa3e8", hydration: 100,
-          volume: vol, credited: vol, createdAt: id * 60000 });
-        id++;
-      }
-    }
-    var weights = [];
-    for (var wi = 0; wi < 10; wi++) {
-      weights.push({ id: "sw" + wi, date: new Date(day.getTime() - wi * 86400000 * 1.4).toISOString().slice(0, 10),
-        kg: Math.round((88.4 - wi * 0.45 + rnd() * 0.5) * 10) / 10, createdAt: 1000 + wi });
-    }
+    [[0, "09:12", 250], [12, "15:40", 300]].forEach(function (row) {
+      var date = new Date(day.getTime() - row[0] * 86400000).toISOString().slice(0, 10);
+      entries.push({ id: "s" + id, date: date, time: row[1], drinkId: "water", name: "Вода",
+        icon: "drop", color: "#4aa3e8", hydration: 100, volume: row[2], credited: row[2], createdAt: id * 60000 });
+      id++;
+    });
+    var weights = [{ id: "sw1", date: new Date(day.getTime() - 3 * 86400000).toISOString().slice(0, 10),
+      kg: 84.2, createdAt: 1001 }];
     var st = { goalMl: 1947, gender: "male", weightKg: 84.2, theme: "dark", dayStart: "02:00",
       onboarded: 1, historyDismissed: 1, alertPermAsked: 1,
       profile: { drinkId: "water", volume: 350 },
@@ -241,7 +243,7 @@
     app.ui.page = s.page; if (s.tab) app.ui.tab = s.tab;
     app.render();
     W2().scrollTo(0, 0);
-    buildScreens(); buildTree(); applyLive(); drawSel(); renderPanel();
+    buildScreens(); buildTree(); applyLive(); drawSel(); drawLinks(); renderPanel();
   }
 
   /* ---- дерево объектов ---- */
@@ -282,19 +284,102 @@
   }
 
   /* ---- оверлей: сетка, выбор, ручки ---- */
-  function gridY(id) { var o = draft.gridLines[id]; return o != null ? o : lookup(GRID.h, id); }
-  function gridX(id) { var o = draft.gridLines[id]; return o != null ? o : lookup(GRID.v, id); }
   function lookup(arr, id) { for (var i = 0; i < arr.length; i++) if (arr[i][0] === id) return arr[i][1]; return null; }
-  function snapVal(v, vertical) {
-    if (!snapOn) return v;
-    var best = v, bd = 7;
-    var arr = vertical ? GRID.v : GRID.h;
-    for (var i = 0; i < arr.length; i++) {
-      var g = vertical ? gridX(arr[i][0]) : gridY(arr[i][0]);
-      if (g == null) continue;
-      if (Math.abs(v - g) < bd) { bd = Math.abs(v - g); best = g; }
+  function gridY(id) { if (draft.axes[id]) return draft.axes[id].pos; var o = draft.gridLines[id]; return o != null ? o : lookup(GRID.h, id); }
+  function gridX(id) { if (draft.axes[id]) return draft.axes[id].pos; var o = draft.gridLines[id]; return o != null ? o : lookup(GRID.v, id); }
+  function axisIds(vertical) {
+    var out = (vertical ? GRID.v : GRID.h).map(function (l) { return l[0]; });
+    for (var id in draft.axes) if (draft.axes[id].dir === (vertical ? "v" : "h")) out.push(id);
+    return out;
+  }
+  /* Прилипание: оси (канон+свои), края кадра, края и центры других объектов.
+     Возвращает {val, target} или null; target уходит в связь (фиксация). */
+  function snapSide(side, v, excludeOid) {
+    if (!snapOn) return null;
+    var vertical = side === "left" || side === "right" || side === "cx";
+    var best = null, bd = 7;
+    function consider(val, target) {
+      var d = Math.abs(v - val);
+      if (d < bd) { bd = d; best = { val: Math.round(val * 10) / 10, target: target, err: d }; }
     }
-    return Math.round(best * 10) / 10;
+    axisIds(vertical).forEach(function (id) { consider(vertical ? gridX(id) : gridY(id), { k: "axis", id: id }); });
+    if (vertical) { consider(0, { k: "edge", side: "left" }); consider(412, { k: "edge", side: "right" }); }
+    else { consider(0, { k: "edge", side: "top" }); consider(892, { k: "edge", side: "bottom" }); }
+    if (appReady()) {
+      var els = D2().querySelectorAll("[data-oid]");
+      for (var i = 0; i < els.length; i++) {
+        var oid = els[i].getAttribute("data-oid");
+        if (oid === excludeOid) continue;
+        var r = els[i].getBoundingClientRect();
+        if (!r.width && !r.height) continue;
+        if (vertical) {
+          consider(r.left, { k: "oid", oid: oid, side: "left" });
+          consider(r.right, { k: "oid", oid: oid, side: "right" });
+          consider(r.left + r.width / 2, { k: "oid", oid: oid, side: "cx" });
+        } else {
+          consider(r.top, { k: "oid", oid: oid, side: "top" });
+          consider(r.bottom, { k: "oid", oid: oid, side: "bottom" });
+          consider(r.top + r.height / 2, { k: "oid", oid: oid, side: "cy" });
+        }
+      }
+    }
+    return best;
+  }
+  function targetVal(t) {
+    if (!t) return null;
+    if (t.k === "axis") return lookup(GRID.h, t.id) != null ? gridY(t.id) : gridX(t.id);
+    if (t.k === "edge") return t.side === "left" ? 0 : t.side === "right" ? 412 : t.side === "top" ? 0 : 892;
+    var el = D2().querySelector(qOid(t.oid));
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    if (t.side === "left") return r.left;
+    if (t.side === "right") return r.right;
+    if (t.side === "top") return r.top;
+    if (t.side === "bottom") return r.bottom;
+    if (t.side === "cx") return r.left + r.width / 2;
+    return r.top + r.height / 2;
+  }
+  function setLink(oid, side, target) {
+    draft.links = (draft.links || []).filter(function (l) { return !(l.oid === oid && l.side === side); });
+    draft.links.push({ oid: oid, side: side, target: target });
+    saveDraft();
+  }
+  function removeLinkAt(i) { draft.links.splice(i, 1); saveDraft(); solveLinks(); applyLive(); renderPanel(); }
+  /* Фиксация связи: зависимая сторона следует за целью (ось/край/объект). */
+  function solveLinks() {
+    if (!appReady() || !draft.links) return;
+    for (var pass = 0; pass < 2; pass++) {
+      draft.links.forEach(function (l) {
+        var tv = targetVal(l.target);
+        if (tv == null) return;
+        var el = D2().querySelector(qOid(l.oid));
+        if (!el) return;
+        var r = el.getBoundingClientRect();
+        var csu = W2().getComputedStyle(el);
+        var o = getCss(curScreen.id, l.oid);
+        if (csu.position === "static" && !o.position) return; /* немой объект не трогаем */
+        var curL = px(o.left != null ? o.left : csu.left) || 0;
+        var curT = px(o.top != null ? o.top : csu.top) || 0;
+        var natL = r.left - curL, natT = r.top - curT;   /* позиция без смещения */
+        var nl = null, nt = null;
+        if (l.side === "left") nl = tv - natL;
+        if (l.side === "right") nl = tv - r.width - natL;
+        if (l.side === "cx") nl = tv - r.width / 2 - natL;
+        if (l.side === "top") nt = tv - natT;
+        if (l.side === "bottom") nt = tv - r.height - natT;
+        if (l.side === "cy") nt = tv - r.height / 2 - natT;
+        nl = nl == null ? null : Math.round(nl * 10) / 10;
+        nt = nt == null ? null : Math.round(nt * 10) / 10;
+        if (nl != null && px(o.left) !== nl) setCssQuiet(curScreen.id, l.oid, "left", nl + "px");
+        if (nt != null && px(o.top) !== nt) setCssQuiet(curScreen.id, l.oid, "top", nt + "px");
+      });
+    }
+  }
+  function setCssQuiet(sid, oid, prop, val) {
+    var b = objBucket(sid, oid, true);
+    if (!b.css) b.css = {};
+    b.css[prop] = val;
+    W2().WT2I.packApply(draft);
   }
   function drawGrid() {
     var s = "";
@@ -303,15 +388,28 @@
     GRID.h.forEach(function (l) {
       var y = gridY(l[0]);
       s += '<line class="gline" x1="0" y1="' + y + '" x2="412" y2="' + y + '"></line>' +
-           '<rect class="ghit" data-gl="' + l[0] + '" data-dir="h" x="1" y="' + (y - 12) + '" width="15" height="12" rx="3"></rect>' +
-           '<text class="glabel" x="4" y="' + (y - 3) + '">' + l[0] + "</text>";
+           '<text class="glabel" x="4" y="' + (y - 3) + '">' + l[0] + "</text>" +
+           '<rect class="ghit" data-gl="' + l[0] + '" data-dir="h" x="1" y="' + (y - 12) + '" width="15" height="12" rx="3"></rect>';
     });
     GRID.v.forEach(function (l) {
       var x = gridX(l[0]);
       s += '<line class="gline v" x1="' + x + '" y1="0" x2="' + x + '" y2="892"></line>' +
-           '<rect class="ghit" data-gl="' + l[0] + '" data-dir="v" x="' + (x + 2) + '" y="1" width="13" height="13" rx="3"></rect>' +
-           '<text class="glabel v" x="' + (x + 4) + '" y="11">' + l[0] + "</text>";
+           '<text class="glabel v" x="' + (x + 4) + '" y="11">' + l[0] + "</text>" +
+           '<rect class="ghit" data-gl="' + l[0] + '" data-dir="v" x="' + (x + 2) + '" y="1" width="13" height="13" rx="3"></rect>';
     });
+    /* свои оси владельца: зелёные, имена X1…/Y1… */
+    for (var aid in draft.axes) {
+      var a = draft.axes[aid], pos = a.pos;
+      if (a.dir === "h") {
+        s += '<line class="gline own" x1="0" y1="' + pos + '" x2="412" y2="' + pos + '"></line>' +
+             '<text class="glabel own" x="23" y="' + (pos - 3) + '">' + aid + "</text>" +
+             '<rect class="ghit own" data-gl="' + aid + '" data-dir="h" x="20" y="' + (pos - 12) + '" width="15" height="12" rx="3"></rect>';
+      } else {
+        s += '<line class="gline own v" x1="' + pos + '" y1="0" x2="' + pos + '" y2="892"></line>' +
+             '<text class="glabel own v" x="' + (pos + 4) + '" y="28">' + aid + "</text>" +
+             '<rect class="ghit own" data-gl="' + aid + '" data-dir="v" x="' + (pos + 2) + '" y="18" width="13" height="13" rx="3"></rect>';
+      }
+    }
     $("#grid").innerHTML = s;
     Array.prototype.forEach.call($("#grid").querySelectorAll("[data-gl]"), function (hit) {
       hit.addEventListener("mousedown", startLineDrag);
@@ -359,14 +457,30 @@
     var cs = W2().getComputedStyle(el);
     if (cs.position === "static") setCss(curScreen.id, selOid, "position", "relative");
     var base = baseOffset(el), x0 = ev.clientX, y0 = ev.clientY;
+    var r0 = el.getBoundingClientRect();
     function mm(e) {
-      var nl = snapVal(base.l + (e.clientX - x0), false);
-      var nt = snapVal(base.t + (e.clientY - y0), true);
-      setCss(curScreen.id, selOid, "left", nl + "px");
-      setCss(curScreen.id, selOid, "top", nt + "px");
-      renderPanel();
+      var dx = e.clientX - x0, dy = e.clientY - y0;
+      var rl = r0.left + dx, rt = r0.top + dy;   /* rect-пространство */
+      var snL = snapSide("left", rl, selOid), snR = snapSide("right", rl + r0.width, selOid), snC = snapSide("cx", rl + r0.width / 2, selOid);
+      var snT = snapSide("top", rt, selOid), snB = snapSide("bottom", rt + r0.height, selOid), snY = snapSide("cy", rt + r0.height / 2, selOid);
+      var pairs = [{ sn: snL, k: "L" }, { sn: snR, k: "R" }, { sn: snC, k: "C" },
+        { sn: snT, k: "T" }, { sn: snB, k: "B" }, { sn: snY, k: "Y" }].filter(function (x) { return x.sn; });
+      pairs.sort(function (a, b2) { return a.sn.err - b2.sn.err; });
+      var cand = pairs[0] || null;
+      var nlRect = rl, ntRect = rt;
+      if (cand) {
+        if (cand.k === "L") { nlRect = cand.sn.val; setLink(selOid, "left", cand.sn.target); }
+        else if (cand.k === "R") { nlRect = cand.sn.val - r0.width; setLink(selOid, "right", cand.sn.target); }
+        else if (cand.k === "C") { nlRect = cand.sn.val - r0.width / 2; setLink(selOid, "cx", cand.sn.target); }
+        else if (cand.k === "T") { ntRect = cand.sn.val; setLink(selOid, "top", cand.sn.target); }
+        else if (cand.k === "B") { ntRect = cand.sn.val - r0.height; setLink(selOid, "bottom", cand.sn.target); }
+        else { ntRect = cand.sn.val - r0.height / 2; setLink(selOid, "cy", cand.sn.target); }
+      }
+      setCss(curScreen.id, selOid, "left", Math.round((base.l + (nlRect - r0.left)) * 10) / 10 + "px");
+      setCss(curScreen.id, selOid, "top", Math.round((base.t + (ntRect - r0.top)) * 10) / 10 + "px");
+      solveLinks(); drawLinks(); renderPanel();
     }
-    function mu() { window.removeEventListener("mousemove", mm); window.removeEventListener("mouseup", mu); }
+    function mu() { window.removeEventListener("mousemove", mm); window.removeEventListener("mouseup", mu); saveDraft(); }
     window.addEventListener("mousemove", mm); window.addEventListener("mouseup", mu);
   }
   function startResize(ev) {
@@ -378,21 +492,35 @@
     var base = baseOffset(el);
     function mm(e) {
       var dx = e.clientX - x0, dy = e.clientY - y0;
-      if (dir.indexOf("e") >= 0) setCss(curScreen.id, selOid, "width", Math.max(8, snapVal(r0.width + dx, false)) + "px");
-      if (dir.indexOf("s") >= 0) setCss(curScreen.id, selOid, "height", Math.max(8, snapVal(r0.height + dy, true)) + "px");
+      if (dir.indexOf("e") >= 0) {
+        var re = r0.left + r0.width + dx, sn = snapSide("right", re, selOid);
+        if (sn) { setLink(selOid, "right", sn.target); setCss(curScreen.id, selOid, "width", Math.max(8, sn.val - r0.left) + "px"); }
+        else setCss(curScreen.id, selOid, "width", Math.max(8, r0.width + dx) + "px");
+      }
+      if (dir.indexOf("s") >= 0) {
+        var sb = r0.top + r0.height + dy, sn2 = snapSide("bottom", sb, selOid);
+        if (sn2) { setLink(selOid, "bottom", sn2.target); setCss(curScreen.id, selOid, "height", Math.max(8, sn2.val - r0.top) + "px"); }
+        else setCss(curScreen.id, selOid, "height", Math.max(8, r0.height + dy) + "px");
+      }
       if (dir.indexOf("w") >= 0) {
-        var nw = Math.max(8, snapVal(r0.width - dx, false));
+        var sw = r0.left + dx, sn3 = snapSide("left", sw, selOid);
+        var nl3 = sn3 ? sn3.val : sw;
+        if (sn3) setLink(selOid, "left", sn3.target);
+        var nw = Math.max(8, r0.right - nl3);
         setCss(curScreen.id, selOid, "width", nw + "px");
-        setCss(curScreen.id, selOid, "left", snapVal(base.l + (r0.width - nw), false) + "px");
+        setCss(curScreen.id, selOid, "left", Math.round(base.l + (nl3 - r0.left)) + "px");
         if (cs.position === "static") setCss(curScreen.id, selOid, "position", "relative");
       }
       if (dir.indexOf("n") >= 0) {
-        var nh = Math.max(8, snapVal(r0.height - dy, true));
+        var sn4 = snapSide("top", r0.top + dy, selOid);
+        var nt4 = sn4 ? sn4.val : r0.top + dy;
+        if (sn4) setLink(selOid, "top", sn4.target);
+        var nh = Math.max(8, r0.bottom - nt4);
         setCss(curScreen.id, selOid, "height", nh + "px");
-        setCss(curScreen.id, selOid, "top", snapVal(base.t + (r0.height - nh), true) + "px");
+        setCss(curScreen.id, selOid, "top", Math.round(base.t + (nt4 - r0.top)) + "px");
         if (cs.position === "static") setCss(curScreen.id, selOid, "position", "relative");
       }
-      renderPanel();
+      solveLinks(); drawLinks(); renderPanel();
     }
     function mu() { window.removeEventListener("mousemove", mm); window.removeEventListener("mouseup", mu); }
     window.addEventListener("mousemove", mm); window.addEventListener("mouseup", mu);
@@ -405,11 +533,31 @@
     function mm(e) {
       var v = dir === "h" ? (e.clientY - frameRect.top) : (e.clientX - frameRect.left);
       v = Math.round(Math.max(0, Math.min(dir === "h" ? 892 : 412, v)) * 10) / 10;
-      draft.gridLines[id] = v;
-      saveDraft(); drawGrid(); drawSel();
+      if (draft.axes[id]) draft.axes[id].pos = v; else draft.gridLines[id] = v;
+      saveDraft(); drawGrid(); drawSel(); solveLinks(); drawLinks();
     }
     function mu() { window.removeEventListener("mousemove", mm); window.removeEventListener("mouseup", mu); }
     window.addEventListener("mousemove", mm); window.addEventListener("mouseup", mu);
+  }
+
+  function drawLinks() {
+    var svg = $("#grid");
+    Array.prototype.forEach.call(svg.querySelectorAll(".lkline"), function (n) { n.remove(); });
+    (draft.links || []).forEach(function (l) {
+      var el = D2().querySelector(qOid(l.oid));
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      var tv = targetVal(l.target);
+      if (tv == null) return;
+      var vert = l.side === "left" || l.side === "right" || l.side === "cx";
+      var from = vert ? (l.side === "left" ? r.left : l.side === "right" ? r.right : r.left + r.width / 2)
+                      : (l.side === "top" ? r.top : l.side === "bottom" ? r.bottom : r.top + r.height / 2);
+      var ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("class", "lkline");
+      if (vert) { ln.setAttribute("x1", tv); ln.setAttribute("y1", 0); ln.setAttribute("x2", tv); ln.setAttribute("y2", 892); }
+      else { ln.setAttribute("x1", 0); ln.setAttribute("y1", tv); ln.setAttribute("x2", 412); ln.setAttribute("y2", tv); }
+      svg.appendChild(ln);
+    });
   }
 
   /* ---- клик-выбор и колесо ---- */
@@ -424,7 +572,7 @@
   $("#ov").addEventListener("wheel", function (ev) {
     ev.preventDefault();
     W2().scrollBy(0, ev.deltaY);
-    drawSel();
+    drawSel(); drawLinks();
   }, { passive: false });
 
   /* ---- панель аспектов ---- */
@@ -438,7 +586,13 @@
   function field(label, html) { return '<div class="row2"><label>' + label + "</label>" + html + "</div>"; }
   function renderPanel() {
     var el = selEl();
-    if (!el || !curScreen) { $("#panel").style.display = "none"; $("#empty").style.display = "block"; return; }
+    if (!el || !curScreen) {
+      $("#empty").style.display = "none"; $("#panel").style.display = "block";
+      $("#panel").innerHTML = axesHtml() + linksHtml(false) +
+        '<div class="sec">Подсказка</div><div class="hint" style="margin:0">Выберите объект кликом. Свои оси — кнопки «+ось» в шапке; тяните ось за ручку у буквы. Прилипание фиксирует связь: зависимая сторона следует за осью, краем или объектом-целью.</div>';
+      bindPanelCommon();
+      return;
+    }
     $("#empty").style.display = "none"; $("#panel").style.display = "block";
     var s = cs(el), o = getCss(curScreen.id, selOid);
     var v = function (prop, computed) { return o[prop] != null ? parseFloat(o[prop]) : computed; };
@@ -468,6 +622,7 @@
     html += '<div class="sec">Прочее</div>';
     html += field("Прозрачность", '<input type="range" min="0" max="1" step="0.05" data-p="opacity" value="' + (o.opacity != null ? o.opacity : num(s.opacity)) + '">');
     html += field("Отступ внутри (все)", '<input type="number" step="1" data-p="padding" value="' + (o.padding != null ? parseFloat(o.padding) : num(s.paddingTop)) + '">');
+    html += linksHtml(true);
     html += '<div class="row2"><button class="btn" id="btnResetObj2">Сбросить объект</button></div>';
     $("#panel").innerHTML = html;
 
@@ -491,7 +646,56 @@
     Array.prototype.forEach.call($("#panel").querySelectorAll("[data-rm]"), function (btn) {
       btn.onclick = function () { pushUndo(); setCss(curScreen.id, selOid, btn.dataset.rm, ""); renderPanel(); };
     });
+    bindPanelCommon();
     $("#btnResetObj2").onclick = resetObj;
+  }
+  function shortOid(oid) {
+    var parts = (oid || "").split("|")[1].split("/");
+    return parts.slice(-2).join("/");
+  }
+  function tgtName(t) {
+    if (!t) return "?";
+    if (t.k === "axis") return "ось " + t.id;
+    if (t.k === "edge") return "край " + t.side;
+    return shortOid(t.oid) + "." + t.side;
+  }
+  function linksHtml(onlySel) {
+    var lks = (draft.links || []).map(function (l, i) { return { l: l, i: i }; })
+      .filter(function (x) { return !onlySel || x.l.oid === selOid; });
+    var out = '<div class="sec">Связи' + (onlySel ? " объекта" : "") + "</div>";
+    if (!lks.length) return out + '<div class="hint" style="margin:0 0 6px">Нет' + (onlySel ? " у объекта" : "") + ": прилейте к оси, краю или объекту — связь зафиксируется</div>";
+    return out + lks.map(function (x) {
+      return '<div class="row2"><label>' + shortOid(x.l.oid) + " " + x.l.side + " → " + tgtName(x.l.target) +
+        '</label><button class="btn" data-lk="' + x.i + '" title="Отцепить">×</button></div>';
+    }).join("");
+  }
+  function axesHtml() {
+    var out = '<div class="sec">Оси</div>';
+    GRID.h.concat(GRID.v).forEach(function (l) {
+      var id = l[0], cur = (lookup(GRID.h, id) != null ? gridY(id) : gridX(id));
+      var over = draft.gridLines[id] != null;
+      out += '<div class="row2"><label>' + id + " = " + cur + (over ? " (сдвинута)" : "") + "</label>" +
+        (over ? '<button class="btn" data-axreset="' + id + '">вернуть</button>' : "") + "</div>";
+    });
+    for (var id2 in draft.axes) {
+      out += '<div class="row2"><label>' + id2 + " = " + draft.axes[id2].pos + '</label><button class="btn" data-axdel="' + id2 + '" title="Удалить ось">×</button></div>';
+    }
+    return out;
+  }
+  function bindPanelCommon() {
+    Array.prototype.forEach.call($("#panel").querySelectorAll("[data-lk]"), function (b) {
+      b.onclick = function () { pushUndo(); removeLinkAt(+b.dataset.lk); };
+    });
+    Array.prototype.forEach.call($("#panel").querySelectorAll("[data-axdel]"), function (b) {
+      b.onclick = function () {
+        pushUndo(); delete draft.axes[b.dataset.axdel];
+        draft.links = (draft.links || []).filter(function (l) { return !(l.target && l.target.k === "axis" && l.target.id === b.dataset.axdel); });
+        saveDraft(); applyLive(); renderPanel();
+      };
+    });
+    Array.prototype.forEach.call($("#panel").querySelectorAll("[data-axreset]"), function (b) {
+      b.onclick = function () { pushUndo(); delete draft.gridLines[b.dataset.axreset]; saveDraft(); applyLive(); renderPanel(); };
+    });
   }
   function resetObj() {
     if (!selOid) return;
@@ -508,6 +712,8 @@
     var out = { kind: "watercat-iface", v: 1, exportedAt: new Date().toISOString() };
     if (draft.grid && Object.keys(draft.grid).length) out.grid = draft.grid;
     if (draft.gridLines && Object.keys(draft.gridLines).length) out.gridLines = draft.gridLines;
+    if (draft.axes && Object.keys(draft.axes).length) out.axes = draft.axes;
+    if (draft.links && draft.links.length) out.links = draft.links;
     out.screens = {};
     for (var sid in draft.screens) {
       var objs = draft.screens[sid].objects || {}, copy = {};
@@ -547,7 +753,7 @@
       var p = JSON.parse($("#impText").value);
       if (!p || p.kind !== "watercat-iface") { msg.textContent = "Это не интерфейсный пак"; return; }
       pushUndo();
-      draft = { kind: "watercat-iface", v: p.v || 1, grid: p.grid || {}, gridLines: p.gridLines || {}, screens: p.screens || {} };
+      draft = { kind: "watercat-iface", v: p.v || 1, grid: p.grid || {}, gridLines: p.gridLines || {}, axes: p.axes || {}, links: p.links || [], screens: p.screens || {} };
       saveDraft(); applyLive(); buildTree(); renderPanel();
       msg.textContent = "Применено";
     } catch (e) { msg.textContent = "JSON не разбирается: " + e.message; }
@@ -558,6 +764,15 @@
 
   /* ---- кнопки шапки ---- */
   $("#btnSnap").onclick = function () { snapOn = !snapOn; $("#btnSnap").classList.toggle("on", snapOn); };
+  function addAxis(dir) {
+    pushUndo();
+    var n = 1;
+    while (draft.axes[(dir === "h" ? "X" : "Y") + n]) n++;
+    draft.axes[(dir === "h" ? "X" : "Y") + n] = { dir: dir, pos: dir === "h" ? 200 : 200 };
+    saveDraft(); drawGrid(); drawLinks(); renderPanel();
+  }
+  $("#btnAddH").onclick = function () { addAxis("h"); };
+  $("#btnAddV").onclick = function () { addAxis("v"); };
   $("#btnUndo").onclick = undo;
   $("#btnResetObj").onclick = resetObj;
   $("#btnClearDraft").onclick = function () {
@@ -571,10 +786,10 @@
   /* ---- старт ---- */
   function boot() {
     if (booted) return; booted = true;
-    buildScreens(); buildTree(); applyLive(); drawSel(); renderPanel();
+    buildScreens(); buildTree(); applyLive(); drawSel(); drawLinks(); renderPanel();
     iframe.contentWindow.addEventListener("scroll", function () { drawSel(); });
     /* приложение перерисовывается (тосты, водители) — держим рамку выбора живой */
-    if (!window.__studioSelTimer) window.__studioSelTimer = setInterval(function () { if (appReady()) drawSel(); }, 400);
+    if (!window.__studioSelTimer) window.__studioSelTimer = setInterval(function () { if (appReady()) { drawSel(); drawLinks(); } }, 400);
   }
   iframe.addEventListener("load", function () {
     var tries = 0;

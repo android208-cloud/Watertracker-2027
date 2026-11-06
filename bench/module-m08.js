@@ -6,7 +6,8 @@ function ok(name, cond, extra) {
   if (cond) { pass++; console.log('PASS ' + name + (extra != null ? ' :: ' + JSON.stringify(extra) : '')); }
   else { fail++; console.log('FAIL ' + name + (extra != null ? ' :: ' + JSON.stringify(extra) : '')); }
 }
-const TODAY = '2026-11-05';
+/* день «сегодня» в поясе приложения, чтобы стенд не падал назавтра */
+const TODAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Samara' }).format(new Date());
 const store = (entries, drinks) => JSON.stringify({
   goalMl: 1950, gender: 'male', weightKg: 59.1, theme: 'dark', dayStart: '02:00',
   onboarded: 1, historyDismissed: 1, alertPermAsked: 1,
@@ -71,11 +72,11 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
 
   /* 4. водитель рампы: порция третьего цвета перекрашивает стопы плавно */
   const before = await p.evaluate(() => Array.from(document.querySelectorAll('.wt-orb .cat-beltband')).map(x => x.style.background));
-  await p.evaluate(() => {
+  await p.evaluate((TD) => {
     const st = window.__waterApp.state;
-    st.entries.push({ id: 'e9', date: '2026-11-05', time: '13:00', drinkId: 'tea', name: 'Чай', icon: 'cup', color: '#c08e69', hydration: 90, volume: 400, credited: 360, createdAt: 9 });
+    st.entries.push({ id: 'e9', date: TD, time: '13:00', drinkId: 'tea', name: 'Чай', icon: 'cup', color: '#c08e69', hydration: 90, volume: 400, credited: 360, createdAt: 9 });
     window.__waterApp.render();
-  });
+  }, TODAY);
   await p.waitForTimeout(500);
   const mid = await p.evaluate(() => Array.from(document.querySelectorAll('.wt-orb .cat-beltband')).map(x => x.style.background));
   await p.waitForTimeout(1400);
@@ -88,11 +89,11 @@ const E = (id, h, m, drink, vol, color) => ({ id, date: TODAY, time: h + ':' + m
     JSON.stringify(before) !== JSON.stringify(mid.slice(0, 2) === before ? mid : mid), { before, mid: mid.slice(0, 2), after: after.bands });
 
   /* 5. пролёт пояса следует за лифтом во время твина */
-  await p.evaluate(() => {
+  await p.evaluate((TD) => {
     const st = window.__waterApp.state;
-    st.entries.push({ id: 'e10', date: '2026-11-05', time: '14:00', drinkId: 'water', name: 'Вода', icon: 'drop', color: '#4aa3e8', hydration: 100, volume: 300, credited: 300, createdAt: 10 });
+    st.entries.push({ id: 'e10', date: TD, time: '14:00', drinkId: 'water', name: 'Вода', icon: 'drop', color: '#4aa3e8', hydration: 100, volume: 300, credited: 300, createdAt: 10 });
     window.__waterApp.render();
-  });
+  }, TODAY);
   await p.waitForTimeout(600);
   const midLift = await p.evaluate(() => {
     const belt = document.querySelector('.wt-orb .cat-beltstack');
