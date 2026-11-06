@@ -40,7 +40,9 @@
 .wt-caps {
   position: relative;
   height: 238px;
-  margin: 6px 0 0;
+  /* окно ленты = ровно пять столбцов по центру кадра (слово 06.11:
+     пять столбцов, ширина столбца = --ico); соседи ленты обрезаны окном */
+  margin: 6px calc((100% - 5 * var(--ico)) / 2) 0;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -54,7 +56,8 @@
   position: relative;
   height: 100%;
   min-width: max-content;
-  padding: 0 41px;
+  /* слово 06.11: ширина столбца = диаметр круглых кнопок главного (--ico) */
+  padding: 0;
 }
 .wt-caps .wt-goal {
   position: absolute;
@@ -63,8 +66,8 @@
   border-top: 1px dashed rgba(90, 173, 232, .55);
 }
 .wt-cap-col {
-  flex: 0 0 66px;
-  width: 66px;
+  flex: 0 0 var(--ico);
+  width: var(--ico);
   display: flex;
   flex-direction: column;
   align-items: center;

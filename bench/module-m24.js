@@ -123,6 +123,36 @@ const E = (id, h, m, vol) => ({ id, date: TODAY, time: h + ':' + m, drinkId: 'wa
   ok('настройки: секция «Интерфейс» и три строки (загрузить/сохранить/сбросить)',
     set.sec.includes('Интерфейс') && set.rows.every(Boolean), set);
 
+  /* 10. интерфейс из текста: диалог с textarea применяет пак */
+  await p.evaluate(() => { document.querySelector('[data-act="goto"][data-tab="settings"]').click(); });
+  await p.click('[data-act="iface-text"]');
+  await p.waitForSelector('#ifaceText');
+  const dlg = await p.evaluate(() => ({
+    modal: !!document.querySelector('.modal-scrim, [class*=modal]'),
+    acts: ['iface-text-apply', 'iface-text-cancel'].map(a => !!document.querySelector('[data-act="' + a + '"]'))
+  }));
+  const packJson = JSON.stringify({ kind: 'watercat-iface', v: 1, screens: { settings: { objects: { 'z|q': { css: { opacity: '0.4' } } } } } });
+  await p.fill('#ifaceText', packJson);
+  await p.click('[data-act="iface-text-apply"]');
+  await p.waitForTimeout(200);
+  const applied = await p.evaluate(() => ({
+    style: (document.getElementById('wt2-iface-style') || {}).textContent || '',
+    toast: (document.querySelector('.toast') || {}).textContent || '',
+    dlgGone: !document.querySelector('#ifaceText'),
+    ls: !!window.WT2I.load()
+  }));
+  ok('интерфейс из текста: диалог, применение пака, тост, диалог закрыт, пак в хранилище',
+    dlg.acts.every(Boolean) && applied.style.includes('z|q') && applied.toast.includes('Интерфейс из файла применён') &&
+    applied.dlgGone && applied.ls, { dlg, toast: applied.toast });
+
+  /* 11. версия в программе — из моста (BuildConfig), запас для веба */
+  const ver = await p.evaluate(() => {
+    window.WaterBridge = { wtVersion: function () { return '9.9-test (999)'; } };
+    document.querySelector('[data-act="goto"][data-tab="settings"]').click();
+    return document.querySelector('.set-ver .pct').textContent;
+  });
+  ok('версия: при живом мосте показана версия сборки из моста', ver === '9.9-test (999)', ver);
+
   ok('без pageerror', errs.length === 0, errs);
   await b.close();
   console.log('BENCH M24: ' + (fail ? 'FAIL' : 'ALL GREEN') + ' (' + pass + '/' + (pass + fail) + ')');

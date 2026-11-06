@@ -49,33 +49,38 @@ const near = (a, b) => Math.abs(a - b) <= 1;
     const cols = Array.from(document.querySelectorAll('.wt-caps .wt-cap-col'));
     const lastCap = cols[cols.length - 1].querySelector('.wt-cap');
     const pill = q('.head-pill');
-    const vis = cols.filter(c => { const r = c.getBoundingClientRect(); return r.left >= -1 && r.right <= 413; });
+    const ico = cols[0].getBoundingClientRect().width;  /* --ico отдаёт calc() сырьём */
+    const boxR = box.getBoundingClientRect();
+    const vis = cols.filter(c => { const r = c.getBoundingClientRect(); return r.left >= boxR.left - 1 && r.right <= boxR.right + 1; });
     return { headAxis: head.top + head.height / 2, subTop: sub.top, rowTop: row.top, rowH: row.height,
       fabC: fab.top + fab.height / 2, n: cols.length, visN: vis.length,
       capW: lastCap.getBoundingClientRect().width, capR: getComputedStyle(lastCap).borderRadius,
       colW: cols[0].getBoundingClientRect().width,
       centers: vis.map(c => { const r = c.getBoundingClientRect(); return Math.round(r.left + r.width / 2); }),
       scrollable: box.scrollWidth > box.clientWidth, atRight: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1,
+      ico: ico, expCenters: [0, 1, 2, 3, 4].map(i => Math.round((412 - 5 * ico) / 2 + ico * (i + 0.5))),
       pillH: pill.height, on: cols[cols.length - 1].className.indexOf('on') >= 0 };
   });
-  ok('история: канон линий (Ж 44, И1 314, И 362, строка 48, FAB на М) + пять колонок в кадре А–Е (центры 74..338, колонка 66, капсула 44 R22), лента длиннее кадра и стоит у правого края',
+  ok('история: канон линий (Ж 44, И1 314, И 362, строка 48, FAB на М) + пять колонок шириной с круглую кнопку главного (--ico), центрированы в кадре, капсула 44 R22, лента длиннее кадра и стоит у правого края',
     near(hist.headAxis, 44) && near(hist.subTop, 314) && near(hist.rowTop, 362) && near(hist.rowH, 48) && near(hist.fabC, 784.6) &&
-    hist.visN === 5 && hist.centers.join(',') === '74,140,206,272,338' && near(hist.colW, 66) &&
+    hist.visN === 5 && hist.centers.join(',') === hist.expCenters.join(',') && near(hist.colW, hist.ico) &&
     near(hist.capW, 44) && String(hist.capR).startsWith('22px') && hist.scrollable && hist.atRight && hist.on, hist);
 
   /* 1b. прокрутка ленты: упор влево — первый столбец, не далее */
   const scr = await p.evaluate(async () => {
     const box = document.querySelector('.wt-caps');
+    const ico2 = document.querySelector('.wt-caps .wt-cap-col').getBoundingClientRect().width;
+    const firstExp = Math.round((412 - 5 * ico2) / 2 + ico2 / 2);  /* центр первой колонки окна */
     const firstC = () => { const r = document.querySelector('.wt-caps .wt-cap-col').getBoundingClientRect(); return Math.round(r.left + r.width / 2); };
     box.scrollLeft = 0; await new Promise(r => setTimeout(r, 60));
     const c0 = firstC();
     box.scrollLeft = -300; await new Promise(r => setTimeout(r, 60));
-    const clamped = box.scrollLeft === 0 && firstC() === 74;
+    const clamped = box.scrollLeft === 0 && firstC() === firstExp;
     box.scrollLeft = box.scrollWidth; await new Promise(r => setTimeout(r, 60));
-    return { c0, clamped, backRight: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1 };
+    return { c0, clamped, firstExp, backRight: box.scrollLeft >= box.scrollWidth - box.clientWidth - 1 };
   });
-  ok('прокрутка: влево упор в первый столбец (центр 74), отрицательный скролл не проходит, возврат к правому краю',
-    scr.c0 === 74 && scr.clamped && scr.backRight, scr);
+  ok('прокрутка: влево упор в первый столбец, отрицательный скролл не проходит, возврат к правому краю',
+    scr.c0 === scr.firstExp && scr.clamped && scr.backRight, scr);
 
   /* 2. пилюля «Объёмы» ведёт на экран объёмов */
   await p.click('.head-pill');

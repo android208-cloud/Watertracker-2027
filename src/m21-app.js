@@ -564,10 +564,11 @@
       /* M24 (слово 05.11): приложение само читает интерфейсный пак из файла. */
       '<div class="set-sec">Интерфейс</div>' +
       K().row({ ui: "iface-open", act: "iface-open", title: "Загрузить интерфейс из файла" }) +
+      K().row({ ui: "iface-text", act: "iface-text", title: "Загрузить интерфейс из текста" }) +
       K().row({ ui: "iface-save", act: "iface-save", title: "Сохранить интерфейс в файл" }) +
       K().row({ ui: "iface-reset", act: "iface-reset", title: "Сбросить интерфейс к канону" }) +
       '<div class="set-sec">О приложении</div>' +
-      '<div class="n-row set-ver"><span class="ttl">Версия …</span><span class="pct">' + APP_VERSION + " (" + VERSION_CODE + ")</span></div>" +
+      '<div class="n-row set-ver"><span class="ttl">Версия …</span><span class="pct">' + versionLabel() + "</span></div>" +
       "</div>";
   }
 
@@ -719,6 +720,17 @@
     afterRender();
   }
   function I() { return W.WT2I; }
+  /* Слово владельца 06.11: версия в программе = реальная версия сборки.
+     Правда приходит из Java-моста (BuildConfig), константы — запас веб-режима. */
+  function versionLabel() {
+    try {
+      if (window.WaterBridge && typeof window.WaterBridge.wtVersion === "function") {
+        var v = window.WaterBridge.wtVersion();
+        if (v) return String(v);
+      }
+    } catch (e) {}
+    return APP_VERSION + " (" + VERSION_CODE + ")";
+  }
   function afterRender() {
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
@@ -1009,6 +1021,28 @@
     if (act === "file-save") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
     if (act === "iface-open") { I().request(ui, toast); return; }
+    if (act === "iface-text") {
+      ui.modal = "dialog";
+      ui.dialogSpec = {
+        title: "Интерфейс из текста",
+        body: '<textarea id="ifaceText" class="svg-export-text" spellcheck="false" aria-label="Текст интерфейсного пака"></textarea>',
+        actions: [
+          { act: "iface-text-cancel", label: "Отмена" },
+          { act: "iface-text-apply", label: "Применить" }
+        ],
+        scrimAct: "iface-text-cancel"
+      };
+      render();
+      return;
+    }
+    if (act === "iface-text-cancel") { ui.modal = null; ui.dialogSpec = null; render(); return; }
+    if (act === "iface-text-apply") {
+      var ta = document.getElementById("ifaceText");
+      var txt = ta ? ta.value : "";
+      ui.modal = null; ui.dialogSpec = null;
+      I().fileResult(txt, null, { toast: toast, render: render });
+      return;
+    }
     if (act === "iface-save") { I().saveToBridge(toast); return; }
     if (act === "iface-reset") { I().reset(); toast("Интерфейс сброшен к канону"); render(); return; }
     if (act === "cloud-sync") {
