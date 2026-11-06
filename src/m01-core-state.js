@@ -103,6 +103,12 @@
   /* Загрузка с миграциями донора (app.js loadState, v125–v158). */
   function load() {
     var base = initialState();
+    /* M25 (донор v125, app.js 539-542): раскладка настроек sLayout.
+       Миграция с v124 живёт в модели: коллапс «Волна» становится подпапкой,
+       вибро-строка и дверь «Уведомления» встают в «Основные». */
+    if (W.SettingsModel) {
+      base.sLayout = W.SettingsModel.migrateLayout(null);
+    }
     try {
       var raw = K.get(K.KEY);
       if (!raw) return base;
@@ -160,7 +166,10 @@
         data._sunRestored = true;
         data._sunJustRestored = true;
       }
-      /* sLayout донора (SettingsModel.migrateLayout) переедет в M15. */
+      if (W.SettingsModel) {
+        data.sLayout = W.SettingsModel.migrateLayout(data.sLayout,
+          W.SettingsModel.fullCatalog({ flags: {}, labels: {} }));
+      }
       return data;
     } catch (e) {
       return base;

@@ -244,3 +244,43 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   одинаково), 13 видов, на каждый — donor/next/diff/panel в bench/shots/pixel/
   и отчёт bench/reports/pixel.json. Контракты кожи теперь меряются байтами
   снимков, а не только гейтами стендов.
+
+## M25 — sLayout: донорская машина настроек (шаг 2, модуль 1)
+
+Слово владельца 06.11 «Можно» по мини-спеке; донор = спека переноса.
+
+- `src/m25-settings-model.js` и `src/m25-settings-ui.js` — байт-в-байт донор
+  (water-tracker/settings-model.js, settings-ui.js; UMD: в браузере
+  window.SettingsModel / window.SettingsUI, в node — module.exports).
+  Контроль: bench/module-m25.js сверяет sha256 с донором.
+- Обвязка в `src/m21-app.js`: settingsEnv() донора (app.js 4497) с шимами
+  к модулям next (M13/M03/M04/M12), хелперы и хендлеры донора перенесены
+  grab-блоками (пол/единицы/норма/начало суток/вес, двери экранов и подпапок,
+  структура-экспорт, перенос данных, sys-note, alert-test, resetAll),
+  колёса донора (initWheels/setupWheel/onWheel/readWheel) и механизм шторок
+  (markSheetEntrance/closeSheetThen), листы set-weight/goal.
+- `src/m01-core-state.js`: инициализация state.sLayout донора (app.js 539-542,
+  612-614) — миграция раскладки с v124 живёт в модели.
+- Экраны: главная настроек = composeMain (секции «Мой профиль», «Личные
+  настройки», «Основные настройки», версия прибита внизу); «Внешний вид» и
+  «Дополнительно» — двери с главной (тема переехала во «Внешний вид»,
+  «Перенос данных» — в «Дополнительно», строки на живом M23: load-history /
+  save-db-file / share-db-file → потоки file-open/file-save); «Уведомления» —
+  folder-alerts (колокольчик и дверь); страница «Структура настроек»
+  (struct-export) — лицо машины раскладки: JSON + копировать/сохранить.
+- Обёртка сид-мест (`wrappedModel` в m21-app): файл модели остаётся
+  байт-в-байт, а строки неприехавших модулей помечаются visible=false
+  (активность, тексты/период/привычка, миска/циферблат/вибро, анимация/
+  предупреждение, волна-бокс, кастомы wave/liqBlock/bubBlock/chartBlock без
+  window.LiquidColor/ChartColor). renderSettingsBlocks и pageFolder донора
+  такие строки не рисуют сами; rowsOfGroup/двери считают только живые.
+- Объявленные отклонения от донора (пустые невидимые места по спеке):
+  дверь подпапки с 0 живых строк не рисуется (донор рисует «Подпапка · пусто»);
+  облако/профиль — заглушки-тосты до M09; редактор порядка — машина без лица
+  (тестируется в module-m25, лицо вернётся словом владельца); лист нормы/веса
+  на колёсах донора (анимация выезда шторки портирована).
+- Стенды: bench/module-m25.js (node: байт-идентичность, контракты compose,
+  операции moveRow/setGroup/createFolder/removeFolder, migrate), bench/
+  smoke-m25.js (браузер: 55 гейтов страниц/сид-мест/пикеров/resetAll),
+  bench/pixel-m25.js (панели «донор | next | diff» по базе владельца:
+  settings 0.93%, look/advanced — объявленные сид-места, alerts 0.85%).

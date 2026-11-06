@@ -216,3 +216,18 @@
    чинится словом о возобновлении, а не правкой кожи.
 Пересмотр исключений (капсулы/пять колонок/ширина-по-диаметру/канон-рамка) —
 в конце шага 2, отдельным словом владельца.
+
+## C-033 (M25): раскладка настроек state.sLayout и машина SettingsModel
+
+- state.sLayout: { order, groups, folders } — данные донора (migrateLayout
+  чинит при загрузке, m01-core-state; пак настроек раскладку не несёт).
+- window.SettingsModel в next = обёртка сид-мест над байт-в-байт моделью:
+  fullCatalog помечает visible=false строки неприехавших модулей, rowsOfGroup
+  и compose* фильтруют; страницы/модалки/ctx/labels строит settings-ui сам.
+- Акты-контракты экрана настроек (донор v125+): open-look/open-advanced/
+  open-folder-<id>/open-struct/struct-copy/struct-save/open-gender/gender/
+  open-units/pick-units/open-norm/pick-norm/save-goal/open-day-start/
+  day-start-ok/open-set-weight/save-set-weight/ask-delete-all/alert-test/
+  sys-note/load-history/save-db-file/share-db-file/open-history-export.
+- Темой управляет «Внешний вид» (open-theme/pick-theme), переносом данных —
+  «Дополнительно» (строки M23), уведомлениями — folder-alerts.

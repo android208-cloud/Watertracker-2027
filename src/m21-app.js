@@ -782,88 +782,975 @@
      строки-кубы донора, подсказки-абзацы при своих строках). Пустые места до
      модуля папок уведомлений: тексты, проверка, страницы периода и привычки;
      «Период уведомлений» читальный, правка частоты — в строке «Частота». */
+  /* M25: уведомления и настройки — донорский рендерер (m25-settings-ui.js). */
   function pageAlerts() {
-    var n = N().ensureAlerts(state);
-    var win = N().dayWindow(state, N().weekdayIndex(N().wallToday()));
-    var per = P().isPace(n) ? "Темп (самоадаптивный)" : "каждые " + P().freqLabel(n.everyMin);
-    var hab = null;
-    try {
-      if (W.HabitSchedule && W.HabitSchedule.computeProfile) {
-        hab = W.HabitSchedule.computeProfile(state.entries || [], {
-          dayStart: state.dayStart || "02:00", afterWakeMin: n.afterWakeMin,
-          beforeSleepMin: n.beforeSleepMin, todayIso: N().wallToday()
-        });
-      }
-    } catch (e) {}
-    function sSwitch(title, key, on) {
-      return K().row({ ui: "sw-" + key, kind: "switch", cls: "switch-row", title: title, key: key, on: !!on, tick: uiIcon("tick") });
-    }
-    return K().header({ ui: "folder-alerts", cls: "top plain sub", back: uiIcon("back"), title: "Уведомления" }) +
-      '<div class="n-section">Необходимые разрешения</div>' +
-      sSwitch("Присылать напоминания, когда норма уже выпита", "whenGoalMet", n.whenGoalMet) +
-      sSwitch("Присылать напоминания, даже если недавно пили воду", "evenIfRecent", n.evenIfRecent) +
-      '<p class="hint">Включено — слоты каждые N от начала периода активности. Выключено — каждые N после последнего приёма.</p>' +
-      sSwitch("Не гасить напоминание, пока не добавлена порция", "holdUntilDrink", n.holdUntilDrink !== false) +
-      '<p class="hint">Уведомление переживёт вход в приложение и уйдёт из шторки, когда запишете порцию.</p>' +
-      '<div class="n-section">Настройки уведомлений</div>' +
-      K().row({ ui: "alert-sound", title: "Звук уведомления", sub: esc(N().alertSoundTitle(n.sound)), act: "open-alert-sound" }) +
-      sSwitch("Вибрация", "alertVibrate", n.vibrate !== false) +
-      K().row({ ui: "sys-note", title: "Системные настройки", sub: "Звук, вибрация и приоритет в Android" }) +
-      K().row({ ui: "alert-period", title: "Период уведомлений", sub: esc(win) }) +
-      (hab && W.HabitSchedule.subLabel ? K().row({ ui: "alert-habit", title: "Расписание по привычке", sub: W.HabitSchedule.subLabel(hab, esc) }) : "") +
-      K().row({ ui: "alert-freq", title: "Частота", sub: esc(per), act: "open-alert-freq" }) +
-      sSwitch("Включить уведомления", "alertOn", n.enabled);
+    return SU().pageFolderAlerts(settingsEnv());
   }
 
-  /* Настройки — каркас кожи донора (settings-ui.js pageSettings: шапка
-     «top plain», секции n-section дефолтной раскладки settings-model.js —
-     «Мой профиль», «Личные настройки», «Основные настройки», версия прибита
-     внизу). Пустые невидимые места до своих модулей: раскладка строк,
-     «Внешний вид», «Дополнительно», единицы, пол, начало суток, активность,
-     норма воды. Заявленные временные placements (переедут в свои модули):
-     строка темы — в доноре внутри «Внешнего вида»; секция «Перенос данных» —
-     в доноре внутри «Дополнительно». Профиль — куб донора profile-row. */
   function pageSettings() {
-    var n = N().ensureAlerts(state);
-    var THEME_NAMES = { light: "Светлая тема", dark: "Тёмная тема", system: "По умолчанию" };
-    /* Кубы донора (settings-ui.js customRows): гостевой аватар и стрелки синка. */
-    var guest = '<span class="guest-ava" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#8b9198"/><path d="M24 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M12.5 36.5c1.8-6 6-8.6 11.5-8.6s9.7 2.6 11.5 8.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span>';
-    var syncIco = '<span class="set-sync' + (cloud.busy ? " spinning" : "") + '" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-13.5 5.8L4 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 12a8 8 0 0 1 13.5-5.8L20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4v4h-4M4 20v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-    function nLine(title, sub, extra, act, cls) {
-      var tag = act ? "button" : "div";
-      return "<" + tag + ' class="n-row' + (cls ? " " + cls : "") + '"' +
-        (act ? ' type="button" data-act="' + act + '"' : "") + '><span class="ttl">' +
-        title + (sub ? "<small>" + sub + "</small>" : "") + "</span>" + (extra || "") + "</" + tag + ">";
-    }
-    var profileRow = cloud.signedIn
-      ? K().row({ ui: "profile", cls: "profile-row", act: "cloud-sign", lead: guest, title: "Google: вход выполнен", sub: "нажмите, чтобы выйти" })
-      : K().row({ ui: "profile", cls: "profile-row", act: "cloud-needapp", lead: guest, title: "Войти через Google", sub: "доступно в приложении для Android" });
-    var syncRow = cloud.signedIn
-      ? nLine("Синхронизация", cloud.lastBackup ? '<span class="sync-when">копия ' + esc(String(cloud.lastBackup)) + "</span>" : "", syncIco, "cloud-sync")
-      : "";
-    /* Донор settings-ui.js:242 — ярлык двери без префикса «каждые». */
-    var alertsDoorSub = n.enabled ? esc(P().freqLabel(n.everyMin)) : "выключены";
-    var wSorted = (state.weights || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
-    var curKg = wSorted.length ? wSorted[wSorted.length - 1].kg : state.weightKg;
-    return '<header class="top plain"><h1>Настройки</h1></header>' +
-      '<div class="n-section">Мой профиль</div>' +
-      profileRow + syncRow +
-      (cloud.signedIn ? K().row({ ui: "cloud-save", title: "Сохранить копию", sub: "отправить текущие данные на Диск", act: "cloud-save" }) : "") +
-      K().row({ ui: "set-open-folder-alerts", title: "Уведомления", sub: alertsDoorSub, act: "open-folder-alerts" }) +
-      '<div class="n-section">Личные настройки</div>' +
-      K().row({ ui: "set-open-set-weight", title: "Вес", sub: esc(H().fmtKg(curKg)), act: "open-set-weight" }) +
-      '<div class="n-section">Основные настройки</div>' +
-      K().row({ ui: "set-open-theme", title: "Выбор темы", sub: esc(THEME_NAMES[state.theme] || "Системная"), act: "open-theme" }) +
-      '<div class="n-section">Перенос данных</div>' +
-      K().row({ ui: "set-save-db-file", title: "Сохранить базу файлом", sub: "JSON с записями и настройками", act: "file-save" }) +
-      K().row({ ui: "set-load-history", title: "Восстановить из файла", sub: "записи и, с согласия, настройки", act: "file-open" }) +
-      '<p class="set-ver">Версия ' + versionLabel() + "</p>";
+    return SU().pageSettings(settingsEnv());
   }
 
-  /* Экран веса — дословно донор (app.js 2944–2985): панель «Текущий вес» +
-     табы Неделя/Месяц/Год (дефолт — год), две страницы периодов в свайп-
-     дорожке (весы weightWindow/weightSvg — M11), «История» без даты, строки
-     wrow. Поведение next сохранено: могилы (M03) фильтруют список. */
+
+  /* ================= M25 (sLayout): обвязка донорской машины настроек ======
+     Донорские файлы байт-в-байт: m25-settings-model.js (раскладка/каталоги/
+     compose/операции) и m25-settings-ui.js (страницы/модалки/ctx/labels).
+     Здесь: settingsEnv() донора (app.js 4497) c шимами к модулям next,
+     хелперы и хендлеры донора (grab байтами), обёртка сид-мест, колесо. */
+
+  /* M25: заглушки неприехавших модулей (видимые пустоты по спеке). */
+  var LC = W.WT2L;
+  var ALERT_SOUNDS = N().ALERT_SOUNDS;
+  var THEME_NAMES = { light: "Светлая тема", dark: "Тёмная тема", system: "По умолчанию", oneplus: "Oneplus 7" };
+  var noBuiltinBase = false; /* в next встроенной history.json нет */
+  var catRiveFailed = false; /* кот убран (06.11) */
+
+  function periodOpts() { return N().periodOpts(state); }
+  function nextSlotMs(now) { return N().nextSlotMs(state, now); }
+  function dialActive() { return false; } /* редактор периода — модуль 2 */
+  function dialHtml() { return ""; }
+  var sheetSeen = null; /* механизм шторок донора (app.js 2275-2299) */
+  var sheetLeaving = false, sheetLeaveToken = 0, sheetLeaveTimer = null;
+
+  function markSheetEntrance() {
+    var sheet = document.querySelector(".sheet");
+    if (!sheet) { sheetSeen = null; return; }
+    var key = String(ui.sheet || "");
+    // Если предыдущая шторка в этот момент уезжала, а на её место пришла новая —
+    // уезд отменяем, иначе отложенный финиш снесёт уже открытую шторку.
+    if (sheetLeaving) {
+      sheetLeaveToken++;
+      sheetLeaving = false;
+      clearTimeout(sheetLeaveTimer);
+      sheetLeaveTimer = null;
+      sheetSeen = null;
+    }
+    if (sheetSeen === key) return;
+    sheetSeen = key;
+    sheet.classList.add("enter");
+    var scrim = document.querySelector(".scrim");
+    if (scrim) scrim.classList.add("enter");
+  }
+
+
+  function dbFileNotes() {
+    var n = (state.entries || []).length;
+    return n + " " + ruCount(n, "запись", "записи", "записей");
+  }
+
+
+  function exportStamp() {
+    var n = (state.entries || []).length;
+    return todayStr() + "-" + nowHM().replace(":", "") + "-" + n;
+  }
+
+
+  function csvCell(text) {
+    var s = String(text == null ? "" : text);
+    return /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+
+  function ruCount(n, one, few, many) {
+    var a = Math.abs(n) % 100;
+    var b = a % 10;
+    if (a > 10 && a < 20) return many;
+    if (b === 1) return one;
+    if (b >= 2 && b <= 4) return few;
+    return many;
+  }
+
+
+  function historyExportFilename(ext) {
+    return "vodomer-history-" + exportStamp() + "." + ext;
+  }
+
+
+  function useSystemCalendar() {
+    return !!(state && state.systemCalendar && (webHasDatePick() || useNative("Date")));
+  }
+
+
+  function webHasDatePick() {
+    try {
+      return !!(window.HTMLInputElement && HTMLInputElement.prototype &&
+        typeof HTMLInputElement.prototype.showPicker === "function");
+    } catch (e) { return false; }
+  }
+
+
+  function formulaGoal(kg, date) {
+    var today = todayStr();
+    var src = state;
+    if (kg != null && Number(kg) !== Number(state.weightKg)) src = Object.assign({}, state, { weightKg: Number(kg) });
+    return LC.goalOn(src, date || today, today);
+  }
+
+
+  function snapNumber(n, min, max, step, decimals) {
+    var v = Number(n);
+    if (!isFinite(v)) return null;
+    if (step) v = Math.round(v / step) * step;
+    var f = Math.pow(10, decimals || 0);
+    v = Math.round(v * f) / f;
+    if (v < min) v = min;
+    if (v > max) v = max;
+    return v;
+  }
+
+
+  function closeSheetThen(fn) {
+    var sheet = document.querySelector(".sheet");
+    if (!sheet || sheetLeaving) { ui.sheet = null; if (fn) fn(); render(); return; }
+    sheetLeaving = true;
+    var token = ++sheetLeaveToken;
+    sheet.classList.remove("enter");
+    sheet.classList.add("leave");
+    var scrim = document.querySelector(".scrim");
+    if (scrim) { scrim.classList.remove("enter"); scrim.classList.add("leave"); }
+    var finished = false;
+    function finish() {
+      if (finished) return;
+      // За время уезда открылась другая шторка — прежний уезд больше не в силе.
+      if (token !== sheetLeaveToken) return;
+      finished = true;
+      clearTimeout(sheetLeaveTimer);
+      sheetLeaveTimer = null;
+      sheetLeaving = false;
+      sheetSeen = null;
+      ui.sheet = null;
+      if (fn) fn();
+      render();
+    }
+    sheet.addEventListener("animationend", function (e) {
+      if (e.animationName === "sheet-down") finish();
+    });
+    // При отключённой анимации (системная настройка «меньше движения») уезда нет —
+    // закрываем сразу, не выжидая страховочный таймер.
+    if (window.getComputedStyle(sheet).animationName === "none") { finish(); return; }
+    sheetLeaveTimer = setTimeout(finish, 320);
+  }
+
+
+  function useNative(kind) {
+    try {
+      if (!window.WaterNative) return false;
+      if (kind === "Number") return !!WaterNative.hasNumber();
+      if (kind === "Date") return !!WaterNative.hasDate();
+      if (kind === "Time") return !!WaterNative.hasTime();
+    } catch (e) { /* мост может не ответить — считаем, что нет */ }
+    return false;
+  }
+
+  function setupDialFace() {} /* циферблат — модуль 8 шага 2 */
+  function cloudBridge() {
+    return !!(window.WaterGoogle && typeof window.WaterGoogle.state === "function");
+  }
+
+  function avatarSrc() { return ""; }
+  function cloudBackupLabel() { return ""; }
+  function skinOn() { return false; }
+  function skinCount() { return 0; }
+  function activityRow() { return null; }
+  function activityIcon() { return null; }
+  function weatherIcon() { return null; }
+  function notifyTextsRender() { return ""; }
+  /* Шимы к модулям next (сигнатуры донора → модули M13/M03/M04). */
+  function ensureAlerts() { return N().ensureAlerts(state); }
+  function freqLabel(min) { return P().freqLabel(min); }
+  function alertSoundTitle(f) { return N().alertSoundTitle(f); }
+  function nextSlot(now) { return N().nextSlot(state, now); }
+  function notifyWindow(iso) { return N().notifyWindow(state, iso); }
+  function dayWindow(i) { return N().dayWindow(state, i); }
+  function weekdayIndex(iso) { return N().weekdayIndex(iso); }
+  function parseHM(s) { return N().parseHM(s); }
+  function shiftHM(hm, d) { return N().shiftHM(hm, d); }
+  function wallMsNow() { return N().wallMsNow(); }
+  function waterToday() { return N().waterToday(state); }
+  function dayEntries(d) { return J().dayEntries(state, d); }
+
+  function sumKey(list, key) {
+    return list.reduce(function (s, e) { return s + Number(e[key] || 0); }, 0);
+  }
+
+
+  function goalFor(date) {
+    var today = todayStr();
+    var current = waterToday();
+    if (date && date !== today && date !== current && state.dayGoals && state.dayGoals[date] != null) return Number(state.dayGoals[date]);
+    return LC.goalOn(state, date, today);
+  }
+
+
+  function volLabel(ml) {
+    var n = Math.round(Number(ml) || 0);
+    if (!isImperial()) return n + " мл";
+    return (Math.round(n / 29.5735295625 * 10) / 10).toFixed(1) + " унц.";
+  }
+
+
+  function fmtWeight(kg) {
+    if (isImperial()) return kgToLb(kg).toFixed(1) + " фунт";
+    return H().fmtKg(kg);
+  }
+
+
+  function isImperial() { return state && state.units === "imperial"; }
+
+
+  function fmtDayStart() {
+    var mins = LC.minutesOf(dayStartValue());
+    return pad2(Math.floor(mins / 60)) + ":" + pad2(mins % 60);
+  }
+
+
+  function dayStartValue() {
+    return (state && state.dayStart) || "02:00";
+  }
+
+
+  function ruDate(iso) {
+    if (!iso || iso.length < 10) return "—";
+    return iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4);
+  }
+
+
+  function durationPhrase(mins, prefix) {
+    mins = Math.max(0, Math.round(Number(mins) || 0));
+    if (!mins) return "Сразу";
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    var parts = [];
+    if (h) parts.push(h + " " + ruCount(h, "час", "часа", "часов"));
+    if (m) parts.push(m + " " + ruCount(m, "минуту", "минуты", "минут"));
+    return (prefix ? prefix + " " : "") + parts.join(" ");
+  }
+
+
+  function spanLabel(wake, sleep) {
+    var d = parseHM(sleep) - parseHM(wake);
+    if (d <= 0) d += 1440;
+    var h = d / 60;
+    if (Math.abs(h - Math.round(h)) < 0.05) return Math.round(h) + "ч";
+    return (Math.round(h * 10) / 10).toString().replace(".", ",") + "ч";
+  }
+
+
+  function pad(n) { return String(n).padStart(2, "0"); }
+
+
+  function kgToLb(kg) { return Math.round(Number(kg) * 2.2046226218 * 10) / 10; }
+
+
+  function lbToKg(lb) { return Math.round(Number(lb) / 2.2046226218 * 10) / 10; }
+
+
+  function useSystemClock() {
+    /* В теме Oneplus 7 время всегда ставится своим круглым циферблатом. */
+    if (resolvedTheme() === "oneplus") return false;
+    return !!(state && state.systemClock && window.WaterNative && WaterNative.hasTime());
+  }
+
+
+  function useSystemDrums() {
+    return !!(state && state.systemDrums && window.WaterNative && WaterNative.hasNumber());
+  }
+
+
+  function readTimePair(key, hN, mN, fbH, fbM) {
+    if (ui.dial && ui.dialKey === key) return { h: ui.dial.h, m: ui.dial.m };
+    return { h: readWheel(hN, fbH), m: readWheel(mN, fbM) };
+  }
+
+
+  function shareTextFile(name, text, mime) {
+    var shell = window.WaterShell;
+    if (shell && typeof shell.shareFile === "function") {
+      try {
+        shell.shareFile(name, mime || "text/plain", String(text));
+        return "app";
+      } catch (e) { /* ниже — браузерный путь */ }
+    }
+    try {
+      var file = new File([String(text)], name, { type: mime || "text/plain" });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: "База «Водомера»" }).catch(function () {});
+        return "share";
+      }
+    } catch (e) { /* окна «Поделиться» нет */ }
+    return "";
+  }
+
+
+  function saveTextFile(name, text, mime) {
+    /* В приложении скачивание ссылкой не работает — файл кладёт оболочка. */
+    var shell = window.WaterShell;
+    if (shell && typeof shell.saveFile === "function") {
+      try {
+        shell.saveFile(name, mime || "text/plain", String(text));
+        return true;
+      } catch (e) { /* попробуем обычным способом */ }
+    }
+    try {
+      var blob = new Blob([text], { type: mime });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      return true;
+    } catch (e) { return false; }
+  }
+
+
+  function dbFileName() {
+    return "vodomer-baza-" + exportStamp() + ".json";
+  }
+
+
+  function historyExportJson() {
+    return JSON.stringify(Y().exportPack(state), null, 1);
+  }
+
+
+  function historyExportCsv() {
+    var pack = Y().exportPack(state);
+    var head = ["date", "time", "drink", "volume_ml", "credited_ml"];
+    var lines = [head.join(";")];
+    pack.entries.forEach(function (e) {
+      lines.push([e.date, e.time, csvCell(e.name), Number(e.volume) || 0, Number(e.credited) || 0].join(";"));
+    });
+    lines.push("");
+    lines.push(["date", "weight_kg"].join(";"));
+    pack.weights.forEach(function (w) { lines.push([w.date, w.kg].join(";")); });
+    // BOM, иначе Excel открывает русский текст кракозябрами.
+    return "\uFEFF" + lines.join("\r\n") + "\r\n";
+  }
+
+
+  function writeGoalSpan(from, to, kg) {
+    if (!state || state.useRecommended === false) return;
+    if (!from || !to || to < from) return;
+    if (!state.dayGoals) state.dayGoals = {};
+    var d = from;
+    var guard = 0;
+    while (d <= to && guard < 2000) {
+      state.dayGoals[d] = formulaGoal(kg, d);
+      if (d === to) break;
+      d = LC.addDays(d, 1);
+      guard++;
+    }
+  }
+
+
+  function nextWeightDate(date) {
+    var next = "";
+    (state.weights || []).forEach(function (w) {
+      if (w.date > date && (!next || w.date < next)) next = w.date;
+    });
+    return next;
+  }
+
+
+  function stampWeightGoals(date, kg) {
+    var today = todayStr();
+    var from = date && date <= today ? date : today;
+    var next = nextWeightDate(from);
+    var end = next ? LC.addDays(next, -1) : today;
+    if (end > today) end = today;
+    if (end < from) end = from;
+    writeGoalSpan(from, end, kg);
+    var water = waterToday();
+    if (water !== today && water >= from && water <= end) writeGoalSpan(water, water, kg);
+  }
+
+
+  function syncRecommended() {
+    if (!state || state.useRecommended === false) return;
+    state.goalMl = LC.genderBase(state);
+  }
+
+
+  function recommendedMl() {
+    return LC.recommendedOn(state, todayStr(), todayStr());
+  }
+
+
+  function resetAll() {
+    /* v85 (владелец 25.10): сброс — чисто локальное действие. Прежняя версия
+       помечала всё удалённым, метки разъезжались через облако и съедали
+       историю на других устройствах (инцидент 25.10,
+       docs/cloud-poison-incident.md). Теперь метки не ставятся, а старые
+       стираются начисто. Чтобы история не вернулась сама, устройство не
+       забирает облако, пока владелец сам не нажмёт «Синхронизация»
+       (state.resetHold снимается в cloudSyncNow). */
+    state = C().initialState();
+    state.tombstones = { e: {}, w: {} };
+    state.resetHold = 1;
+    state.historyDismissed = true;
+    ui.page = null;
+    ui.sheet = null;
+    ui.modal = null;
+    ui.dialog = null;
+    ui.historyDate = todayStr();
+    ui.chartLeft = null;
+    ui.openSwipe = null;
+    ui.weightDraft = null;
+    ui.weightAnchor = null;
+    ui.goalDraft = null;
+    ui.addDraft = null;
+    ui.activityFrom = null;
+    ui.sorting = false;
+    ui.sortOrder = null;
+    save();
+    toast("Приложение как при первом запуске");
+  }
+
+
+  function structJsonText() {
+    if (!window.SettingsUI || !window.SettingsUI.structJson) return "";
+    return window.SettingsUI.structJson(settingsEnv());
+  }
+
+
+  function copyStructJson() {
+    var txt = structJsonText();
+    if (!txt) { toast("Структура недоступна: модуль настроек не загрузился"); return; }
+    var done = function () { toast("Скопировано: дерево структуры в буфере"); };
+    var fallback = function () {
+      var ta = document.createElement("textarea");
+      ta.value = txt;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      toast(ok ? "Скопировано: дерево структуры в буфере" : "Не скопировалось: выделите текст в окне вручную");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, fallback);
+    } else fallback();
+  }
+
+
+  function saveStructFile() {
+    var txt = structJsonText();
+    if (!txt) { toast("Структура недоступна: модуль настроек не загрузился"); return; }
+    var name = "vodomer-struktura-" + todayStr() + ".json";
+    var how = shareTextFile(name, txt, "application/json");
+    if (how === "app") { toast("Файл " + name + " передан оболочке"); return; }
+    if (how === "share") { toast("Открыто окно «Поделиться» — выберите, куда сохранить"); return; }
+    /* Браузерный фолбэк без navigator.share: скачивание ссылкой. */
+    try {
+      var url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      toast("Файл " + name + " скачивается");
+    } catch (e) {
+      toast("Не вышло файлом — скопируйте текст кнопкой «Скопировать»");
+    }
+  }
+
+
+  function openHistoryExport() {
+    if (!(state.entries || []).length) { toast("Истории пока нет — сначала запишите приём воды"); return; }
+    ui.modal = "history-export";
+    render();
+  }
+
+
+  function historyExportPreview() {
+    var pack = Y().exportPack(state);
+    var shown = pack.entries.slice(0, HIST_PREVIEW_ROWS);
+    var head = "// Предпросмотр: первые " + shown.length + " из " + pack.counts.entries + " " +
+      ruCount(pack.counts.entries, "записи", "записей", "записей") + ".\n" +
+      "// Кнопки «Скопировать» и «Скачать JSON» отдают все " + pack.counts.entries + " " +
+      ruCount(pack.counts.entries, "запись", "записи", "записей") + ".\n";
+    return head + JSON.stringify({
+      source: pack.source,
+      version: pack.version,
+      profile: pack.profile,
+      counts: pack.counts,
+      drinks: pack.drinks.map(function (d) { return d.id; }),
+      weights: pack.weights,
+      dayGoals: pack.dayGoals,
+      entries: shown
+    }, null, 1);
+  }
+
+
+  function dupesDialogHtml() {
+    if (!window.UiKit) return "";
+    var gs = dupGroups();
+    var body = gs.length
+      ? '<div class="dupe-list">' + gs.map(function (g) {
+          return '<button type="button" class="dupe-row" data-act="goto-dupe" data-date="' + g.date + '">' +
+            '<span class="dupe-date">' + fmtShort(g.date) + '</span>' +
+            '<span class="dupe-what">' + esc(g.time + " · " + g.name + " " + g.volume + " мл") + '</span>' +
+            '<span class="dupe-x">×' + g.count + '</span></button>';
+        }).join("") + '</div>'
+      : '<div class="empty">Повторов нет</div>';
+    return K().dialog({ ui: "dupes",
+      scrimAct: "dialog-cancel",
+      cls: "modal n-modal dupes-modal",
+      title: "Дубли в истории",
+      body: body,
+      actions: [ { act: "dialog-cancel", label: "Закрыть" } ]
+    });
+  }
+
+
+  function historyExportDialogHtml() {
+    var pack = Y().exportPack(state);
+    var c = pack.counts;
+    var note = c.entries + " " + ruCount(c.entries, "запись", "записи", "записей") + " (" + ruDate(c.from) + " — " + ruDate(c.to) + "), " +
+      c.days + " " + ruCount(c.days, "день", "дня", "дней") + ", " + c.weights + ruCount(c.weights, " измерение", " измерения", " измерений") + " веса, цели по дням. " +
+      "JSON принимает «Загрузить историю» на этом экране, CSV открывается в таблицах.";
+    if (window.__singleFile) {
+      note += " Загрузка файла здесь может не сработать, и в памяти держатся только последние " + c.entries +
+        " " + ruCount(c.entries, "запись", "записи", "записей") + " — кнопка «Скопировать» отдаёт всё, что есть. " +
+        "С сервера проекта выгружается история целиком.";
+    }
+    if (!window.UiKit) return "";
+    return K().dialog({ ui: "export",
+      scrimAct: "hist-export-close",
+      cls: "modal n-modal svg-export hist-export",
+      title: "Экспорт истории",
+      body: K().noteArea({ ui: "export", note: note, areaLabel: "Предпросмотр выгрузки", text: historyExportPreview() }),
+      actions: [
+        { act: "hist-export-copy", label: "Скопировать" },
+        { act: "hist-export-json", label: "Скачать JSON" },
+        { act: "hist-export-csv", label: "Скачать CSV" },
+        { act: "hist-export-close", label: "Отмена" }
+      ]
+    });
+  }
+
+
+  function dbSaveHint() {
+    var inApp = !!(window.WaterShell && typeof window.WaterShell.saveFile === "function");
+    return "JSON, " + dbFileNotes() + " — " + (inApp ? "ляжет в «Загрузки»" : "скачается файлом");
+  }
+
+
+  function dbShareHint() {
+    var inApp = !!(window.WaterShell && typeof window.WaterShell.shareFile === "function");
+    return inApp ? "файл через системное окно Android" : "файл через окно «Поделиться» браузера";
+  }
+
+
+  function systemCalNote() {
+    return useSystemCalendar()
+      ? "Дата веса — системный выбор даты"
+      : webHasDatePick()
+        ? "Дата веса. Системный выбор в браузере и приложении Android"
+        : "Дата веса. Заработает в приложении Android";
+  }
+
+
+  function systemClockNote() {
+    return useSystemClock()
+      ? "Время приёма, сутки и сон — часы Android"
+      : "Время приёма, сутки и сон. Заработает в приложении Android";
+  }
+
+
+  function systemDrumNote() {
+    return useSystemDrums()
+      ? "Вес, объём и норма — диалог Android"
+      : "Вес, объём и норма. Заработает в приложении Android";
+  }
+
+
+  function duplicateStats() {
+    var seen = {}, dubs = 0, first = null;
+    (state.entries || []).forEach(function (e) {
+      var k = J().entryKey(e);
+      if (seen[k]) { dubs++; if (!first || k < first) first = k; return; }
+      seen[k] = 1;
+    });
+    return { count: dubs, sample: first };
+  }
+
+
+  function historyExportSummary() {
+    var n = (state.entries || []).length;
+    var w = (state.weights || []).length;
+    if (!n) return "Пока нечего выгружать";
+    var pack = Y().exportPack(state);
+    var c = pack.counts;
+    return c.entries + " записей и " + w + ruCount(w, " измерение веса", " измерения веса", " измерений веса") + ", " + ruDate(c.from) + " — " + ruDate(c.to);
+  }
+
+
+  function timeEditorHtml(key, hN, mN, h, m, wCls) {
+    if (!dialActive()) {
+      ui.dial = null; ui.dialKey = null;
+      if (!window.UiKit) return "";
+      return K().wheelBlock({ ui: "time-editor",
+        cls: wCls || "time-wheels",
+        items: [{ wheel: { name: hN, value: h, min: 0, max: 23, step: 1, pad: true } },
+                { sep: ":", sepCls: "colon" },
+                { wheel: { name: mN, value: m, min: 0, max: 59, step: 1, pad: true } }]
+      });
+    }
+    if (!ui.dial || ui.dialKey !== key || ui.dialSeed !== h + ":" + m) {
+      ui.dial = { h: h, m: m, view: "h" };
+      ui.dialKey = key;
+      ui.dialSeed = h + ":" + m;
+    }
+    return dialHtml(ui.dial.h, ui.dial.m, ui.dial.view, key);
+  }
+
+
+  function freqSubLabel() {
+    var n = ensureAlerts();
+    if (!P().isPace(n)) return freqLabel(n.everyMin);
+    var now = wallMsNow();
+    /* v139: прозрачность фазы 2 — часы ритма словами: куда целится шаг. */
+    if (window.PaceCurve && PaceCurve.explain) {
+      var today = waterToday();
+      var drunk = sumKey(dayEntries(today), "volume");
+      var portion = window.HabitSchedule ? window.HabitSchedule.medianPortion(state.entries, today, 7) : 250;
+      var ex = PaceCurve.explain(state.entries, periodOpts(), now, drunk, portion);
+      if (ex) {
+        return ex.ahead
+          ? "По темпу: вы опережаете ритм «" + (ex.periodLabel || "периода") + "» — поддерживающий шаг 2 ч"
+          : "По темпу: по ритму «" + ex.periodLabel + "» следующая порция около " + ex.wallHM +
+            " · шаг " + ex.stepMin + " мин";
+      }
+    }
+    var next = nextSlotMs(now);
+    var tail = "";
+    if (typeof next === "number" && next > now) {
+      tail = " · следующее через " + durationPhrase(Math.max(1, Math.round((next - now) / 60000)));
+    }
+    return "По темпу: норма к концу бодрствования" + tail;
+  }
+
+
+  function askAlertPermission() {
+    var bridge = window.WaterAlerts;
+    if (bridge && typeof bridge.requestPermission === "function") {
+      try { bridge.requestPermission(); } catch (e) {}
+    }
+  }
+
+
+  function sysLaunch(act, text) {
+    return '<button type="button" class="sys-launch" data-act="' + act + '">' + text + "</button>";
+  }
+
+
+  function splitKg(kg) {
+    var n = Math.round(Number(kg) * 10) / 10;
+    if (!(n >= 20 && n <= 300)) n = state.weightKg || 60;
+    var whole = Math.floor(n + 1e-6);
+    var frac = Math.round((n - whole) * 10);
+    if (frac >= 10) { whole += 1; frac = 0; }
+    if (whole < 20) whole = 20;
+    if (whole > 300) whole = 300;
+    return { whole: whole, frac: frac };
+  }
+
+
+  function splitLb(kg) {
+    var n = kgToLb(kg);
+    if (!(n >= 44 && n <= 661.9)) n = kgToLb(state.weightKg || 60);
+    var whole = Math.floor(n + 1e-6);
+    var frac = Math.round((n - whole) * 10);
+    if (frac >= 10) { whole += 1; frac = 0; }
+    if (whole < 44) whole = 44;
+    if (whole > 661) whole = 661;
+    return { whole: whole, frac: frac };
+  }
+
+
+  function initWheels() {
+    document.querySelectorAll("[data-wheel]").forEach(setupWheel);
+    var dface = document.querySelector("[data-dial-face]");
+    if (dface) setupDialFace(dface);
+  }
+
+
+  function setupWheel(el) {
+    var min = Number(el.dataset.min);
+    var max = Number(el.dataset.max);
+    var step = Number(el.dataset.step);
+    var itemH = Number(el.dataset.item) || ITEM;
+    var values = [];
+    for (var v = min; v <= max; v += step) values.push(v);
+    var value = Number(el.dataset.value);
+    if (values.indexOf(value) < 0) {
+      value = values.reduce(function (a, b) { return Math.abs(b - Number(el.dataset.value)) < Math.abs(a - Number(el.dataset.value)) ? b : a; });
+    }
+    el.dataset.value = value;
+    var list = el.querySelector(".wheel-list");
+    var pad = '<div class="wheel-pad"></div>';
+    list.innerHTML = pad + values.map(function (n) {
+      var label = el.dataset.pad === "1" ? pad2(n) : String(n);
+      return '<div class="wheel-item" data-v="' + n + '">' + label + "</div>";
+    }).join("") + pad;
+    function pad2(n) { return String(n).padStart(2, "0"); }
+    var idx = values.indexOf(value);
+    function mark() {
+      var i = Math.round(list.scrollTop / itemH);
+      i = Math.max(0, Math.min(values.length - 1, i));
+      var current = values[i];
+      el.dataset.value = current;
+      list.querySelectorAll(".wheel-item").forEach(function (n) {
+        n.classList.toggle("on", Number(n.dataset.v) === current);
+      });
+      onWheel(el.dataset.wheel, current);
+    }
+    function scrollToIndex(i, smooth) {
+      list.scrollTo({ top: i * itemH, behavior: smooth ? "smooth" : "auto" });
+    }
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        list.scrollTop = idx * itemH;
+        mark();
+      });
+    });
+    var timer;
+    list.addEventListener("scroll", function () {
+      mark();
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        var i = Math.round(list.scrollTop / itemH);
+        scrollToIndex(Math.max(0, Math.min(values.length - 1, i)), true);
+      }, 90);
+    });
+    list.addEventListener("click", function (e) {
+      var item = e.target.closest(".wheel-item");
+      if (!item) return;
+      var i = values.indexOf(Number(item.dataset.v));
+      if (i >= 0) scrollToIndex(i, true);
+    });
+    el._setValue = function (next) {
+      var i = values.indexOf(Number(next));
+      if (i < 0) return;
+      list.scrollTop = i * itemH;
+      el.dataset.value = values[i];
+      mark();
+    };
+  }
+
+
+  function onWheel(name, value) {
+    if (name === "volume") {
+      if (ui.sheet === "volume") ui.volumeDraft = value;
+      if (ui.sheet === "hist-add" && ui.addDraft) ui.addDraft.volume = value;
+      document.querySelectorAll(".preset").forEach(function (p) {
+        p.classList.toggle("on", Number(p.dataset.v) === value);
+      });
+    }
+    if (name === "goal") {
+      ui.goalDraft = value;
+      document.querySelectorAll(".sheet.goal .preset").forEach(function (p) {
+        p.classList.toggle("on", Number(p.dataset.v) === value);
+      });
+    }
+    if ((name === "hour" || name === "minute") && ui.timeDraft) ui.timeDraft[name] = value;
+    if ((name === "kg-int" || name === "kg-dec") && ui.weightDraft) {
+      var whole = name === "kg-int" ? value : readWheel("kg-int", 0);
+      var frac = name === "kg-dec" ? value : readWheel("kg-dec", 0);
+      var num = Math.round((whole + frac / 10) * 10) / 10;
+      ui.weightDraft.kg = (ui.sheet === "set-weight" && isImperial()) ? lbToKg(num) : num;
+    }
+  }
+
+
+  function readWheel(name, fallback) {
+    var el = document.querySelector('[data-wheel="' + name + '"]');
+    if (!el || el.dataset.value === "" || el.dataset.value == null) return fallback;
+    return Number(el.dataset.value);
+  }
+
+
+  function askNativeTime(spec, apply) {
+    WaterNative.pickTime(spec).then(function (raw) {
+      if (!raw) return;
+      var parts = String(raw).split(":");
+      var h = Number(parts[0]);
+      var m = Number(parts[1]);
+      if (!(h >= 0 && h <= 23) || !(m >= 0 && m <= 59)) return;
+      apply(pad2(h) + ":" + pad2(m));
+    });
+  }
+
+
+  function askNativeNumber(spec, apply) {
+    WaterNative.pickNumber(spec).then(function (raw) {
+      if (raw == null) return;
+      var n = snapNumber(String(raw).replace(",", "."), spec.min, spec.max, spec.step, spec.decimals);
+      if (n == null) return;
+      apply(n);
+    });
+  }
+
+
+  function restoreHistoryBackup() {
+    var b = state.historyBackup;
+    if (!b) { toast("Прежней истории нет"); return; }
+    var now = {
+      at: Date.now(),
+      entries: state.entries,
+      weights: state.weights || [],
+      dayGoals: state.dayGoals || {},
+      historySource: state.historySource || "",
+      historyCounts: state.historyCounts || null,
+      dayStart: state.dayStart,
+      dayStartHistory: state.dayStartHistory || []
+    };
+    state.entries = b.entries || [];
+    state.weights = b.weights || [];
+    state.dayGoals = b.dayGoals || {};
+    state.historySource = b.historySource || "";
+    state.historyCounts = b.historyCounts || null;
+    if (b.dayStart) state.dayStart = b.dayStart;
+    if (Array.isArray(b.dayStartHistory) && b.dayStartHistory.length) state.dayStartHistory = b.dayStartHistory;
+    state.historyBackup = now;   /* возврат тоже можно отменить */
+    ui.historyDate = null;
+    ui.chartLeft = null;
+    save();
+    render();
+    toast("Вернул прежнюю историю: " + state.entries.length + " записей");
+  }
+
+
+  function dupGroups() {
+    var g = {};
+    (state.entries || []).forEach(function (e) { var k = J().entryKey(e); (g[k] = g[k] || []).push(e); });
+    return Object.keys(g).filter(function (k) { return g[k].length > 1; })
+      .map(function (k) {
+        var a = g[k];
+        return { key: k, date: a[0].date, time: a[0].time, name: a[0].name, volume: a[0].volume, count: a.length };
+      })
+      .sort(function (x, y) { return (x.date + x.time).localeCompare(y.date + y.time); });
+  }
+
+
+  function drinkById(id) {
+    for (var i = 0; i < state.drinks.length; i++) if (state.drinks[i].id === id) return state.drinks[i];
+    return null;
+  }
+
+
+  function SU() { return window.SettingsUI; }
+
+  /* M25: обёртка сид-мест. Файл m25-settings-model.js остаётся байт-в-байт
+     донорским; строки неприехавших модулей помечаются visible=false здесь —
+     renderSettingsBlocks и pageFolder донора такие строки не рисуют, а
+     rowsOfGroup/двери считают только живые. Двери подпапок без живых строк
+     не рисуются (объявленное отклонение: донор рисует «Подпапка · пусто»). */
+  function wrappedModel() {
+    var SM = window.SettingsModel;
+    if (!SM || SM.__wt2Wrapped) return SM;
+    var SEAT_IDS = { activity: 1, alertTexts: 1, alertPeriod: 1, habitSched: 1, cupLabel: 1,
+      dialTime: 1, vibroDial: 1, animation: 1, warnExceed: 1, waveBox: 1 };
+    function seatCustom(r) {
+      if (!r || r.type !== "custom") return false;
+      if (r.custom === "wave" || r.custom === "liqBlock" || r.custom === "bubBlock") return !window.LiquidColor;
+      if (r.custom === "chartBlock") return !window.ChartColor;
+      return false;
+    }
+    function mark(cat) {
+      Object.keys(cat || {}).forEach(function (id) {
+        var r = cat[id];
+        if (!r || typeof r !== "object") return;
+        if (SEAT_IDS[id] || seatCustom(r)) {
+          if (r.visible !== false) cat[id] = Object.assign({}, r, { visible: false });
+        }
+      });
+      return cat;
+    }
+    function live(lay, cat, gid) {
+      return SM.rowsOfGroup(lay, cat, gid).filter(function (rid) {
+        var r = cat[rid];
+        return r && r.visible !== false;
+      });
+    }
+    function doorSub(n) {
+      return n ? "Подпапка · " + n + (n === 1 ? " строка" : (n < 5 ? " строки" : " строк")) : "Подпапка · пусто";
+    }
+    function filterBlocks(blocks, lay, cat) {
+      return (blocks || []).map(function (b) {
+        var items = [];
+        (b.items || []).forEach(function (it) {
+          if (!it) return;
+          /* SM собирает items из своего немаркированного каталога —
+             сверяем видимость по маркированному cat[id]. */
+          if (!it.folder && cat[it.id] && cat[it.id].visible === false) return;
+          if (it.folder) {
+            var n = live(lay, cat, "@" + it.folder).length;
+            if (!n) return;
+            it = Object.assign({}, it, { sub: doorSub(n) });
+          }
+          items.push(it);
+        });
+        return Object.assign({}, b, { items: items });
+      });
+    }
+    var w = Object.assign({}, SM, { __wt2Wrapped: true });
+    w.fullCatalog = function (ctx) { return mark(SM.fullCatalog(ctx)); };
+    w.rowsOfGroup = function (lay, cat, gid) { return live(lay, cat, gid); };
+    function compose(fn, ctx, lay) {
+      var cat = w.fullCatalog(ctx);
+      var ml = SM.migrateLayout(lay, cat);
+      return filterBlocks(fn(ctx, ml), ml, cat);
+    }
+    w.composeMain = function (ctx, lay) { return compose(SM.composeMain, ctx, lay); };
+    w.composeLook = function (ctx, lay) { return compose(SM.composeLook, ctx, lay); };
+    w.composeAdvanced = function (ctx, lay) { return compose(SM.composeAdvanced, ctx, lay); };
+    w.composeAlerts = function (lay, cat) {
+      /* Донор: composeAlerts(layout, catalog) → МАССИБ разделов {id,title,ids}. */
+      var c = cat || SM.fullCatalog({ flags: {}, labels: {} });
+      c = mark(Object.assign({}, c));
+      var ml = SM.migrateLayout(lay, c);
+      var secs = SM.composeAlerts(ml, c);
+      return (secs || []).map(function (f) {
+        return { id: f.id, title: f.title, ids: (f.ids || []).filter(function (rid) {
+          var r = c[rid];
+          return r && r.visible !== false;
+        }) };
+      });
+    };
+    return w;
+  }
+
+  function settingsEnv() {
+    return {
+      state: state, ui: ui, save: save, render: render, esc: esc, uiIcon: uiIcon,
+      ALERT_SOUNDS: ALERT_SOUNDS, APP_VERSION: versionLabel(),
+      UiKit: window.UiKit, SettingsModel: wrappedModel(), LiquidColor: window.LiquidColor, L: LC,
+      cloud: cloud, avatarSrc: avatarSrc, cloudBridge: cloudBridge, cloudBackupLabel: cloudBackupLabel,
+      drinkById: drinkById, currentDrink: currentDrink, fmtWeight: fmtWeight, volLabel: volLabel,
+      recommendedMl: recommendedMl, isImperial: isImperial, fmtDayStart: fmtDayStart, dayStartValue: dayStartValue,
+      THEME_NAMES: THEME_NAMES, resolvedTheme: resolvedTheme, ensureAlerts: ensureAlerts, freqLabel: freqLabel,
+      freqSubLabel: freqSubLabel,
+      alertSoundTitle: alertSoundTitle, nextSlot: nextSlot, notifyWindow: notifyWindow, weekdayIndex: weekdayIndex,
+      spanLabel: spanLabel, parseHM: parseHM, shiftHM: shiftHM, pad: pad, waterToday: waterToday,
+      dayEntries: dayEntries, sumKey: sumKey, goalFor: goalFor, activityRow: activityRow, activityIcon: activityIcon,
+      weatherIcon: weatherIcon, wallMsNow: wallMsNow, todayStr: todayStr, skinOn: skinOn, skinCount: skinCount,
+      duplicateStats: duplicateStats, historyExportSummary: historyExportSummary, dbSaveHint: dbSaveHint,
+      dbShareHint: dbShareHint, systemCalNote: systemCalNote, systemClockNote: systemClockNote,
+      systemDrumNote: systemDrumNote, noBuiltinBase: noBuiltinBase, durationPhrase: durationPhrase, catRiveFailed: catRiveFailed,
+      dayWindow: dayWindow, ruDate: ruDate, timeEditorHtml: timeEditorHtml,
+      HabitSchedule: window.HabitSchedule, notifyPreview: notifyTextsRender
+    };
+  }
+
   function pageWeight() {
     var today = N().wallToday();
     var range = ui.weightRange || "year";
@@ -906,12 +1793,13 @@
       '<div class="hist-list w-list">' + list + "</div>";
   }
 
+
   function onbScreen() {
     if (!ui.onb) ui.onb = O().draft(ui, state, N().wallToday());
     return '<div class="screen onb-screen">' + O().screenHtml(ui.onb, { catArt: CAT_PLACEHOLDER }) + "</div>";
   }
 
-  /* ---- оверлеи ---- */
+
   function overlayHtml() {
     var out = "";
     /* M22: FAB центром на линии М: история — добавить запись, вес — взвешивание. */
@@ -965,30 +1853,43 @@
         body: '<div class="onb-kg-grid">' + dgrid + "</div>" +
           '<button type="button" class="time-btn" data-act="onb-time-sys">' + uiIcon("clock") + "<span>Системные часы</span></button>" });
     }
-    if (ui.modal === "alert-freq") {
-      /* Донор settings-ui.js 1148-1163: диалог частоты, опции байт-в-байт. */
-      var nf = N().ensureAlerts(state);
-      out += U().dialog({ ui: "freq",
-        scrimAct: "freq-cancel",
-        cls: "modal n-modal freq-modal",
-        title: "Частота",
-        body: U().optionList({ ui: "freq",
-          act: "pick-freq", attr: "min",
-          items: [10, 30, 60, 90, 120, 150, 180, -1, 0].map(function (min) {
-            return { value: min, label: P().freqLabel(min), on: Number(nf.everyMin) === min };
-          }) }),
-        actions: [{ act: "freq-cancel", label: "Отмена" }] });
+    if (ui.sheet === "set-weight") {
+      var imperial = isImperial();
+      var sw = ui.weightDraft || { kg: state.weightKg };
+      var sp = imperial ? splitLb(sw.kg) : splitKg(sw.kg);
+      out += K().sheet({
+        ui: "set-weight", scrimCls: " bare", cls: "weight set-weight",
+        body: "" +
+        (window.UiKit ? K().wheelBlock({ ui: "weight-edit",
+          cls: "kg-pick",
+          items: [{ wheel: { name: "kg-int", value: sp.whole, min: imperial ? 44 : 20, max: imperial ? 661 : 300, step: 1, item: 60 } },
+                  { sep: ",", aria: true },
+                  { wheel: { name: "kg-dec", value: sp.frac, min: 0, max: 9, step: 1, item: 60 } },
+                  { unit: imperial ? "фунт" : "кг" }]
+        }) : ""),
+        tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "save-set-weight", role: "check", pos: "center", act: "save-set-weight", aria: "Сохранить вес", icon: uiIcon("check") }) + "</div>"
+      });;
     }
-    if (ui.modal === "theme") {
-      /* Диалог темы донора (settings-ui.js 405–424); тема «Oneplus 7» —
-         пустое место до модуля «Внешний вид». */
-      out += U().dialog({ ui: "theme", scrimAct: "theme-cancel", cls: "modal n-modal theme-modal", title: "Выбор темы",
-        body: U().optionList({ ui: "theme", act: "pick-theme", attr: "v",
-          items: [["system", "По умолчанию"], ["light", "Светлая тема"], ["dark", "Тёмная тема"]].map(function (o) {
-            return { value: o[0], label: o[1], on: state.theme === o[0] };
-          }) }),
-        actions: [{ act: "theme-cancel", label: "Отмена" }] });
+    if (ui.sheet === "goal") {
+      var gv = ui.goalDraft || 1900;
+      var goalPresets = K().chipRow({ baseCls: "goal-presets", values: [1600, 1800, 2000, 2100], selected: gv, act: "goal-preset", ui: "goal" });
+      out += K().sheet({
+        ui: "goal", scrimCls: " bare", cls: "goal",
+        body: goalPresets +
+        (useSystemDrums()
+          ? sysLaunch("sys-goal", gv + " мл")
+          : (window.UiKit ? K().wheelBlock({ ui: "goal",
+              cls: "wheel-block goal-wheel",
+              items: [{ wheel: { name: "goal", value: gv, min: 500, max: 5000, step: 10, item: 60 } },
+                      { unit: "мл", unitCls: "unit" }]
+            }) : "")),
+        tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "save-goal", role: "check", pos: "center", act: "save-goal", aria: "Сохранить норму", icon: uiIcon("check") }) + "</div>"
+      });
     }
+    /* M25: модалки и окна донора (settings-ui modalsHtml + app.js dupes/export). */
+    if (window.SettingsUI) out += SU().modalsHtml(settingsEnv());
+    if (ui.modal === "dupes") out += dupesDialogHtml();
+    if (ui.modal === "history-export") out += historyExportDialogHtml();
     if (ui.modal === "dialog" && ui.dialogSpec) {
       var d = ui.dialogSpec;
       out += U().dialog({ ui: d.kind || "dialog", cls: "modal", scrimAct: d.scrimAct || "dialog-cancel",
@@ -1018,6 +1919,10 @@
     if (ui.page === "drinks") { main = pageDrinks(); screenClass = "screen drinks-screen"; }
     else if (ui.page === "volumes") { main = pageVolumes(); screenClass = "screen hist-screen volumes-screen"; }
     else if (ui.page === "folder-alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
+      else if (ui.page === "look") { main = SU().pageLook(settingsEnv()); screenClass = "screen settings-screen"; }
+      else if (ui.page === "advanced") { main = SU().pageAdvanced(settingsEnv()); screenClass = "screen settings-screen"; }
+      else if (ui.page === "struct-export") { main = SU().pageStructExport(settingsEnv()); screenClass = "screen settings-screen"; }
+      else if (String(ui.page || "").indexOf("folder-") === 0) { main = SU().pageFolder(settingsEnv(), ui.page.slice(7)); screenClass = "screen settings-screen"; }
     else if (ui.page === "alert-sound") { main = pageAlertSound(); screenClass = "screen alerts-screen"; }
     else if (ui.tab === "history") { main = pageHistory(); screenClass = "screen hist-screen"; }
     else if (ui.tab === "weight") { main = pageWeight(); screenClass = "screen weight-screen"; }
@@ -1291,6 +2196,8 @@
   }
 
   function afterRender() {
+    try { initWheels(); } catch (e) {} /* M25: колёса донора */
+    try { markSheetEntrance(); } catch (e) {} /* M25: выезд шторки донора */
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
       W.__wtFileHook = function (text, err) {
@@ -1398,6 +2305,8 @@
       if (ui.sheet) { ui.sheet = null; render(); return; }
       if (ui.page === "drinks") { ui.page = null; ui.tab = ui.drinkReturn || "home"; render(); return; }
       if (ui.page === "alert-sound") { ui.page = "folder-alerts"; render(); return; }
+      if (ui.page === "struct-export") { ui.page = "advanced"; render(); return; }
+      if (String(ui.page || "").indexOf("folder-") === 0 && ui.page !== "folder-alerts") { ui.page = ui.folderFrom || null; ui.folderFrom = null; render(); return; }
       if (ui.page) { ui.page = null; render(); return; }
       render(); return;
     }
@@ -1485,21 +2394,294 @@
       ui.weightDraft = { kg: "", date: N().wallToday() };
       ui.sheet = "weight-add"; render(); return;
     }
-    if (act === "open-folder-alerts") { ui.tab = "alerts"; ui.page = null; render(); return; }
+    /* M25: дверь уведомлений — донорский префикс-хендлер open-folder-* (v125). */
     if (act === "open-alert-freq") { ui.modal = "alert-freq"; render(); return; }
     if (act === "open-alert-sound") { ui.page = "alert-sound"; render(); return; }
     if (act === "pick-recent-volume") {
       state.profile.volume = Number(ds.v) || state.profile.volume;
       save(); render(); return;
     }
+
+    if (act === "do-delete-all") { ui.modal = null; ui.dialogSpec = null; resetAll(); return; }
+    if (act === "do-restore-history") { ui.modal = null; ui.dialogSpec = null; restoreHistoryBackup(); return; }
+    if (act === "cloud-profile" || act === "cloud-restore" || act === "google-signin" || act === "open-profile") {
+      /* M09 (облако/профиль) — содержательная линия отдельным словом владельца. */
+      toast("Облако и профиль — модуль M09, ещё не переехал");
+      return;
+    }
+
+    if (act === "open-gender") { ui.modal = "gender"; render(); return; }
+    if (act === "gender-cancel") { ui.modal = null; render(); return; }
+    if (act === "gender") { state.gender = t.dataset.v; syncRecommended(); stampWeightGoals(todayStr(), state.weightKg); ui.modal = null; save(); render(); return; }
+    if (act === "open-units") { ui.modal = "units"; render(); return; }
+    if (act === "pick-units") {
+      state.units = t.dataset.v === "imperial" ? "imperial" : "metric";
+      syncRecommended();
+      ui.modal = null;
+      save();
+      render();
+      return;
+    }
+    if (act === "units-cancel") { ui.modal = null; render(); return; }
+    if (act === "open-norm") { ui.modal = "norm"; render(); return; }
+    if (act === "pick-norm") {
+      if (t.dataset.v === "recommended") {
+        state.useRecommended = true;
+        syncRecommended();
+      } else {
+        state.useRecommended = false;
+        if (state.customGoalMl) state.goalMl = state.customGoalMl;
+      }
+      ui.modal = null;
+      save();
+      if (t.dataset.v === "custom") {
+        /* Сразу показываем выбор объёма — тот же путь, что «open-goal». */
+        var ngStart = state.customGoalMl;
+        if (!(ngStart >= 500 && ngStart <= 5000)) ngStart = 1900;
+        ui.goalDraft = Math.round(ngStart / 10) * 10;
+        ui.sheet = "goal";
+      }
+      render();
+      return;
+    }
+    if (act === "norm-cancel") { ui.modal = null; render(); return; }
+    if (act === "open-day-start") {
+      if (useSystemClock()) {
+        askNativeTime({ title: "Начало суток", value: fmtDayStart(), is24Hour: true }, function (hm) {
+          J().setDayStart(state, hm, N().wallToday());
+          ui.chartLeft = null;
+          save();
+          render();
+        });
+        return;
+      }
+      ui.modal = "day-start";
+      render();
+      return;
+    }
+    if (act === "day-start-ok") {
+      var dp = readTimePair("day", "day-h", "day-m", 2, 0);
+      var dh = dp.h;
+      var dm = dp.m;
+      J().setDayStart(state, pad2(dh) + ":" + pad2(dm), N().wallToday());
+      ui.modal = null;
+      ui.chartLeft = null;
+      save();
+      render();
+      return;
+    }
+    if (act === "day-start-cancel") { ui.modal = null; render(); return; }
+    if (act === "open-set-weight") {
+      if (useSystemDrums()) {
+        var imperialNow = isImperial();
+        var shown = imperialNow ? kgToLb(state.weightKg) : state.weightKg;
+        askNativeNumber({
+          title: "Вес",
+          value: Math.round(shown * 10) / 10,
+          min: imperialNow ? 44 : 20,
+          max: imperialNow ? 661.9 : 300,
+          step: 0.1,
+          decimals: 1,
+          unit: imperialNow ? "фунт" : "кг"
+        }, function (n) {
+          var kg = imperialNow ? lbToKg(n) : n;
+          kg = Math.round(kg * 10) / 10;
+          if (!(kg >= 20 && kg <= 300)) { toast("Вес от 20 до 300 кг"); return; }
+          state.weightKg = kg;
+          syncRecommended();
+          stampWeightGoals(todayStr(), kg);
+          save();
+          render();
+        });
+        return;
+      }
+      ui.weightDraft = { kg: state.weightKg, date: todayStr() };
+      ui.sheet = "set-weight";
+      ui.modal = null;
+      render();
+      return;
+    }
+    if (act === "save-set-weight") {
+      var swWhole = readWheel("kg-int", 0);
+      var swFrac = readWheel("kg-dec", 0);
+      var swNum = Math.round((swWhole + swFrac / 10) * 10) / 10;
+      var swKg = isImperial() ? lbToKg(swNum) : swNum;
+      if (!(swKg >= 20 && swKg <= 300)) { toast("Вес от 20 до 300 кг"); return; }
+      state.weightKg = swKg;
+      syncRecommended();
+      stampWeightGoals(todayStr(), swKg);
+      ui.weightDraft = null;
+      save();
+      closeSheetThen(null);
+      return;
+    }
+    if (act === "goal-preset") {
+      var gv = Number(t.dataset.v);
+      ui.goalDraft = gv;
+      var gwheel = document.querySelector('[data-wheel="goal"]');
+      if (gwheel && gwheel._setValue) gwheel._setValue(gv);
+      document.querySelectorAll(".sheet.goal .preset").forEach(function (p) {
+        p.classList.toggle("on", Number(p.dataset.v) === gv);
+      });
+      return;
+    }
+    if (act === "save-goal") {
+      var ml = Math.round(readWheel("goal", ui.goalDraft || 1900) / 10) * 10;
+      if (!(ml >= 500 && ml <= 5000)) { toast("Норма от 500 до 5000 мл"); return; }
+      state.customGoalMl = ml;
+      state.goalMl = ml;
+      state.useRecommended = false;
+      ui.goalDraft = null;
+      save();
+      closeSheetThen(null);
+      return;
+    }
+    if (act === "open-look") {
+      ui.page = "look";
+      ui.modal = null;
+      ui.sheet = null;
+      render();
+      return;
+    }
+    if (act === "open-advanced") {
+      ui.page = "advanced";
+      ui.modal = null;
+      ui.sheet = null;
+      render();
+      return;
+    }
+    if (act === "open-struct") { ui.page = "struct-export"; ui.modal = null; render(); return; }
+    if (act === "struct-copy") { copyStructJson(); return; }
+    if (act === "struct-save") { saveStructFile(); return; }
+    if (act === "ask-delete-all") {
+      ui.dialogSpec = { title: "Удалить все данные", text: "Приложение вернётся к состоянию из коробки. Записи, вес, напитки и настройки будут стёрты.", ok: "Удалить", cancel: "Отмена", kind: "delete-all", okAct: "do-delete-all" };
+      ui.modal = "dialog";
+      render();
+      return;
+    }
+    if (act === "sys-note") {
+      var sb = window.WaterAlerts;
+      if (sb && typeof sb.systemSettings === "function") { try { sb.systemSettings(); return; } catch (e) {} }
+      toast("Звук и вибрация — в системе Android. В браузере этих настроек нет.");
+      return;
+    }
+    if (act === "alert-test") {
+      var ab = window.WaterAlerts;
+      if (ab && typeof ab.test === "function") {
+        try { ab.test(); toast("Проверочное уведомление отправлено"); return; } catch (e) {}
+      }
+      playAlertSound(ensureAlerts().sound);
+      toast("В браузере уведомление не отправить — играем звук «" + alertSoundTitle(ensureAlerts().sound) + "»");
+      return;
+    }
+    if (act === "open-dupes") {
+      ui.modal = "dupes";
+      render();
+      return;
+    }
+    if (act === "goto-dupe") {
+      /* Строка списка дублей: закрываем список и открываем день в истории.
+         ui.page сбрасываем как в «goto»: пришли со страницы «Дополнительно». */
+      ui.modal = null;
+      ui.dialog = null;
+      ui.sheet = null;
+      ui.page = null;
+      ui.tab = "history";
+      ui.historyDate = t.dataset.date;
+      render();
+      return;
+    }
+    if (act === "restore-history") {
+      ui.dialogSpec = {
+        title: "Вернуть историю",
+        text: "Вернуть " + state.historyBackup.entries.length + " записей, которые были до импорта? " +
+          "Нынешние " + state.entries.length + " записей останутся в памяти — их тоже можно будет вернуть.",
+        ok: "Вернуть",
+        cancel: "Отмена",
+        kind: "restore-history", okAct: "do-restore-history"
+      };
+      ui.modal = "dialog";
+      render();
+      return;
+    }
+    if (act === "open-history-export") { openHistoryExport(); return; }
+    if (act === "hist-export-close") { ui.modal = null; render(); return; }
+    if (act === "hist-export-copy") {
+      var payload = historyExportJson();
+      var rows = (state.entries || []).length;
+      var okMsg = "История скопирована: " + rows + ruCount(rows, " запись", " записи", " записей") + ", " + payload.length + " символов";
+      var fail = function () {
+        toast("Скопируйте текст из окна: выделен автоматически");
+        // Тост перерисовывает окно, поэтому выделяем уже после перерисовки.
+        setTimeout(function () {
+          var box = document.querySelector(".hist-export .svg-export-text");
+          if (box) { box.focus(); box.select(); }
+        }, 0);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(payload).then(function () { toast(okMsg); }).catch(fail);
+      else fail();
+      return;
+    }
+    if (act === "hist-export-json" || act === "hist-export-csv") {
+      var csv = act === "hist-export-csv";
+      var fname = historyExportFilename(csv ? "csv" : "json");
+      var text = csv ? historyExportCsv() : historyExportJson();
+      if (!saveTextFile(fname, text, csv ? "text/csv;charset=utf-8" : "application/json")) {
+        toast("Скачать не удалось: скопируйте текст из окна");
+        return;
+      }
+      toast(window.__singleFile
+        ? "Файл " + fname + " отправлен в загрузки. Не появился — нажмите «Скопировать»"
+        : "Файл " + fname + " предложен к сохранению");
+      return;
+    }
+    if (act.indexOf("open-folder-") === 0) {
+      /* v127: дверь подпапки может стоять на любом экране — возврат ведёт
+         туда, откуда открыли (из «Внешнего вида» — обратно в него). */
+      ui.folderFrom = ui.page || null;
+      ui.page = "folder-" + act.slice("open-folder-".length);
+      render();
+      return;
+    }
+    if (act === "load-history") { F().request(ui, toast); return; }
+    if (act === "cloud-sync") {
+      if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
+        toast("Синхронизация доступна в приложении Android"); return;
+      }
+      cloud.pending = "sync"; cloud.busy = true;
+      window.WaterGoogle.restore();
+      return;
+    }
+    if (act === "save-db-file" || act === "share-db-file") { F().save(state, ui, toast); return; }
+    if (act === "file-open") { F().request(ui, toast); return; }
+    if (act === "cloud-sync") {
+      if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
+        toast("Синхронизация доступна в приложении Android"); return;
+      }
+      cloud.pending = "sync"; cloud.busy = true;
+      window.WaterGoogle.restore();
+      return;
+    }
     if (act === "toggle") {
-      /* Ключи донора (alertsBody) и прежние ключи next — одни поля M13. */
+      /* M25: ключи донора (app.js 9025) + прежние ключи next — одни поля M13.
+         Ключи модулей-сидений (animation/warnExceed/dialTime/vibroDial/devMode/
+         svgEditor) флаг пишут, лица своих модулей ждут. */
+      var k = ds.key;
       var n = N().ensureAlerts(state);
-      if (ds.key === "alerts-enabled" || ds.key === "alertOn") n.enabled = !n.enabled;
-      else if (ds.key === "hold-until" || ds.key === "holdUntilDrink") n.holdUntilDrink = !n.holdUntilDrink;
-      else if (ds.key === "alertVibrate") n.vibrate = n.vibrate === false;
-      else if (ds.key === "whenGoalMet") n.whenGoalMet = !n.whenGoalMet;
-      else if (ds.key === "evenIfRecent") n.evenIfRecent = !n.evenIfRecent;
+      if (k === "alerts-enabled" || k === "alertOn") {
+        n.enabled = !n.enabled;
+        if (n.enabled) askAlertPermission();
+      }
+      else if (k === "hold-until" || k === "holdUntilDrink") n.holdUntilDrink = !n.holdUntilDrink;
+      else if (k === "alertVibrate") n.vibrate = n.vibrate === false;
+      else if (k === "whenGoalMet") n.whenGoalMet = !n.whenGoalMet;
+      else if (k === "evenIfRecent") n.evenIfRecent = !n.evenIfRecent;
+      else if (k === "animation") state.animation = !state.animation;
+      else if (k === "warnExceed") state.warnExceed = !state.warnExceed;
+      else if (k === "vibroDial") state.vibroDial = state.vibroDial === false;
+      else if (k === "dialTime") { if (resolvedTheme() !== "oneplus") state.dialTime = !state.dialTime; }
+      else if (k === "devMode") state.devMode = !state.devMode;
+      else if (k === "svgEditor") state.svgEditor = !state.svgEditor;
       save(); alertsSync(); render(); return;
     }
     if (act === "pick-freq") {
@@ -1657,6 +2839,7 @@
 
   /* ---- старт ---- */
   function boot() {
+    if (window.SettingsModel) window.SettingsModel = wrappedModel(); /* M25: сид-места */
     state = C().boot();
     ui = U().shellState();
     ui.historyDate = null; ui.chartLeft = null; ui.drinkReturn = "home";

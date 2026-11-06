@@ -62,12 +62,13 @@ const E = (id, h, m, vol) => ({ id, date: TODAY, time: h + ':' + m, drinkId: 'wa
 
   /* 5. настройки: секция «Файл» с двумя строками; в веб без моста — честный тост */
   await p.click('[data-tab="settings"]');
-  await p.waitForSelector('[data-act="file-save"]');
-  await p.click('[data-act="file-save"]');
+  await p.click('[data-act="open-advanced"]'); /* M25: перенос данных в «Дополнительно» */
+  await p.waitForSelector('[data-act="save-db-file"]');
+  await p.click('[data-act="save-db-file"]');
   await p.waitForFunction(() => document.querySelector('.toast') && /приложении/.test(document.querySelector('.toast').textContent));
   const rows = await p.evaluate(() => ({
-    save: !!document.querySelector('[data-act="file-save"]'),
-    open: !!document.querySelector('[data-act="file-open"]'),
+    save: !!document.querySelector('[data-act="save-db-file"]'),
+    open: !!document.querySelector('[data-act="load-history"]'),
     toast: document.querySelector('.toast').textContent
   }));
   ok('настройки: строки файла на месте, веб честен тостом', rows.save && rows.open && /приложении/.test(rows.toast), rows);

@@ -244,13 +244,15 @@ const longDate = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.s
     secs: Array.from(document.querySelectorAll('.settings-screen .n-section')).map(x => x.textContent),
     profile: !!document.querySelector('.profile-row'),
     iface: document.querySelectorAll('[data-act^="iface-"]').length,
-    fileRows: !!document.querySelector('[data-act="file-save"]') && !!document.querySelector('[data-act="file-open"]'),
+    fileRowsMain: !!document.querySelector('[data-act="file-save"]') || !!document.querySelector('[data-act="save-db-file"]'),
     ver: document.querySelector('.set-ver').textContent
   }));
-  ok('настройки: шапка донора, секции «Мой профиль/Личные/Основные/Перенос данных», профиль-куб, интерфейсных строк нет, версия честная',
+  ok('настройки (M25): шапка донора, секции «Мой профиль/Личные/Основные», перенос уехал в «Дополнительно», профиль-куб, интерфейсных строк нет, версия честная',
     st.h1 === 'Настройки' &&
-    st.secs.join('|') === 'Мой профиль|Личные настройки|Основные настройки|Перенос данных' &&
-    st.profile && st.iface === 0 && st.fileRows && /^Версия /.test(st.ver), st);
+    st.secs.join('|') === 'Мой профиль|Личные настройки|Основные настройки' &&
+    st.profile && st.iface === 0 && !st.fileRowsMain && /^Версия /.test(st.ver), st);
+  await p.click('[data-act="open-look"]');
+  await p.waitForSelector('[data-act="open-theme"]');
   await p.click('[data-act="open-theme"]');
   await p.waitForSelector('.theme-modal');
   await p.click('.theme-modal [data-act="pick-theme"][data-v="light"]');
@@ -260,6 +262,21 @@ const longDate = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.s
     hdrBg: getComputedStyle(document.querySelector('.settings-screen header.top')).backgroundColor
   }));
   ok('настройки: диалог темы донора переключает светлую (data-theme + палитра)', th.attr === 'light', th);
+
+  /* M25: «Перенос данных» — в «Дополнительно», донорские строки на живом M23. */
+  await p.click('header [data-act="back"]');
+  await p.waitForSelector('[data-act="open-advanced"]');
+  await p.click('[data-act="open-advanced"]');
+  await p.waitForSelector('[data-act="save-db-file"]');
+  const tr = await p.evaluate(() => ({
+    save: !!document.querySelector('[data-act="save-db-file"]'),
+    share: !!document.querySelector('[data-act="share-db-file"]'),
+    load: !!document.querySelector('[data-act="load-history"]'),
+    del: !!document.querySelector('[data-act="ask-delete-all"]'),
+    secs: Array.from(document.querySelectorAll('.n-section')).map(x => x.textContent)
+  }));
+  ok('M25: «Перенос данных» живёт в «Дополнительно» (сохранить/поделиться/загрузить/удалить)',
+    tr.save && tr.share && tr.load && tr.del && tr.secs.includes('Перенос данных'), tr);
 
   ok('чистая консоль: ошибок нет', errs.length === 0, errs.slice(0, 4));
 

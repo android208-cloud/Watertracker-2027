@@ -158,6 +158,7 @@ const histNums = () => {
     { donorPill, nextPill });
   const pillLight = await p.evaluate(async () => {
     document.querySelector('[data-tab="settings"]').click();
+    document.querySelector('[data-act="open-look"]').click();
     document.querySelector('[data-act="open-theme"]').click();
     document.querySelector('[data-act="pick-theme"][data-v="light"]').click();
     document.querySelector('[data-tab="home"]').click();
@@ -168,6 +169,7 @@ const histNums = () => {
   ok('C-007: светлая тема отбеливает каплю на голубой пилюле (styles.css:926 донора)', pillLight.indexOf('brightness(0)') === 0, pillLight);
   await p.evaluate(() => {
     document.querySelector('[data-tab="settings"]').click();
+    document.querySelector('[data-act="open-look"]').click();
     document.querySelector('[data-act="open-theme"]').click();
     document.querySelector('[data-act="pick-theme"][data-v="dark"]').click();
   });
@@ -258,6 +260,9 @@ const histNums = () => {
   await p.click('[data-tab="settings"]');
   await p.waitForSelector('.set-ver');
   await p.screenshot({ path: __dirname + '/shots/m21-settings.png' });
+  /* M25: тема переехала в «Внешний вид» (донор v127). */
+  await p.click('[data-act="open-look"]');
+  await p.waitForSelector('[data-act="open-theme"]');
   const theme = await p.evaluate(() => {
     const app = window.__waterApp;
     document.querySelector('[data-act="open-theme"]').click();
@@ -268,6 +273,8 @@ const histNums = () => {
     return { light: light, dark: [app.state.theme, document.documentElement.getAttribute('data-theme')] };
   });
   ok('тема (донорский диалог): light/dark переключают data-theme и state', theme.light[0] === 'light' && theme.light[1] === 'light' && theme.dark[1] === 'dark', theme);
+  await p.click('header [data-act="back"]');
+  await p.waitForSelector('.set-ver');
   const ver = await p.evaluate(async () => {
     const el = document.querySelector('.set-ver');
     if (!el) return null;
