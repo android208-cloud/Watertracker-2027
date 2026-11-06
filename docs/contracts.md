@@ -231,3 +231,17 @@
   sys-note/load-history/save-db-file/share-db-file/open-history-export.
 - Темой управляет «Внешний вид» (open-theme/pick-theme), переносом данных —
   «Дополнительно» (строки M23), уведомлениями — folder-alerts.
+
+### C-033a (модуль 2): подстраницы уведомлений и автоокна будней
+
+- Акты: open-alert-period/open-gap/gap-ok/open-alert-texts/open-activity/
+  open-alert-days/open-alert-edit/toggle-alert-day/save-alert-edit/
+  open-alert-clock/clock-ok/open-alert-habit/habit-* — хендлеры донора.
+- env.notifyPreview(cas) → m12 notifyTextsRender(ctx, cas): ctx = {n, goal:
+  effGoalFor(водные сутки), drunk: сумма записей водных суток, nowMs} —
+  донор app.js 3407-3410 (v137: тексты цитируют цель напоминаний).
+- habitAutoTick (донор 3262): при habitAuto=1 перезаписывает окна дней
+  автоокнами HabitSchedule.autoWindows; вызов в render + setInterval 10 мин;
+  подпись-sig guarding от повторных сохранений.
+- FAB-ы floaters донора: alert-period → open-alert-days (sunMoonIcon),
+  alert-days → open-alert-edit (pencil), alert-edit → save-alert-edit.

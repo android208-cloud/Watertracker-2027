@@ -284,3 +284,29 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   smoke-m25.js (браузер: 55 гейтов страниц/сид-мест/пикеров/resetAll),
   bench/pixel-m25.js (панели «донор | next | diff» по базе владельца:
   settings 0.93%, look/advanced — объявленные сид-места, alerts 0.85%).
+
+### M25, модуль 2 шага 2 — папки/подстраницы уведомлений (слово «Делай», 06.11)
+
+- Ожили четыре строки-сидения: «Период активности» (главная), «Тексты
+  уведомлений», «Период уведомлений», «Расписание по привычке» (уведомления).
+  Обёртка сид-мест SEAT_IDS сокращена до cupLabel/dialTime/vibroDial/
+  animation/warnExceed/waveBox.
+- Подстраницы донора (settings-ui байт-в-байт): alert-period (gap-диалог
+  «после пробуждения/до отхода»), alert-texts (две карточки, живой пример
+  через env.notifyPreview → m12 notifyTextsRender), alert-days (7 дней),
+  alert-edit (chips дней + wake/sleep + часовой редактор), alert-habit
+  (window.HabitSchedule.page из m12). Роутер и back — ветки донора.
+- Механизмы донора grab-блоками: dial-механизм ввода времени (dialHtml/
+  dialActive/renderDialBlock/setupDialFace — активен при oneplus/dialTime,
+  иначе колёса), initFields/onField (тексты пишутся на ввод, пример точечно),
+  applyHabitSchedule/applyPeriodGoal/applyAllPeriodGoals/resetPeriodGoals,
+  habitAutoTick (v132: автоокна будней при входе и раз в 10 минут — next
+  раньше не пересчитывал, пак владельца расходился с донором на 63 px).
+- Оверлей: FAB-ы донора (floaters 4271-4274): солнце/луна «Периоды
+  активности» на странице периода, карандаш на днях, галочка сохранения
+  на редакторе.
+- Док волны: дверь «Волна» и waveBox по-прежнему сид-места до слова владельца
+  о содержательной линии; механизм folder-* готов принять её без правок.
+- Проверки: smoke-m25 76/76 (новые 21 гейт подстраниц), pixel-m25: все виды
+  модуля 2 — 0 px (≈байт-в-байт с донором на базе владельца); settings и
+  folder-alerts тоже 0 px; look/advanced — объявленные сид-места (3.5/3.7%).

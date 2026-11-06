@@ -807,8 +807,223 @@
 
   function periodOpts() { return N().periodOpts(state); }
   function nextSlotMs(now) { return N().nextSlotMs(state, now); }
-  function dialActive() { return false; } /* редактор периода — модуль 2 */
-  function dialHtml() { return ""; }
+  function dialHtml(h, m, view, uiKey) {
+    if (!window.UiKit) return "";
+    var o = { h: h, m: m, view: view, ui: uiKey || null };
+    /* v97: только шторка времени ЗАПИСИ получает циферблат в цвет напитка;
+       напоминания, начало суток и пауза остаются синими (нет напитка).
+       LC.inkOn сам отбракует невалидный цвет — тогда дефолтный синий. */
+    if (uiKey === "time" && ui.timeDrinkColor) {
+      var ink = LC.inkOn(ui.timeDrinkColor);
+      if (ink) { o.accent = ui.timeDrinkColor; o.ink = ink; }
+    }
+    return K().clockDial(o);
+  }
+
+
+  function dialActive() { return resolvedTheme() === "oneplus" || !!state.dialTime; }
+
+
+  function renderDialBlock() {
+    var root = document.querySelector(".dial");
+    if (!root || !root.parentNode || !ui.dial) { render(); return; }
+    var tmp = document.createElement("div");
+    tmp.innerHTML = dialHtml(ui.dial.h, ui.dial.m, ui.dial.view, ui.dialKey);
+    var fresh = tmp.querySelector(".dial");
+    if (!fresh) { render(); return; }
+    root.parentNode.replaceChild(fresh, root);
+    var dface = fresh.querySelector("[data-dial-face]");
+    if (dface) setupDialFace(dface);
+  }
+
+
+  function setupDialFace(el) {
+    if (el._dialBound) return;
+    el._dialBound = 1;
+    var dragging = false;
+    var activeId = null; /* v96: жест принадлежит одному пальцу */
+    function valueAt(cx, cy) {
+      var r = el.getBoundingClientRect();
+      var dx = cx - (r.left + r.width / 2);
+      var dy = cy - (r.top + r.height / 2);
+      var rad = Math.sqrt(dx * dx + dy * dy) / (r.width / 2);
+      var ang = Math.atan2(dx, -dy) * 180 / Math.PI;
+      if (ang < 0) ang += 360;
+      if (ui.dial.view === "h") {
+        var idx = Math.round(ang / 30) % 12;
+        return rad > 0.66 ? (idx === 0 ? 12 : idx) : (idx === 0 ? 0 : idx + 12);
+      }
+      return Math.round(ang / 6) % 60;
+    }
+    function applyVal(v) {
+      if (ui.dial.view === "h") {
+        if (ui.dial.h === v) return false;
+        ui.dial.h = v;
+      } else {
+        if (ui.dial.m === v) return false;
+        ui.dial.m = v;
+      }
+      vibroTick();
+      return true;
+    }
+    el.addEventListener("pointerdown", function (e) {
+      if (!ui.dial) return;
+      if (!e.isPrimary) return; /* v96: второй палец жест не перехватывает */
+      dragging = true;
+      activeId = e.pointerId;
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      if (applyVal(valueAt(e.clientX, e.clientY))) paintDialInPlace();
+      e.preventDefault();
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (!dragging || !ui.dial) return;
+      if (activeId != null && e.pointerId !== activeId) return;
+      if (applyVal(valueAt(e.clientX, e.clientY))) paintDialInPlace();
+    });
+    /* v96: отмена — НЕ отпускание. Раньше pointercancel (браузер забирал
+       жест из-за touch-action: manipulation) засчитывался как отпускание и
+       переключал часы на минуты прямо под пальцем. Теперь по отмене жест
+       просто останавливается: значение остаётся, куда палец успел указать,
+       экран не переключается. Засчитывает выбор только настоящее
+       отпускание (pointerup) — как владелец и просил 26.10. */
+    function finish(e) {
+      if (!dragging) return;
+      if (e && activeId != null && e.pointerId != null && e.pointerId !== activeId) return;
+      dragging = false;
+      activeId = null;
+      if (e && e.type === "pointercancel") return;
+      if (ui.dial && ui.dial.view === "h") { ui.dial.view = "m"; vibroTick(); }
+      renderDialBlock(); /* v95: отпускание засчитывает выбор и мгновенно меняет экран */
+    }
+    el.addEventListener("pointerup", finish);
+    el.addEventListener("pointercancel", finish);
+  }
+
+
+  function initFields() {
+    document.querySelectorAll("[data-field]").forEach(function (el) {
+      el.addEventListener("change", onField);
+      if (el.dataset.field === "drink-name" || el.dataset.field === "hydration" ||
+          el.dataset.field.indexOf("ntitle-") === 0 || el.dataset.field.indexOf("ntext-") === 0) {
+        el.addEventListener("input", onField);
+      }
+    });
+  }
+
+
+  function onField(e) {
+    var el = e.currentTarget;
+    var key = el.dataset.field;
+    /* v135: тексты уведомлений — пишем на каждый ввод, без полного рендера
+       (иначе каретка прыгает); живой пример обновляем точечно. */
+    if (key.indexOf("ntitle-") === 0 || key.indexOf("ntext-") === 0) {
+      var np = key.split("-");
+      var cas = np[1] === "met" ? "met" : "normal";
+      var fld = np[0] === "ntitle" ? "t" : "b";
+      var n = ensureAlerts();
+      if (!n.texts || typeof n.texts !== "object") n.texts = {};
+      if (!n.texts[cas] || typeof n.texts[cas] !== "object") n.texts[cas] = {};
+      n.texts[cas][fld] = String(el.value).slice(0, fld === "t" ? 65 : 240);
+      save();
+      alertsSync();
+      var pv = document.querySelector('.nt-preview[data-case="' + cas + '"]');
+      if (pv) {
+        var rr = notifyTextsRender(cas);
+        pv.innerHTML = "<b>" + esc(rr.title) + "</b><span>" + esc(rr.text) + "</span>";
+      }
+      return;
+    }
+    if (key === "goal") {
+      var n = Number(el.value);
+      if (n >= 500 && n <= 8000) { state.goalMl = Math.round(n); save(); if (e.type === "change") render(); }
+      return;
+    }
+    if (key === "weight") {
+      var w = Number(el.value);
+      if (w >= 20 && w <= 300) { state.weightKg = Math.round(w * 10) / 10; save(); }
+      return;
+    }
+    if (key === "from") { state.notifications.from = el.value; save(); render(); return; }
+    if (key === "to") { state.notifications.to = el.value; save(); render(); return; }
+    if (key === "every") { state.notifications.everyMin = Number(el.value); save(); render(); return; }
+    if (key === "drink-name" && ui.createDraft) {
+      ui.createDraft.name = el.value.slice(0, 100);
+      var c = document.querySelector(".counter");
+      if (c) c.textContent = ui.createDraft.name.length + "/100";
+      el.classList.remove("bad");
+      var err = document.querySelector(".err");
+      if (err) err.textContent = "";
+      ui.nameError = false;
+      return;
+    }
+    if (key === "hydration" && ui.createDraft) {
+      ui.createDraft.hydration = Number(el.value);
+      var b = document.querySelector(".hyd-val");
+      if (b) b.textContent = el.value + "%";
+    }
+  }
+
+
+  function applyHabitSchedule() {
+    if (!window.HabitSchedule) { toast("Модуль расписания не загрузился"); render(); return; }
+    var n = ensureAlerts();
+    var auto = window.HabitSchedule.autoWindows(state.entries, {
+      dayStart: state.dayStart || "02:00",
+      afterWakeMin: n.afterWakeMin, beforeSleepMin: n.beforeSleepMin,
+      todayIso: todayStr()
+    });
+    if (!auto.ok) { toast("Данных пока мало — предложение появится позже"); render(); return; }
+    var changed = 0;
+    for (var i = 0; i < 7; i++) {
+      var w = { wake: auto.days7[i].wake, sleep: auto.days7[i].sleep };
+      if (!n.days[i] || n.days[i].wake !== w.wake || n.days[i].sleep !== w.sleep) changed++;
+      n.days[i] = w;
+    }
+    state.habitAuto = 1;
+    save();
+    alertsSync();
+    toast(changed
+      ? "Применено: будни в авторежиме по привычке, выходные — среднее"
+      : "Авторежим включён: период уже совпадает с привычкой");
+    render();
+  }
+
+
+  function applyPeriodGoal(key) {
+    if (!window.HabitSchedule || !HabitSchedule.periods) { toast("Модуль расписания не загрузился"); render(); return; }
+    var hit = null;
+    periodList().forEach(function (pp) { if (pp.key === key && pp.ml) hit = pp; });
+    if (!hit) { toast("Период ещё не накопил данных"); render(); return; }
+    if (!state.paceGoals || typeof state.paceGoals !== "object") state.paceGoals = {};
+    state.paceGoals[key] = hit.ml;
+    save();
+    alertsSync();
+    toast("Период «" + hit.label + "»: напоминания ведут к " + hit.ml + " мл");
+    render();
+  }
+
+
+  function applyAllPeriodGoals() {
+    var pers = periodList().filter(function (pp) { return pp.ml; });
+    if (!pers.length) { toast("Периоды ещё не накопили данных"); render(); return; }
+    if (!state.paceGoals || typeof state.paceGoals !== "object") state.paceGoals = {};
+    pers.forEach(function (pp) { state.paceGoals[pp.key] = pp.ml; });
+    save();
+    alertsSync();
+    toast("Приняты объёмы периодов: " + pers.map(function (pp) { return pp.label.toLowerCase() + " " + pp.ml; }).join(", "));
+    render();
+  }
+
+
+  function resetPeriodGoals() {
+    state.paceGoals = {};
+    save();
+    alertsSync();
+    toast("Периоды сброшены: напоминания ведут к норме дня");
+    render();
+  }
+
+
   var sheetSeen = null; /* механизм шторок донора (app.js 2275-2299) */
   var sheetLeaving = false, sheetLeaveToken = 0, sheetLeaveTimer = null;
 
@@ -942,7 +1157,6 @@
     return false;
   }
 
-  function setupDialFace() {} /* циферблат — модуль 8 шага 2 */
   function cloudBridge() {
     return !!(window.WaterGoogle && typeof window.WaterGoogle.state === "function");
   }
@@ -954,7 +1168,6 @@
   function activityRow() { return null; }
   function activityIcon() { return null; }
   function weatherIcon() { return null; }
-  function notifyTextsRender() { return ""; }
   /* Шимы к модулям next (сигнатуры донора → модули M13/M03/M04). */
   function ensureAlerts() { return N().ensureAlerts(state); }
   function freqLabel(min) { return P().freqLabel(min); }
@@ -1647,6 +1860,43 @@
   }
 
 
+  var habitAutoLast = "";
+  function habitAutoTick() {
+    if (!state.habitAuto || !window.HabitSchedule) return;
+    var n = ensureAlerts();
+    var today = todayStr();
+    var auto = window.HabitSchedule.autoWindows(state.entries, {
+      dayStart: state.dayStart || "02:00",
+      afterWakeMin: n.afterWakeMin, beforeSleepMin: n.beforeSleepMin,
+      todayIso: today
+    });
+    if (!auto.ok) return;
+    var sig = today + "|" + auto.days7.map(function (d) { return d.wake + d.sleep; }).join(",");
+    if (sig === habitAutoLast) return;
+    habitAutoLast = sig;
+    var changed = 0;
+    for (var i = 0; i < 7; i++) {
+      var w = { wake: auto.days7[i].wake, sleep: auto.days7[i].sleep };
+      if (!n.days[i] || n.days[i].wake !== w.wake || n.days[i].sleep !== w.sleep) changed++;
+      n.days[i] = w;
+    }
+    if (changed) { save(); alertsSync(); }
+  }
+
+  function notifyTextsRender(cas) { return notifyPreview(cas); } /* донор app.js 3407, вызов из onField */
+
+  function notifyPreview(cas) {
+    /* m12-pace notifyTextsRender(ctx, cas): ctx донора app.js 3407. */
+    /* Донор app.js 3407-3410: drunk — сумма записей водных суток,
+       goal — цель напоминаний effGoalFor (v137). */
+    var n = N().ensureAlerts(state);
+    var today = N().waterToday(state);
+    return P().notifyTextsRender({
+      n: n, goal: N().effGoalFor(state, today),
+      drunk: sumKey(dayEntries(today), "volume"), nowMs: N().wallMsNow()
+    }, cas);
+  }
+
   function SU() { return window.SettingsUI; }
 
   /* M25: обёртка сид-мест. Файл m25-settings-model.js остаётся байт-в-байт
@@ -1657,7 +1907,7 @@
   function wrappedModel() {
     var SM = window.SettingsModel;
     if (!SM || SM.__wt2Wrapped) return SM;
-    var SEAT_IDS = { activity: 1, alertTexts: 1, alertPeriod: 1, habitSched: 1, cupLabel: 1,
+    var SEAT_IDS = { cupLabel: 1,
       dialTime: 1, vibroDial: 1, animation: 1, warnExceed: 1, waveBox: 1 };
     function seatCustom(r) {
       if (!r || r.type !== "custom") return false;
@@ -1747,7 +1997,7 @@
       dbShareHint: dbShareHint, systemCalNote: systemCalNote, systemClockNote: systemClockNote,
       systemDrumNote: systemDrumNote, noBuiltinBase: noBuiltinBase, durationPhrase: durationPhrase, catRiveFailed: catRiveFailed,
       dayWindow: dayWindow, ruDate: ruDate, timeEditorHtml: timeEditorHtml,
-      HabitSchedule: window.HabitSchedule, notifyPreview: notifyTextsRender
+      HabitSchedule: window.HabitSchedule, notifyPreview: notifyPreview
     };
   }
 
@@ -1886,6 +2136,17 @@
         tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "save-goal", role: "check", pos: "center", act: "save-goal", aria: "Сохранить норму", icon: uiIcon("check") }) + "</div>"
       });
     }
+    if (ui.page === "alert-period") {
+      /* Донор app.js 4271-4272: FAB-ы перехода периодов. */
+      out += K().roundBtn({ ui: "alert-days-open", role: "fab", cls: "mark", act: "open-alert-days", aria: "Периоды активности", icon: SU().sunMoonIcon() });
+    }
+    if (ui.page === "alert-days") {
+      out += K().roundBtn({ ui: "alert-edit-open", role: "fab", cls: "mark", act: "open-alert-edit", aria: "Настроить периоды", icon: uiIcon("pencil") });
+    }
+    if (ui.page === "alert-edit") {
+      /* Донор app.js 4274: плавающая галочка сохранения периодов. */
+      out += K().roundBtn({ ui: "save-alert-edit", role: "check", pos: "float", act: "save-alert-edit", aria: "Сохранить периоды", icon: uiIcon("check") });
+    }
     /* M25: модалки и окна донора (settings-ui modalsHtml + app.js dupes/export). */
     if (window.SettingsUI) out += SU().modalsHtml(settingsEnv());
     if (ui.modal === "dupes") out += dupesDialogHtml();
@@ -1907,6 +2168,7 @@
       W.__hb = Date.now();
       if (!ui._hbTimer) ui._hbTimer = setInterval(function () { W.__hb = Date.now(); }, 1000);
     } catch (e) {}
+    habitAutoTick(); /* донор 4531: авторежим будней по сигнатуре */
     var root = document.getElementById("app");
     if (!root) return;
     root.className = "app" + (ui.modal ? " modal-open" : "");
@@ -1924,6 +2186,11 @@
       else if (ui.page === "struct-export") { main = SU().pageStructExport(settingsEnv()); screenClass = "screen settings-screen"; }
       else if (String(ui.page || "").indexOf("folder-") === 0) { main = SU().pageFolder(settingsEnv(), ui.page.slice(7)); screenClass = "screen settings-screen"; }
     else if (ui.page === "alert-sound") { main = pageAlertSound(); screenClass = "screen alerts-screen"; }
+    else if (ui.page === "alert-period") { main = SU().pageAlertPeriod(settingsEnv()); screenClass = "screen alerts-screen"; }
+    else if (ui.page === "alert-texts") { main = SU().pageAlertTexts(settingsEnv()); screenClass = "screen alerts-screen"; }
+    else if (ui.page === "alert-days") { main = SU().pageAlertDays(settingsEnv()); screenClass = "screen alerts-screen"; }
+    else if (ui.page === "alert-edit") { main = SU().pageAlertEdit(settingsEnv()); screenClass = "screen alerts-screen"; }
+    else if (ui.page === "alert-habit") { main = W.HabitSchedule ? W.HabitSchedule.page(settingsEnv()) : ""; screenClass = "screen alerts-screen"; }
     else if (ui.tab === "history") { main = pageHistory(); screenClass = "screen hist-screen"; }
     else if (ui.tab === "weight") { main = pageWeight(); screenClass = "screen weight-screen"; }
     else if (ui.tab === "settings") { main = pageSettings(); screenClass = "screen settings-screen"; }
@@ -2198,6 +2465,7 @@
   function afterRender() {
     try { initWheels(); } catch (e) {} /* M25: колёса донора */
     try { markSheetEntrance(); } catch (e) {} /* M25: выезд шторки донора */
+    try { initFields(); } catch (e) {} /* M25-mod2: поля текстов уведомлений */
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
       W.__wtFileHook = function (text, err) {
@@ -2307,6 +2575,16 @@
       if (ui.page === "alert-sound") { ui.page = "folder-alerts"; render(); return; }
       if (ui.page === "struct-export") { ui.page = "advanced"; render(); return; }
       if (String(ui.page || "").indexOf("folder-") === 0 && ui.page !== "folder-alerts") { ui.page = ui.folderFrom || null; ui.folderFrom = null; render(); return; }
+      if (ui.page === "alert-edit") { ui.page = "alert-days"; ui.modal = null; render(); return; }
+      if (ui.page === "alert-days") {
+        ui.page = ui.activityFrom === "settings" ? null : "alert-period";
+        if (!ui.page) ui.activityFrom = null;
+        render();
+        return;
+      }
+      if (ui.page === "alert-period") { ui.page = "folder-alerts"; render(); return; }
+      if (ui.page === "alert-habit") { ui.page = "folder-alerts"; render(); return; }
+      if (ui.page === "alert-texts") { ui.page = "folder-alerts"; render(); return; }
       if (ui.page) { ui.page = null; render(); return; }
       render(); return;
     }
@@ -2662,6 +2940,117 @@
       window.WaterGoogle.restore();
       return;
     }
+    if (act === "open-alert-period") { ui.page = "alert-period"; ui.modal = null; render(); return; }
+    if (act === "open-alert-texts") { ui.page = "alert-texts"; ui.modal = null; render(); return; }
+    if (act === "open-activity") {
+      ui.activityFrom = "settings";
+      ui.page = "alert-days";
+      ui.modal = null;
+      ui.sheet = null;
+      render();
+      return;
+    }
+    if (act === "open-alert-edit") {
+      var nEdit = ensureAlerts();
+      var only = t.dataset.day != null && t.dataset.day !== "" ? Number(t.dataset.day) : null;
+      var seed = only != null ? nEdit.days[only] : nEdit.days[0];
+      var flags = [false, false, false, false, false, false, false];
+      if (only != null) flags[only] = true;
+      else nEdit.days.forEach(function (d, i) { flags[i] = d.wake === seed.wake && d.sleep === seed.sleep; });
+      ui.alertEdit = { wake: seed.wake, sleep: seed.sleep, days: flags };
+      ui.page = "alert-edit";
+      ui.modal = null;
+      render();
+      return;
+    }
+    if (act === "toggle-alert-day") {
+      if (!ui.alertEdit) return;
+      var di = Number(t.dataset.day);
+      ui.alertEdit.days[di] = !ui.alertEdit.days[di];
+      render();
+      return;
+    }
+    if (act === "save-alert-edit") {
+      if (!ui.alertEdit) return;
+      var pickedDays = ui.alertEdit.days.some(Boolean);
+      if (!pickedDays) { toast("Выберите хотя бы один день"); return; }
+      var nSave = ensureAlerts();
+      ui.alertEdit.days.forEach(function (on, i) {
+        if (on) nSave.days[i] = { wake: ui.alertEdit.wake, sleep: ui.alertEdit.sleep };
+      });
+      var winSave = notifyWindow(todayStr());
+      nSave.from = winSave.from;
+      nSave.to = winSave.to;
+      ui.page = "alert-days";
+      save();
+      render();
+      return;
+    }
+    if (act === "open-gap") {
+      ui.gapKind = t.dataset.kind === "before" ? "before" : "after";
+      ui.modal = "alert-gap";
+      render();
+      return;
+    }
+    if (act === "gap-ok") {
+      var gp = readTimePair("gap", "gap-h", "gap-m", 0, 0);
+      var gh = gp.h;
+      var gm = gp.m;
+      var nGap = ensureAlerts();
+      if (ui.gapKind === "before") nGap.beforeSleepMin = gh * 60 + gm;
+      else nGap.afterWakeMin = gh * 60 + gm;
+      var winGap = notifyWindow(todayStr());
+      nGap.from = winGap.from;
+      nGap.to = winGap.to;
+      ui.modal = null;
+      save();
+      render();
+      return;
+    }
+    if (act === "gap-cancel") { ui.modal = null; render(); return; }
+    if (act === "dial-view") {
+      /* v95: тап по «ЧЧ»/«ММ» шапки — тоже частичный обмен блока, без
+         полной перерисовки экрана. */
+      if (ui.dial) { ui.dial.view = t.dataset.v === "m" ? "m" : "h"; renderDialBlock(); }
+      return;
+    }
+    if (act === "open-alert-clock") {
+      ui.clockField = t.dataset.field === "sleep" ? "sleep" : "wake";
+      var clockDraft = ui.alertEdit || { wake: "05:00", sleep: "23:00" };
+      if (useSystemClock()) {
+        askNativeTime({
+          title: ui.clockField === "sleep" ? "Время отхода ко сну" : "Время пробуждения",
+          value: clockDraft[ui.clockField] || "00:00",
+          is24Hour: true
+        }, function (hm) {
+          if (ui.alertEdit) ui.alertEdit[ui.clockField] = hm;
+          render();
+        });
+        return;
+      }
+      ui.modal = "alert-clock";
+      render();
+      return;
+    }
+    if (act === "clock-ok") {
+      if (ui.alertEdit) {
+        var cp = readTimePair("clock", "clock-h", "clock-m", 0, 0);
+        var ch = cp.h;
+        var cm = cp.m;
+        ui.alertEdit[ui.clockField === "sleep" ? "sleep" : "wake"] = pad(ch) + ":" + pad(cm);
+      }
+      ui.modal = null;
+      render();
+      return;
+    }
+    if (act === "clock-cancel") { ui.modal = null; render(); return; }
+    if (act === "open-alert-habit") { ui.page = "alert-habit"; ui.modal = null; render(); return; }
+    if (act === "habit-apply") { applyHabitSchedule(); return; }
+    if (act === "habit-period-apply") { applyPeriodGoal(t && t.dataset ? t.dataset.v : ""); return; }
+    if (act === "habit-periods-apply-all") { applyAllPeriodGoals(); return; }
+    if (act === "habit-periods-reset") { resetPeriodGoals(); return; }
+    if (act === "habit-auto-off") { state.habitAuto = 0; save(); toast("Авторежим будней выключен: окна правятся вручную"); render(); return; }
+    if (act === "open-alert-days") { ui.activityFrom = null; ui.page = "alert-days"; ui.modal = null; render(); return; }
     if (act === "toggle") {
       /* M25: ключи донора (app.js 9025) + прежние ключи next — одни поля M13.
          Ключи модулей-сидений (animation/warnExceed/dialTime/vibroDial/devMode/
@@ -2887,6 +3276,10 @@
   });
   W.WT2A = { APP_VERSION: APP_VERSION, VERSION_CODE: VERSION_CODE, boot: boot,
     render: function () { render(); }, VOLS: VOLS };
+  /* v132: авторежим будней пересчитывает окна раз в 10 минут (плюс каждый
+     render — по сигнатуре, без лишней работы). */
+  setInterval(habitAutoTick, 600000);
+
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })(window);

@@ -38,7 +38,12 @@ const VIEWS = [
   { id: 'settings-look',      theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-look"]'], ['wait', '[data-act="open-theme"]']] },
   { id: 'settings-advanced',  theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-advanced"]'], ['wait', '[data-act="ask-delete-all"]']] },
   { id: 'settings-alerts',    theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['wait', '[data-act="open-alert-freq"]']] },
-  { id: 'settings-light',     theme: 'light', nav: [['tab', 'settings']], waitExtra: '.set-ver' }
+  { id: 'settings-light',     theme: 'light', nav: [['tab', 'settings']], waitExtra: '.set-ver' },
+  { id: 'alerts-period',      theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-period"]'], ['wait', '.period-line']] },
+  { id: 'alerts-texts',       theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-texts"]'], ['wait', '.nt-card']] },
+  { id: 'alerts-days',        theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-activity"]'], ['wait', '[data-act="open-alert-edit"][data-day]']] },
+  { id: 'alerts-edit',        theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-activity"]'], ['wait', '[data-act="open-alert-edit"][data-day]'], ['click', '[data-act="open-alert-edit"][data-day="0"]'], ['wait', '.wake-card']] },
+  { id: 'alerts-habit',       theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-habit"]'], ['waitf', "() => { const h = document.querySelector('.screen h1'); return h && h.textContent === 'Расписание по привычке'; }"]] }
 ];
 
 async function runNav(page, view) {

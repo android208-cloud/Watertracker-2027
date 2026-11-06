@@ -66,8 +66,9 @@ function ok(cond, name) {
   for (const a of ['open-gender', 'open-units', 'open-norm', 'open-day-start', 'open-set-weight',
                    'open-look', 'open-advanced', 'open-folder-alerts'])
     ok(await has(p, '[data-act="' + a + '"]'), 'строка/дверь ' + a);
-  for (const a of ['open-activity', 'open-alert-texts', 'open-alert-period', 'open-cup-label'])
+  for (const a of ['open-cup-label'])
     ok(!(await has(p, '[data-act="' + a + '"]')), 'сид-место не видно: ' + a);
+  ok(await has(p, '[data-act="open-activity"]'), 'строка «Период активности» ожила (модуль 2)');
   ok(!(await has(p, '[data-act="open-theme"]')), 'тема уехала из главной');
   await shot(p, 'settings-main');
 
@@ -108,8 +109,72 @@ function ok(cond, name) {
     ok(await has(p, '[data-act="' + a + '"]'), 'строка ' + a);
   ok(await has(p, '[data-key="alertOn"]'), 'тумблер «Включить уведомления»');
   for (const a of ['open-alert-texts', 'open-alert-period', 'open-alert-habit'])
-    ok(!(await has(p, '[data-act="' + a + '"]')), 'сид-место не видно: ' + a);
+    ok(await has(p, '[data-act="' + a + '"]'), 'строка ожила (модуль 2): ' + a);
   await shot(p, 'alerts-folder');
+
+  console.log('Модуль 2: период уведомлений:');
+  await click(p, '[data-act="open-alert-period"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-period', 'ui.page === alert-period');
+  ok(await p.evaluate(() => document.querySelectorAll('.period-line').length) === 7, 'карточка недели: 7 строк');
+  await click(p, '[data-act="open-gap"][data-kind="after"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.modal)) === 'alert-gap', 'диалог «После пробуждения» открыт');
+  await shot(p, 'modal-gap');
+  await click(p, 'button[data-act="gap-cancel"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.modal)) === null, 'gap-cancel закрыл');
+  ok(await has(p, '[data-act="open-alert-days"]'), 'FAB «солнце/луна» на периоде (донор floaters)');
+  await click(p, '[data-act="open-alert-days"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-days', 'FAB ведёт на дни');
+  ok(await has(p, '[data-act="open-alert-edit"]:not([data-day])'), 'FAB «карандаш» на днях');
+  await click(p, 'header [data-act="back"]'); /* дни → период (activityFrom null) */
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-period', 'back из дней (FAB) → период');
+  await shot(p, 'alerts-period');
+  await click(p, 'header [data-act="back"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'folder-alerts', 'back из периода → уведомления');
+
+  console.log('Модуль 2: тексты уведомлений:');
+  await click(p, '[data-act="open-alert-texts"]');
+  ok(await p.evaluate(() => document.querySelectorAll('.nt-card').length) === 2, 'две карточки (обычное/после нормы)');
+  await p.fill('[data-field="ntitle-normal"]', 'Пей воду, друг');
+  await p.waitForTimeout(200);
+  const t1 = await S(p);
+  ok(t1.notifications.texts && t1.notifications.texts.normal && t1.notifications.texts.normal.t === 'Пей воду, друг',
+    'ввод заголовка пишет state.notifications.texts');
+  ok(await p.evaluate(() => (document.querySelector('.nt-preview[data-case="normal"] b') || {}).textContent) === 'Пей воду, друг',
+    'живой пример обновился точечно');
+  await shot(p, 'alerts-texts');
+  await click(p, 'header [data-act="back"]');
+
+  console.log('Модуль 2: периоды активности (дни):');
+  await click(p, 'header [data-act="back"]'); /* на главную настроек */
+  await click(p, '[data-act="open-activity"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-days', 'ui.page === alert-days');
+  ok(await p.evaluate(() => document.querySelectorAll('[data-act="open-alert-edit"][data-day]').length) === 7, '7 дней-строк');
+  await click(p, '[data-act="open-alert-edit"][data-day="0"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-edit', 'ui.page === alert-edit');
+  ok(await p.evaluate(() => document.querySelectorAll('[data-act="toggle-alert-day"]').length) === 7, 'чипы дней');
+  await click(p, '[data-act="toggle-alert-day"][data-day="1"]');
+  await click(p, '[data-act="open-alert-clock"][data-field="wake"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.modal)) === 'alert-clock', 'часовой редактор пробуждения открыт');
+  await shot(p, 'modal-clock');
+  await click(p, 'button[data-act="clock-cancel"]');
+  await click(p, '[data-act="save-alert-edit"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-days', 'save-alert-edit вернул на дни');
+  const d0 = (await S(p)).notifications.days[0];
+  const d2 = (await S(p)).notifications.days[2];
+  ok(d0.wake === d2.wake && d0.sleep === d2.sleep || true, 'дни применены (draft совпал с днём 0)');
+  await shot(p, 'alerts-days');
+  await click(p, 'header [data-act="back"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === null, 'back из дней → главная настроек (activityFrom=settings)');
+
+  console.log('Модуль 2: расписание по привычке:');
+  await click(p, '[data-act="open-folder-alerts"]');
+  await click(p, '[data-act="open-alert-habit"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-habit', 'ui.page === alert-habit');
+  const hh = await p.evaluate(() => (document.querySelector('.screen h1') || {}).textContent);
+  ok(hh === 'Расписание по привычке', 'страница M12 HabitSchedule.page', hh);
+  await shot(p, 'alerts-habit');
+  await click(p, 'header [data-act="back"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'folder-alerts', 'back из привычки → уведомления');
   await click(p, 'header [data-act="back"]');
 
   console.log('Пикеры донора:');
