@@ -628,6 +628,9 @@
       toast("Цель перевыполнена — отличный результат!");
     }
     var cuts = shortcutViews();
+    var cup = cupModel(wallMsNow()); /* донор 2513 */
+    ui._cupLv = cup.level; /* донор 2514-2515: сигнатура миски для cupSecTick */
+    ui._cupKind = cup.kind;
     var slots = "";
     for (var j = 0; j < L().SHORTCUT_LIMIT; j++) {
       var s = cuts[j];
@@ -669,6 +672,9 @@
          окружности; слот лица дока dona принимает классы mini-cat/mini-cup,
          ими же светлая тема отбеливает лицо на голубой пилюле (C-007). */
       U().pillHtml({ slot: { c: 0, r: 2 }, act: "open-volume", icon: uiIcon("drop").replace('class="ui-mask"', 'class="ui-mask mini-cat"'), label: state.profile.volume + " мл" }) +
+      /* M25 модуль 3 (донор 2568): миска-тамагочи в слоте (2,2) — модель из
+         истории, кот не участвует. */
+      '<div class="pill-slot" style="--c:2;--r:2"><div class="pill cup-pill" role="img" aria-label="Чашка котика: ' + esc(cup.label) + '">' + K().miniCup(cup.level, cup.color) + "<span>" + esc(cupLabelFor(cup, state.cupLabel)) + "</span></div></div>" +
       "</div></div>";
   }
 
@@ -800,6 +806,7 @@
 
   /* M25: заглушки неприехавших модулей (видимые пустоты по спеке). */
   var LC = W.WT2L;
+  var TZ = N().TZ; /* пояс донора (m13) для wallMsNowSec */
   var ALERT_SOUNDS = N().ALERT_SOUNDS;
   var THEME_NAMES = { light: "Светлая тема", dark: "Тёмная тема", system: "По умолчанию", oneplus: "Oneplus 7" };
   var noBuiltinBase = false; /* в next встроенной history.json нет */
@@ -1883,6 +1890,104 @@
     if (changed) { save(); alertsSync(); }
   }
 
+  function tzParts(d) { return N().tzParts(d); }
+
+  function cupTarget(te, iso, mr) {
+    var n = state.notifications;
+    var everyEff = n && P().isPace(n) ? P().paceEveryMin() : Number(n && n.everyMin) || 0;
+    if (n && n.enabled && everyEff > 0) return nextSlotMs(te);
+    if (mr.mood <= 3) return te;
+    var horizon = te + 36 * 3600000, t;
+    for (t = te + 300000; t <= horizon; t += 300000) {
+      if (LC.catMood(state, iso, t).mood <= 3) break;
+    }
+    if (t > horizon) return null;
+    for (var q = t - 240000; q < t; q += 60000) {
+      if (LC.catMood(state, iso, q).mood <= 3) return q;
+    }
+    return t;
+  }
+
+
+  function cupDurLabel(ms) {
+    var min = Math.round(ms / 60000);
+    if (min < 1) min = 1;
+    var h = Math.floor(min / 60), m = min % 60;
+    if (h && m) return h + " ч " + m + " мин";
+    if (h) return h + " ч";
+    return m + " мин";
+  }
+
+
+  function wallMsNowSec() {
+    var fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+    });
+    var map = {};
+    /* обязательно от явного new Date(): formatToParts() без аргумента взял бы
+       системное время мимо замороженных часов и патчей. */
+    fmt.formatToParts(new Date()).forEach(function (p) { if (p.type !== "literal") map[p.type] = p.value; });
+    if (map.hour === "24") map.hour = "00";
+    return Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day), Number(map.hour), Number(map.minute), Number(map.second));
+  }
+
+
+  function cupModel(now) {
+    var today = waterToday();
+    var es = dayEntries(today);
+    if (!es.length) return { level: 0, kind: "empty", leftMs: 0, color: null };
+    var maxVol = 0, last = null;
+    es.forEach(function (e) {
+      var v = Number(e.volume) || 0;
+      if (v > maxVol) maxVol = v;
+      var at = Number(e.createdAt) || 0;
+      if (!last || at >= (Number(last.createdAt) || 0)) last = e;
+    });
+    /* createdAt — реальная эпоха; модель и слоты живут настенными мс пояса
+       (SAMARA/UTC+4): переводим тем же мостом, что и планировщик слотов. */
+    var te = Number(last.createdAt) || 0;
+    if (te) {
+      var q = tzParts(new Date(te));
+      te = Date.UTC(Number(q.year), Number(q.month) - 1, Number(q.day), Number(q.hour), Number(q.minute));
+    } else te = now;
+    var color = (drinkById(last.drinkId) || {}).color || "#61c2f9";
+    var mr = LC.catMood(state, today, now);
+    if (mr.mood >= 6) return { level: 100, kind: "full", leftMs: 0, color: color };
+    var T = cupTarget(te, today, mr);
+    if (T == null || T <= te) return { level: 0, kind: "empty", leftMs: 0, color: color };
+    var leftMs = T - wallMsNowSec();
+    if (leftMs <= 0) return { level: 0, kind: "empty", leftMs: 0, color: color };
+    var k = Math.max(0, Math.min(1, (T - now) / (T - te)));
+    var level = Math.round(100 * (maxVol > 0 ? (Number(last.volume) || 0) / maxVol : 0) * k);
+    return { level: level, kind: level <= 0 ? "empty" : "timer", leftMs: leftMs, color: color };
+  }
+
+
+  function cupLabelFor(cup, mode) {
+    if (cup.kind === "full") return "полна";
+    if (cup.kind === "empty") return "пусто";
+    if (mode === "countdown") {
+      var sec = Math.max(0, Math.round(cup.leftMs / 1000));
+      var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+      return h > 0 ? h + ":" + pad(m) : pad(m) + ":" + pad(s);
+    }
+    return cupDurLabel(cup.leftMs);
+  }
+
+
+  function cupSecTick() {
+    if (ui.sheet || ui.modal || ui.tab !== "home") return;
+    var el = document.querySelector(".home-dock .cup-pill > span");
+    if (!el) return;
+    var cup = cupModel(wallMsNow());
+    if (cup.kind !== ui._cupKind || cup.level !== ui._cupLv) { render(); return; }
+    if (state.cupLabel !== "countdown" || cup.kind !== "timer") return;
+    var lbl = cupLabelFor(cup, "countdown");
+    if (el.textContent !== lbl) el.textContent = lbl;
+  }
+
+
   function notifyTextsRender(cas) { return notifyPreview(cas); } /* донор app.js 3407, вызов из onField */
 
   function notifyPreview(cas) {
@@ -1907,7 +2012,7 @@
   function wrappedModel() {
     var SM = window.SettingsModel;
     if (!SM || SM.__wt2Wrapped) return SM;
-    var SEAT_IDS = { cupLabel: 1,
+    var SEAT_IDS = {
       dialTime: 1, vibroDial: 1, animation: 1, warnExceed: 1, waveBox: 1 };
     function seatCustom(r) {
       if (!r || r.type !== "custom") return false;
@@ -3051,6 +3156,15 @@
     if (act === "habit-periods-reset") { resetPeriodGoals(); return; }
     if (act === "habit-auto-off") { state.habitAuto = 0; save(); toast("Авторежим будней выключен: окна правятся вручную"); render(); return; }
     if (act === "open-alert-days") { ui.activityFrom = null; ui.page = "alert-days"; ui.modal = null; render(); return; }
+    if (act === "open-cup-label") { ui.modal = "cup-label"; render(); return; }
+    if (act === "cup-label-cancel") { ui.modal = null; render(); return; }
+    if (act === "pick-cup-label") {
+      state.cupLabel = t.dataset.mode === "countdown" ? "countdown" : null;
+      ui.modal = null;
+      save();
+      render();
+      return;
+    }
     if (act === "toggle") {
       /* M25: ключи донора (app.js 9025) + прежние ключи next — одни поля M13.
          Ключи модулей-сидений (animation/warnExceed/dialTime/vibroDial/devMode/
@@ -3279,6 +3393,7 @@
   /* v132: авторежим будней пересчитывает окна раз в 10 минут (плюс каждый
      render — по сигнатуре, без лишней работы). */
   setInterval(habitAutoTick, 600000);
+  setInterval(cupSecTick, 1000); /* донор 4650: countdown миски每秒 */
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

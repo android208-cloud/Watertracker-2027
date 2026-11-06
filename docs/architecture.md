@@ -310,3 +310,21 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
 - Проверки: smoke-m25 76/76 (новые 21 гейт подстраниц), pixel-m25: все виды
   модуля 2 — 0 px (≈байт-в-байт с донором на базе владельца); settings и
   folder-alerts тоже 0 px; look/advanced — объявленные сид-места (3.5/3.7%).
+
+### M25, модуль 3 шага 2 — Миска (cupLabel, слово «Продолжай», 06.11)
+
+- cup-pill донора (app.js 2568) вернулся в докhome в слот (2,2): miniCup +
+  подпись cupLabelFor; модель чашки cupModel(cupTarget/cupDurLabel/
+  wallMsNowSec) считается из истории дня, кот не участвует; countdown-подпись
+  обновляет cupSecTick (setInterval 1000, донор 4650).
+- Строка «Миска» во «Внешнем виде» ожила: диалог cup-label донора
+  (left/countdown), хендлеры open-cup-label/pick-cup-label/cup-label-cancel;
+  pick left пишет null (донор 9468).
+- SEAT_IDS сокращены до dialTime/vibroDial/animation/warnExceed/waveBox.
+- Проверки: smoke-m25 83/83; pixel-m25 home-cup: миска в diff не попадает
+ (14.44% home — объявленные сид-места шага 1: круг вместо кота, погода,
+  активность, лицо пилюли).
+- Тонкости переноса миски: cupTarget ссылается на P().isPace/P().paceEveryMin,
+  wallMsNowSec — на TZ (m13); сигнатура ui._cupLv/_cupKind ставится в pageHome
+  (донор 2514-2515) — без неё cupSecTick перерисовывал каждую секунду.
+  Бенч m22 обновлён: cup-pill больше не сид-место.

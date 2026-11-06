@@ -177,6 +177,26 @@ function ok(cond, name) {
   ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'folder-alerts', 'back из привычки → уведомления');
   await click(p, 'header [data-act="back"]');
 
+  console.log('Модуль 3: миска:');
+  await click(p, '[data-tab="home"]');
+  ok(await has(p, '.home-dock .cup-pill'), 'cup-pill в доке (слот 2,2)');
+  const cupLbl = await p.evaluate(() => (document.querySelector('.home-dock .cup-pill > span') || {}).textContent);
+  ok(!!cupLbl && cupLbl.length > 0, 'подпись миски не пустая', cupLbl);
+  const cupAria = await p.evaluate(() => (document.querySelector('.home-dock .cup-pill') || {}).getAttribute && document.querySelector('.home-dock .cup-pill').getAttribute('aria-label'));
+  ok(/^Чашка котика: /.test(cupAria || ''), 'aria-label донора', cupAria);
+  await click(p, '[data-tab="settings"]');
+  await click(p, '[data-act="open-look"]');
+  ok(await has(p, '[data-act="open-cup-label"]'), 'строка «Миска» ожила во «Внешнем виде»');
+  await click(p, '[data-act="open-cup-label"]');
+  ok(await has(p, '[data-act="pick-cup-label"]'), 'диалог «Миска» открыт');
+  await shot(p, 'modal-cup-label');
+  await click(p, '[data-act="pick-cup-label"][data-mode="countdown"]');
+  ok((await S(p)).cupLabel === 'countdown', 'state.cupLabel === countdown');
+  await click(p, '[data-act="open-cup-label"]');
+  await click(p, '[data-act="pick-cup-label"][data-mode="left"]');
+  ok((await S(p)).cupLabel == null, 'pick left → cupLabel null (донор 9468)');
+  await click(p, 'header [data-act="back"]'); /* look → главная настроек */
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');
