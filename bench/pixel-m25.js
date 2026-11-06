@@ -49,6 +49,7 @@ const VIEWS = [
   { id: 'home-pins',          theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="edit-row"]'], ['wait', '[data-act="add-pin"]']] },
   { id: 'sheet-activity',     theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-fitness"]'], ['wait', '[data-act="pick-activity"]']] },
   { id: 'home-cup',           theme: 'dark',  nav: [['tab', 'home'], ['wait', '.home-dock .cup-pill']] },
+  { id: 'home-skin',          theme: 'dark',  nav: [['tab', 'home'], ['wait', '.home-dock .cup-pill']] },
   { id: 'sheet-weather',      theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-weather"]'], ['wait', '[data-act="pick-weather"]']] },
   { id: 'alerts-period',      theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-period"]'], ['wait', '.period-line']] },
   { id: 'alerts-texts',       theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-texts"]'], ['wait', '.nt-card']] },
@@ -68,6 +69,19 @@ async function runNav(page, view) {
   if (view.waitExtra) await page.waitForSelector(view.waitExtra);
   await page.waitForTimeout(700); /* донорское восстановление прокрутки — два кадра */
 }
+
+/* вид home-skin: проектный скин кладём в data/ обеих сторон на время прогона */
+const SKIN_PROJ = JSON.stringify({ __rev: 'pixel-skin-1', tokens: { '--nav-h': '72px', '--header-h': '60px' } });
+const fsx = require('fs');
+fsx.mkdirSync('/home/user/wt2/data', { recursive: true });
+fsx.writeFileSync('/home/user/wt2/data/ui-skin.json', SKIN_PROJ);
+fsx.mkdirSync('/home/user/water-tracker/data', { recursive: true });
+fsx.writeFileSync('/home/user/water-tracker/data/ui-skin.json', SKIN_PROJ);
+process.on('exit', () => {
+  ['/home/user/wt2/data/ui-skin.json', '/home/user/water-tracker/data/ui-skin.json'].forEach(f => {
+    try { fsx.unlinkSync(f); } catch (e) {}
+  });
+});
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

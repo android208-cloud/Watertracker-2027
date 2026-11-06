@@ -1250,10 +1250,286 @@
     return !!(window.WaterGoogle && typeof window.WaterGoogle.state === "function");
   }
 
+  var PAINT_ROLES = [
+    { id: "bg", label: "Фон экранов", vars: ["--bg", "--page", "--bg-deep"] },
+    { id: "band", label: "Шапки и полосы", vars: ["--band"] },
+    { id: "list", label: "Строки списков", vars: ["--listbg"] },
+    { id: "line", label: "Разделители", vars: ["--line"] },
+    { id: "nav", label: "Нижняя панель", vars: ["--nav"] },
+    { id: "panel", label: "Меню и диалоги", vars: ["--panel"] },
+    { id: "input", label: "Карточки и поля", vars: ["--input-bg"] },
+    { id: "toast", label: "Уведомления", vars: ["--toast-bg"] },
+    { id: "accent", label: "Акцент", vars: ["--blue", "--blue-2", "--blue-ink", "--blue-fill"] },
+    { id: "title", label: "Заголовки экранов", vars: ["--title"] },
+    { id: "text", label: "Основной текст", vars: ["--text"] },
+    { id: "muted", label: "Приглушённый текст", vars: ["--muted"] },
+    { id: "fill", label: "Прогресс и ползунки", vars: ["--fill"] },
+    { id: "ptrack", label: "Дорожки прогресса", vars: ["--ptrack"] },
+    { id: "tile", label: "Тёмные кнопки и плитки", vars: ["--row", "--pill"] },
+    { id: "on", label: "Переключатели «вкл»", vars: ["--green"] }
+  ];
+  /* Порядок важен: от более специфичных селекторов к общим. */
+  var PAINT_PICK = [
+    [".progress .fill", "fill"],
+    [".progress", "ptrack"],
+    [".hslider", "fill"],
+    [".nav", "nav"],
+    [".top h1", "title"],
+    [".top", "band"],
+    [".n-section", "accent"],
+    [".n-row small, .hint, .field-meta", "muted"],
+    [".n-row .ttl", "text"],
+    [".n-row", "list"],
+    [".sheet", "panel"],
+    [".modal", "panel"],
+    [".toast", "toast"],
+    [".preset", "input"],
+    [".field, input", "input"],
+    [".switch.on, .checksq.on", "on"],
+    [".round.dark, .pin-add, .pill", "tile"],
+    [".swipe-front", "panel"],
+    [".entry", "text"]
+  ];
+  function paintRole(id) {
+    for (var i = 0; i < PAINT_ROLES.length; i++) if (PAINT_ROLES[i].id === id) return PAINT_ROLES[i];
+    return null;
+  }
+  function paintMap() {
+    var m = state.paint && state.paint[resolvedTheme()];
+    return m || {};
+  }
+  function applyPaint() {
+    var root = document.documentElement;
+    var m = paintMap();
+    PAINT_ROLES.forEach(function (r) {
+      var v = m[r.id];
+      r.vars.forEach(function (name) {
+        if (v) root.style.setProperty(name, v);
+        else root.style.removeProperty(name);
+      });
+    });
+  }
+  var paintSaveT = 0;
+  function commitPaint(color, persist) {
+    if (!ui.paintRole) return;
+    if (!state.paint) state.paint = {};
+    var t = resolvedTheme();
+    if (!state.paint[t]) state.paint[t] = {};
+    state.paint[t][ui.paintRole] = color;
+    applyPaint();
+    if (persist) save();
+    else { clearTimeout(paintSaveT); paintSaveT = setTimeout(save, 500); }
+  }
+  function resetPaint(id) {
+    var t = resolvedTheme();
+    var m = state.paint && state.paint[t];
+    if (!m) return;
+    if (id) {
+      if (!m[id]) return;
+      delete m[id];
+      var r = paintRole(id);
+      toast("Цвет сброшен: " + (r ? r.label : id));
+    } else {
+      if (!Object.keys(m).length) return;
+      state.paint[t] = {};
+      toast("Все цвета темы сброшены");
+    }
+    applyPaint();
+    save();
+    render();
+  }
+  function computedRoleColor(role) {
+    var v = "";
+    try { v = getComputedStyle(document.documentElement).getPropertyValue(role.vars[0]).trim(); } catch (e) {}
+    return v || "#888888";
+  }
+  function openPaintColor(id) {
+    var role = paintRole(id);
+    if (!role) return;
+    ui.paintRole = id;
+    ui.paintReturn = ui.page || null;
+    ui.colorPick = paintMap()[id] || computedRoleColor(role);
+    ui.colorPage = colorPageOf(ui.colorPick);
+    ui.colorTouched = false;
+    ui.page = "colors";
+    render();
+  }
+  function finishPaint() {
+    save();
+    var role = paintRole(ui.paintRole);
+    if (role) toast("Цвет изменён: " + role.label);
+    ui.paintRole = null;
+    ui.page = ui.paintReturn || null;
+    ui.paintReturn = null;
+    render();
+  }
+
+  /* ===== Скин (студия кубиков, шаг 8c, спека docs/cube-studio-spec.md) =====
+     Скин — файл ui-skin.json: { __rev, tokens, paint }. Токены размеров
+     применяются инлайн на documentElement (как applyPaint), разметка не
+     меняется вовсе. Краски НЕ живут в токенах: при принятии скина они
+     сливаются со state.paint (снимок прежних значений хранится для сброса) —
+     источник истины по цветам остаётся один, механизм покраски приложения.
+     Проектная ревизия (__rev) перекрывает локальный скин при изменении —
+     тот же контракт, что у раскладки SVG. Белый список токенов зеркалит
+     группы студии (water-tracker/studio.html). */
+  var SKIN_TOKENS = [
+    "--header-h", "--header-pad", "--header-side", "--header-title",
+    "--nav-ico", "--nav-ico-home", "--nav-ico-history", "--nav-ico-weight",
+    "--nav-ico-settings", "--nav-ico-alerts",
+    "--bubble", "--drink-w", "--drink-nm-f", "--row-ttl-f", "--row-sub-f",
+    "--chip-pad-y", "--chip-pad-x", "--r-chip",
+    "--sheet-radius", "--sheet-max-h", "--sheet-menu-max-h", "--sheet-date-f",
+    "--edit-tag-f", "--sheet-act-h", "--act-round",
+    "--sw-h", "--item", "--r-round", "--k", "--nav-h", "--prog-h"
+  ];
+  var SKIN_VALUE_RE = /^[0-9.]+(px|%)?$/;
+  var SKIN_HEX_RE = /^#[0-9a-fA-F]{6}$/;
+  function cleanSkin(data) {
+    var out = { tokens: {}, paint: {} };
+    if (!data || typeof data !== "object") return out;
+    var t = data.tokens;
+    if (t && typeof t === "object") {
+      Object.keys(t).forEach(function (k) {
+        var v = t[k];
+        if (SKIN_TOKENS.indexOf(k) < 0 || typeof v !== "string") return;
+        v = v.trim();
+        if (!SKIN_VALUE_RE.test(v)) return;
+        out.tokens[k] = v;
+      });
+    }
+    var p = data.paint;
+    if (p && typeof p === "object") {
+      ["dark", "light"].forEach(function (th) {
+        var m = p[th];
+        if (!m || typeof m !== "object") return;
+        Object.keys(m).forEach(function (role) {
+          if (!paintRole(role) || !SKIN_HEX_RE.test(String(m[role]))) return;
+          if (!out.paint[th]) out.paint[th] = {};
+          out.paint[th][role] = String(m[role]).toLowerCase();
+        });
+      });
+    }
+    return out;
+  }
+  function skinCount(skin) {
+    if (!skin) return 0;
+    var n = Object.keys(skin.tokens || {}).length;
+    ["dark", "light"].forEach(function (th) {
+      n += Object.keys((skin.paint || {})[th] || {}).length;
+    });
+    return n;
+  }
+  function skinOn() { return skinCount(state.skin) > 0; }
+  function applySkinTokens() {
+    var root = document.documentElement;
+    var m = (state.skin && state.skin.tokens) || {};
+    SKIN_TOKENS.forEach(function (k) {
+      if (m[k]) root.style.setProperty(k, m[k]);
+      else root.style.removeProperty(k);
+    });
+  }
+  /* Краски скина вливаются в state.paint; прежние значения ролей снимаются
+     в снимок, чтобы «Сбросить скин» возвращал цвета честно. */
+  function mergeSkinPaint() {
+    var p = (state.skin && state.skin.paint) || {};
+    var before = {};
+    ["dark", "light"].forEach(function (th) {
+      var m = p[th];
+      if (!m) return;
+      Object.keys(m).forEach(function (role) {
+        if (!before[th]) before[th] = {};
+        before[th][role] = (state.paint && state.paint[th] && state.paint[th][role]) || null;
+        if (!state.paint) state.paint = {};
+        if (!state.paint[th]) state.paint[th] = {};
+        state.paint[th][role] = m[role];
+      });
+    });
+    state.skinPaintBefore = before;
+  }
+  function unmergeSkinPaint() {
+    var before = state.skinPaintBefore;
+    if (before && state.paint) {
+      ["dark", "light"].forEach(function (th) {
+        var m = before[th];
+        if (!m || !state.paint[th]) return;
+        Object.keys(m).forEach(function (role) {
+          if (m[role] == null) delete state.paint[th][role];
+          else state.paint[th][role] = m[role];
+        });
+      });
+    }
+    state.skinPaintBefore = null;
+  }
+  function adoptSkin(clean, rev) {
+    if (state.skin) unmergeSkinPaint();
+    state.skin = clean;
+    state.skinRev = rev;
+    mergeSkinPaint();
+    applySkinTokens();
+    applyPaint();
+    save();
+  }
+  /* Принять скин из текста (буфер обмена, диалог-фолбэк, стражи).
+     Возвращает число принятых правок; 0 — нечего применять. */
+  function applySkinFromText(text) {
+    var data;
+    try { data = JSON.parse(String(text || "")); } catch (e) {
+      toast("Скин не применён: JSON не разбирается");
+      return 0;
+    }
+    var clean = cleanSkin(data);
+    var n = skinCount(clean);
+    if (!n) { toast("В скине нет знакомых токенов или цветов"); return 0; }
+    var rev = typeof data.__rev === "string" && data.__rev ? data.__rev : "без ревизии";
+    adoptSkin(clean, "clip:" + rev);
+    render();
+    toast("Скин применён: правок " + n + " (" + rev + ")");
+    return n;
+  }
+  function resetSkin() {
+    if (!state.skin && !state.skinPaintBefore) return;
+    unmergeSkinPaint();
+    state.skin = null;
+    /* Ревизию проекта держим: та же ревизия не должна повторно приходить
+       после осознанного сброса; новая ревизия проекта перебьёт и сброс. */
+    applySkinTokens();
+    applyPaint();
+    save();
+    render();
+    toast("Скин сброшен: размеры и цвета прежние");
+  }
+  /* Диалог-фолбэк вставки скина (буфер в WebView может быть закрыт). */
+  function openSkinPasteDialog() {
+    /* Тело диалога оборачивается в <p>…</p>: закрываем абзац перед полем
+       вставки и открываем снова после — разметка остаётся валидной. */
+    ui.modal = "dialog";
+    ui.dialogSpec = {
+      kind: "skin-paste",
+      title: "Скин",
+      body: "<p>Вставьте JSON скина (кнопка «Экспорт JSON» в студии кубиков):</p>" +
+        '<textarea id="skin-paste-area" class="svg-export-text" spellcheck="false" aria-label="JSON скина"></textarea>',
+      ok: "Применить",
+      okAct: "skin-paste-apply"
+    };
+    render();
+  }
+  function adoptProjectSkin(done) {
+    fetchT("data/ui-skin.json?t=" + Date.now(), 3000).then(function (r) {
+      if (!r.ok) throw 0;
+      return r.json();
+    }).then(function (data) {
+      var rev = data && typeof data.__rev === "string" ? data.__rev : "";
+      var fresh = !!(rev && rev !== String(state.skinRev || ""));
+      if (!fresh) { done && done(); return; }
+      var clean = cleanSkin(data);
+      if (!skinCount(clean)) { done && done(); return; }
+      adoptSkin(clean, rev);
+      done && done();
+    }).catch(function () { done && done(); });
+  }
   function avatarSrc() { return ""; }
   function cloudBackupLabel() { return ""; }
-  function skinOn() { return false; }
-  function skinCount() { return 0; }
   function activityRow() { return null; }
   function activityIcon() { return null; }
   function weatherIcon() { return null; }
@@ -4361,6 +4637,25 @@
       render();
       return;
     }
+    if (act === "skin-paste") {
+      var useClip = navigator.clipboard && navigator.clipboard.readText;
+      if (!useClip) { openSkinPasteDialog(); return; }
+      navigator.clipboard.readText().then(function (text) {
+        if (String(text || "").trim()) { applySkinFromText(text); return; }
+        openSkinPasteDialog();
+      }, function () { openSkinPasteDialog(); });
+      return;
+    }
+    if (act === "skin-reset") { resetSkin(); return; }
+    if (act === "skin-paste-apply") {
+      var area2 = document.getElementById("skin-paste-area");
+      var skinText2 = area2 ? area2.value : "";
+      ui.modal = null;
+      ui.dialogSpec = null;
+      render();
+      applySkinFromText(skinText2);
+      return;
+    }
     if (act === "toggle") {
       /* M25: ключи донора (app.js 9025) + прежние ключи next — одни поля M13.
          Ключи модулей-сидений (animation/warnExceed/dialTime/vibroDial/devMode/
@@ -4551,6 +4846,7 @@
     U().ICON_BASE_SET("assets/icons/");
     N().ensureAlerts(state);
     applyTheme();
+    applySkinTokens();
     bindEvents();
     var env = {
       shell: ui, render: render, closeSheet: closeSheet,
@@ -4560,7 +4856,7 @@
     };
     if (W.WT2X) W.WT2X.bind(env);
     /* Донор app.js:10194: раскладка значков проекта применяется до первого рендера. */
-    adoptProjectLayout(function () { render(); });
+    adoptProjectLayout(function () { adoptProjectSkin(function () { render(); }); });
     /* Загрузочные шаги донора: разрешение на уведомления, облако, сверка слотов. */
     var n = N().ensureAlerts(state);
     if (n.enabled && !state.alertPermAsked) {

@@ -433,3 +433,33 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   modal-calendar = 0 px (байт-в-байт, панели сверены глазами); регрессия
   m01..m25 GREEN, кроме m07 (волна): bench протух ещё до модуля 9 —
   ждёт .cat-beltband кота, которого нет по слову 06.11 (не регрессия).
+
+### M25, модуль 10 шага 2 — скины (слово «можно», 06.11)
+
+- Paint-механизм донора целиком (6585-6697): PAINT_ROLES/paintRole/
+  applyPaint/commitPaint/finishPaint — источник истины по цветам; заодно
+  закрыл латентные ReferenceError на странице цвета (commitPaint/
+  paintRole вызывались там раньше).
+- Скин-блок донора (6709-6858): SKIN_TOKENS/cleanSkin/skinCount/skinOn/
+  applySkinTokens/mergeSkinPaint/unmergeSkinPaint/adoptSkin/
+  applySkinFromText/resetSkin/adoptProjectSkin. Краски скина сливаются в
+  state.paint со снимком прежних значений (сброс честный); токены размеров
+  инлайн на documentElement.
+- Дороги принятия: текст (диалог вставки; буфер в WebView может быть
+  закрыт — фолбэк по донору) и файл data/ui-skin.json на старте по
+  проектной ревизии (adoptProjectSkin в цепочке adoptProjectLayout).
+  404 на файл — норма донора (проектный скин опционален), в смоуке
+  whitelist по location.url.
+- Диалог вставки адаптирован под dialogSpec next (донорский ui.dialog не
+  портируем — правило): body сырым HTML с textarea#skin-paste-area,
+  okAct skin-paste-apply; акты skin-paste/skin-reset донора.
+- Бут: applySkinTokens() после applyTheme(); стабы skinOn/skinCount
+  заменены настоящими.
+- Строки настроек skinPaste/skinReset уже были в байт-идентичных
+  m25-settings-model/ui; на паке владельца не рисуются (sLayout
+  владельца) — как и system* в модуле 9.
+- Проверки: smoke 145/145 (5 гейтов модуля 10: диалог, битый JSON,
+  применение из текста, сброс, файл по ревизии); pixel home-skin: скин
+  меняет обе стороны одинаково (nav 56→72), diff = сид-места 13.89%
+  (кот/круг), своего не привносит; регрессия m01..m25 GREEN (кроме
+  протухшего m07 волны).

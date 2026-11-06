@@ -45,7 +45,8 @@ function ok(cond, name) {
     await ctx.addInitScript(`localStorage.setItem('cup-tracker-v1', ${JSON.stringify(JSON.stringify(seedState(theme)))});`);
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push('pageerror: ' + e.message));
-    p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
+    p.on('console', m => { if (m.type() === 'error' && String((m.location() || {}).url || '').indexOf('ui-skin.json') < 0) errs.push('console: ' + m.text()); });
+    /* 404 на data/ui-skin.json — норма донора: проектный скин опционален */
     await p.goto('http://127.0.0.1:8085/wt2/index.html');
     await p.waitForFunction(() => window.__waterApp && document.querySelector('.progress .label'));
     await p.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important}' });
@@ -400,6 +401,50 @@ function ok(cond, name) {
   await click(p, '[data-tab="settings"]');
   /* системные тумблеры на паке владельца не рисуются ни у донора, ни у next
      (sLayout владельца) — вне объема модуля 9; механизм календаря проверен выше */
+
+  console.log('Модуль 10: скины:');
+  /* текстовая дорога: диалог вставки */
+  await p.evaluate(() => window.__waterApp.performAction({dataset:{}}, 'skin-paste'));
+  await p.waitForSelector('#skin-paste-area');
+  ok(true, 'skin-paste открыл диалог вставки');
+  await p.fill('#skin-paste-area', 'это не json');
+  await p.click('.modal button[data-act="skin-paste-apply"]');
+  await p.waitForTimeout(250);
+  ok((await S(p)).skin == null, 'битый JSON не применился');
+  await p.evaluate(() => window.__waterApp.performAction({dataset:{}}, 'skin-paste'));
+  await p.waitForSelector('#skin-paste-area');
+  await p.fill('#skin-paste-area', JSON.stringify({ __rev: 'bench-1', tokens: { '--header-h': '64px' }, paint: { dark: { accent: '#ff0000' } } }));
+  await p.click('.modal button[data-act="skin-paste-apply"]');
+  await p.waitForTimeout(250);
+  const sk = await p.evaluate(() => ({
+    rev: window.__waterApp.state.skinRev,
+    hdr: document.documentElement.style.getPropertyValue('--header-h'),
+    accent: ((window.__waterApp.state.paint || {}).dark || {}).accent
+  }));
+  ok(sk.rev === 'clip:bench-1' && sk.hdr === '64px' && sk.accent === '#ff0000',
+    'скин из текста: токены на корне, краски в state.paint', sk);
+  await p.evaluate(() => window.__waterApp.performAction({dataset:{}}, 'skin-reset'));
+  await p.waitForTimeout(250);
+  const sk2 = await p.evaluate(() => ({
+    skin: window.__waterApp.state.skin,
+    hdr: document.documentElement.style.getPropertyValue('--header-h') || '',
+    accent: ((window.__waterApp.state.paint || {}).dark || {}).accent || ''
+  }));
+  ok(sk2.skin == null && sk2.hdr === '' && sk2.accent === '', 'skin-reset вернул размеры и цвета', sk2);
+  /* файловая дорога: проектный data/ui-skin.json с ревизией */
+  const fsx = require('fs');
+  fsx.mkdirSync('/home/user/wt2/data', { recursive: true });
+  fsx.writeFileSync('/home/user/wt2/data/ui-skin.json', JSON.stringify({ __rev: 'proj-bench', tokens: { '--nav-h': '72px' } }));
+  await p.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p.waitForSelector('[data-tab="settings"]');
+  await p.waitForTimeout(400);
+  const skf = await p.evaluate(() => ({
+    rev: window.__waterApp.state.skinRev,
+    nav: document.documentElement.style.getPropertyValue('--nav-h')
+  }));
+  fsx.unlinkSync('/home/user/wt2/data/ui-skin.json');
+  ok(skf.rev === 'proj-bench' && skf.nav === '72px', 'файл ui-skin.json применён на старте по ревизии', skf);
+  await click(p, '[data-tab="settings"]');
 
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
