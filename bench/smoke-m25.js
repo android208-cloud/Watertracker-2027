@@ -269,6 +269,72 @@ function ok(cond, name) {
   ok((await S(p)).rowCustom === false, 'edit-row вернул недавние');
   await click(p, '[data-tab="settings"]');
 
+  console.log('Модуль 7: create-напиток + сортировка:');
+  await click(p, '[data-tab="home"]');
+  await click(p, '[data-act="open-drinks"]');
+  ok((await p.$$('.swipe .drow')).length >= 3, 'свайп-строки донора на странице напитков');
+  /* сортировка перетаскиванием */
+  await click(p, '[data-act="open-sort"]');
+  ok(await has(p, '.sort-list .sort-item .handle'), 'sort-лист с ручками');
+  await shot(p, 'page-sort');
+  const before = (await S(p)).drinks.map(d => d.id);
+  const h0 = await (await p.$$('.sort-item .handle'))[0].boundingBox();
+  const it1 = await (await p.$$('.sort-item'))[1].boundingBox();
+  await p.mouse.move(h0.x + h0.width / 2, h0.y + h0.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(it1.x + it1.width / 2, it1.y + it1.height + 6, { steps: 8 });
+  await p.mouse.up();
+  await click(p, '[data-act="save-sort"]');
+  const after = (await S(p)).drinks.map(d => d.id);
+  ok(after[0] !== before[0] && after.slice().sort().join() === before.slice().sort().join(), 'drag поменял порядок напитков', after.slice(0, 3).join(','));
+  /* создание напитка */
+  await click(p, '[data-act="add-drink"]');
+  ok(await has(p, 'input[data-field="drink-name"]'), 'страница создания: поле имени');
+  ok(await has(p, '.hslider'), 'слайдер гидратации');
+  await shot(p, 'page-create');
+  await click(p, '[data-act="save-drink"]');
+  ok(await has(p, '.field.bad'), 'пустое имя → ошибка');
+  await p.fill('input[data-field="drink-name"]', 'Тест-напиток');
+  await click(p, '[data-act="open-icons"]');
+  ok((await p.$$('.igrid button')).length > 10, 'страница иконок');
+  await shot(p, 'page-icons');
+  await click(p, '.igrid button[data-icon="coffee_mug"]');
+  await click(p, '[data-act="save-icon"]');
+  await click(p, '[data-act="open-colors"]');
+  ok(await has(p, '.palette button'), 'страница цвета: палитра');
+  await shot(p, 'page-colors');
+  await click(p, '.pager button[data-page="1"]');
+  ok(await has(p, '.hue-wheel'), 'вторая страница цвета — колесо');
+  await click(p, '.pager button[data-page="0"]');
+  await click(p, '.palette button[data-color="#1ed851"]');
+  await click(p, '[data-act="save-color"]');
+  const hyd0 = await p.evaluate(() => window.__waterApp.ui.createDraft && window.__waterApp.ui.createDraft.hydration);
+  const hs = await (await p.$('.hslider')).boundingBox();
+  await p.mouse.click(hs.x + hs.width * 0.4, hs.y + hs.height / 2);
+  const hyd1 = await p.evaluate(() => window.__waterApp.ui.createDraft.hydration);
+  ok(hyd1 !== hyd0 && hyd1 >= 35 && hyd1 <= 45, 'слайдер ставит гидратацию ~40%', hyd1);
+  await click(p, '[data-act="save-drink"]');
+  const st7 = await S(p);
+  const created = st7.drinks.filter(d => d.name === 'Тест-напиток')[0];
+  ok(!!created && created.color === '#1ed851' && created.icon === 'coffee_mug', 'напиток создан с цветом и иконкой');
+  /* свайп-правка и удаление */
+  const sid = 'd-' + created.id;
+  const front = await p.$('.swipe[data-sid="' + sid + '"] .swipe-front');
+  await front.scrollIntoViewIfNeeded();
+  const fb = await front.boundingBox();
+  await p.mouse.move(fb.x + fb.width - 30, fb.y + fb.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(fb.x + fb.width - 170, fb.y + fb.height / 2, { steps: 10 });
+  await p.mouse.up();
+  await p.waitForTimeout(250);
+  ok(await p.evaluate((s) => window.__waterApp.ui.openSwipe === s, sid), 'свайп открыл рамку действий');
+  await click(p, '.swipe[data-sid="' + sid + '"] [data-act="ask-del-drink"]');
+  ok(await has(p, '[data-act="del-drink-ok"]'), 'диалог удаления');
+  await p.waitForTimeout(500); /* окно подавления клика после свайп-кнопки */
+  await click(p, '[data-act="del-drink-ok"]');
+  ok(!((await S(p)).drinks.some(d => d.id === created.id)), 'напиток удалён');
+  await click(p, '[data-tab="settings"]');
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');

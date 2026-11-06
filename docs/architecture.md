@@ -373,3 +373,25 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   pixel-m25 home-pins: ряд/хинт/тумблер вне diff (13.89% — сид-места шага 1);
   m22: editToggle ожила. Новый пак владельца (13:24, с cat-настройками) принят
   сидом: cat игнорируется по слову 06.11 (круг вместо кота).
+
+### M25, модуль 7 шага 2 — create-напиток + сортировка (слово «продолжать», 06.11)
+
+- pageDrinks → донор (3688-3723): свайп-строки с правкой/удалением, ряд
+  «Добавить напиток», sort-лист с ручками; recentVolumeRow/withWaterDay.
+- Страницы донора: pageCreate (имя/счётчик/ошибка, слайдер гидратации,
+  иконка, быстрые цвета), pageIcons (сетка PICKER_ICONS), pageColors
+  (палитра COLOR_PAGES[0] + колесо hue-wheel на второй странице pager).
+- Механизмы: initSort (drag указателем, 7746), initHydSlider/setHydration,
+  wheel-блок донора целиком (wheelModel/snapWheel/drawHueWheel/
+  placeWheelMarker/applyWheelPoint/initColorWheel + hexToHsv/hsvToHex);
+  константы COLOR_PAGES/QUICK_COLORS/BASE_COLORS/RECENT_SLOTS/WHEEL_*.
+- Акты: open-sort/save-sort/pick-recent-volume/add-drink/edit-drink/
+  ask-del-drink (диалог next dialogSpec, okAct del-drink-ok)/save-drink/
+  open-icons/pick-icon/save-icon/pick-color/open-colors/pick-palette/
+  color-page/save-color/more-drinks; uid() → m03.
+- FAB-ы floaters донора: save-sort/save-drink/save-icon + pager/save-color
+  на странице цвета (без svg-студии — правило 05.11).
+- Роутер += create/icons/colors; back: volumes/colors/icons/create/sorting.
+- Проверки: smoke-m25 123/123 (14 гейтов: drag-сортировка, создание с цветом
+  и иконкой, свайп-удаление); pixel-m25 page-create/sort/icons/colors = 0 px
+  (байт-в-байт); регрессия m01..m25 ALL GREEN.

@@ -763,21 +763,39 @@
      Сортировка, свайп-правки и «Добавить напиток» — пустые невидимые места
      до модуля создания напитка (правило 05.11). */
   function pageDrinks() {
-    var selectedVol = ui.drinkReturn === "history" && ui.addDraft ? ui.addDraft.volume : (ui.drinkReturn === "pin" ? ui.volumeDraft : state.profile.volume); /* донор 3718 */
-    /* withWaterDay донора (380): сутки от dayStart — дата записи через entryDay. */
-    var ents = (state.entries || []).map(function (e) {
-      var dd = J().entryDay(state, e);
-      return dd === e.date ? e : Object.assign({}, e, { date: dd });
-    });
-    var vols = L().recentVolumes(ents, N().waterToday(state), selectedVol, 8);
-    var volRow = K().chipRow({ cls: "vol-pick", values: vols, selected: selectedVol, act: "pick-recent-volume", ui: "recent" });
-    var rows = (state.drinks || []).map(function (d) {
-      var current = ui.drinkReturn === "pin" && ui.pinDrinkId === d.id; /* донор 3701 */
-      return K().row({ ui: "drink", baseCls: "drow", cls: current ? "pin-current" : "", act: "pick-drink", data: { id: d.id }, nameClass: "name",
-        lead: bubble(d), title: esc(d.name), right: '<span class="pct">' + d.hydration + "%</span>" });
-    }).join("");
-    var title = ui.drinkReturn === "pin" ? "Избранный напиток" : "Выбор напитка"; /* донор 3720 */
-    return K().header({ ui: "drinks", back: uiIcon("back"), title: title }) + volRow + rows;
+    var rows;
+    if (ui.sorting) {
+      var order = ui.sortOrder || state.drinks.map(function (d) { return d.id; });
+      rows = '<div class="sort-list">' + order.map(function (id) {
+        var d = drinkById(id);
+        if (!d) return "";
+        return K().row({ ui: "sort", baseCls: "sort-item drow", tag: "div", data: { id: d.id }, nameClass: "name",
+          lead: bubble(d), title: esc(d.name),
+          right: '<span class="pct">' + d.hydration + '%</span><span class="handle" title="Перетащить">' + uiIcon("handle") + "</span>" });
+      }).join("") + "</div>";
+    } else {
+      rows = state.drinks.map(function (d) {
+        var current = ui.drinkReturn === "pin" && ui.pinDrinkId === d.id;
+        if (!window.UiKit) return "";
+        return K().swipeRow({ ui: "drink",
+          sid: "d-" + d.id,
+          actions: [
+            { act: "edit-drink", id: d.id, icon: uiIcon("pencilMask") },
+            { act: "ask-del-drink", id: d.id, cls: "danger", icon: uiIcon("trash") }
+          ],
+          front: K().row({ ui: "drink", baseCls: "swipe-front drow", cls: current ? "pin-current" : "", act: "pick-drink",
+            data: { id: d.id }, nameClass: "name", lead: bubble(d), title: esc(d.name),
+            right: '<span class="pct">' + d.hydration + "%</span>" })
+        });
+      }).join("") +
+        K().row({ ui: "add-drink", baseCls: "drow", act: "add-drink", nameClass: "name",
+          lead: '<span class="bubble" style="background:#2ea0ea">' + uiIcon("plus") + "</span>", title: "Добавить напиток" });
+    }
+    var right = ui.sorting ? "" : K().roundBtn({ ui: "sort-open", role: "head", side: "right", act: "open-sort", aria: "Сортировка", icon: uiIcon("sort") });
+    var selectedVol = ui.drinkReturn === "history" && ui.addDraft ? ui.addDraft.volume : (ui.drinkReturn === "pin" ? ui.volumeDraft : state.profile.volume);
+    var volRow = ui.sorting ? "" : recentVolumeRow(selectedVol);
+    var title = ui.drinkReturn === "pin" ? "Избранный напиток" : "Выбор напитка";
+    return K().header({ ui: "drinks", back: uiIcon("back"), title: title, right: right }) + volRow + rows;
   }
 
   var alertAudio = null;
@@ -2094,6 +2112,375 @@
     setTimeout(finish, 12000);
   }
 
+  var COLOR_PAGES = [
+    ["#61c2f9", "#41b6f9", "#26a6ef", "#0f97e3", "#018ad8", "#fb764b", "#f46233", "#ed4d1b", "#e6400c", "#dd3703", "#fdd752", "#f8cf41", "#ffb749", "#f8a322", "#fb8e0f", "#b4ed3e", "#a1e212", "#94d603", "#85c401", "#77ad01", "#57ef5e", "#38de3e", "#1ed851", "#16cb48", "#0abd3d", "#4aebf5", "#30dbe5", "#20ced9", "#11c1d9", "#00add2", "#4b7cf5", "#3266ee", "#2854f1", "#1f40ed", "#112fcf", "#e45cfa", "#da48f1", "#c648f1", "#b129e1", "#a40cd9"],
+    ["#fa84d2", "#fd6ccb", "#ff53c3", "#ff49a0", "#ff4085", "#e8bb9a", "#dea882", "#c08e69", "#9e6e4a", "#a26539", "#ff656f", "#f4404b", "#f63434", "#fb2f2e", "#f71b1b", "#fca41e", "#fe9720", "#f78b0d", "#f57315", "#f46600", "#a259ff", "#ff5959"]
+  ];
+
+
+
+  var WHEEL_HUES = 36;
+  var WHEEL_RINGS = 9;
+  var WHEEL_HOLE = 0.12;
+  var QUICK_COLORS = COLOR_PAGES[0].slice(0, 5);
+  var BASE_COLORS = [
+    "#26a6ef", "#ed4d1b", "#fdd752", "#94d603", "#1ed851",
+    "#20ced9", "#2854f1", "#c648f1", "#ff53c3", "#c08e69",
+    "#f63434", "#f78b0d", "#a259ff", "#ff5959", "#00add2"
+  ];
+
+
+  var RECENT_SLOTS = 14;
+
+  function ensureRecent() {
+    if (state.recentColors && state.recentColors.length > RECENT_SLOTS) {
+      state.recentColors = state.recentColors.slice(0, RECENT_SLOTS);
+    }
+    if (!state.recentColors || state.recentColors.length !== RECENT_SLOTS) {
+      state.recentColors = BASE_COLORS.slice(0, RECENT_SLOTS);
+      state.recentCursor = 0;
+    }
+    if (state.recentCursor == null || state.recentCursor >= RECENT_SLOTS) state.recentCursor = 0;
+  }
+
+  function rememberColor(color) {
+    if (!color) return;
+    ensureRecent();
+    var list = state.recentColors;
+    for (var i = 0; i < list.length; i++) {
+      if (sameColor(list[i], color)) return;
+    }
+    var at = state.recentCursor % list.length;
+    list[at] = color;
+    state.recentCursor = (at + 1) % list.length;
+    save();
+  }
+
+  function hexToHsv(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+    if (!m) return { h: 200, s: 0.7, v: 0.9 };
+    var n = parseInt(m[1], 16);
+    var r = ((n >> 16) & 255) / 255;
+    var g = ((n >> 8) & 255) / 255;
+    var b = (n & 255) / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var d = max - min;
+    var h = 0;
+    if (d) {
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+    return { h: h, s: max ? d / max : 0, v: max };
+  }
+
+  function hsvToHex(h, s, v) {
+    h = ((h % 360) + 360) % 360;
+    s = Math.max(0, Math.min(1, s));
+    v = Math.max(0, Math.min(1, v));
+    var c = v * s;
+    var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    var m = v - c;
+    var r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; }
+    else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+    function hex(n) { return Math.round((n + m) * 255).toString(16).padStart(2, "0"); }
+    return "#" + hex(r) + hex(g) + hex(b);
+  }
+  function recentVolumeRow(selected) {
+    var vols = LC.recentVolumes(withWaterDay(state.entries), waterToday(), selected, 8);
+    return K().chipRow({ cls: "vol-pick", values: vols, selected: selected, act: "pick-recent-volume", ui: "recent" });
+  }
+
+  function pageCreate() {
+    ensureRecent();
+    var d = ui.createDraft || { name: "", hydration: 100, icon: "drop", color: "#61c2f9" };
+    var colors = state.recentColors.map(function (c) {
+      var on = sameColor(c, d.color);
+      return '<button type="button" class="cdot' + (on ? " on" : "") + '" style="background:' + c + ";--ring:" + c + '" data-act="pick-color" data-color="' + c + '" aria-label="Цвет"></button>';
+    }).join("");
+    var hyd = Math.max(0, Math.min(100, Math.round(Number(d.hydration) || 0)));
+    var err = ui.nameError ? "Необходимо указать название" : "";
+    return '' +
+      K().header({ ui: "create", cls: "top band", back: uiIcon("back"), title: d.editing ? "Изменение напитка" : "Создание напитка" }) +
+      '<div class="form"><div class="lbl">Название напитка</div>' +
+      '<input class="field' + (ui.nameError ? " bad" : "") + '" data-field="drink-name" maxlength="100" placeholder="Название напитка" value="' + esc(d.name) + '">' +
+      '<div class="field-meta"><span class="err">' + err + '</span><span class="counter">' + (d.name || "").length + "/100</span></div>" +
+      '<div class="hyd-head"><span>Индекс гидратации</span><b class="hyd-val">' + hyd + "%</b></div>" +
+      '<div class="hslider" style="--p:' + hyd + '" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + hyd + '" aria-label="Индекс гидратации">' +
+      '<div class="hslider-track"><div class="hslider-fill"></div></div>' +
+      '<div class="hslider-thumb"></div></div>' +
+      '<p class="hint">Чем больше в напитке примесей, тем ниже его индекс гидратации.</p>' +
+      '<div class="icon-line"><div><div class="lbl" style="margin-top:0">Иконка</div><p class="hint">Поможет Вам быстрее найти нужный напиток в списках</p></div>' +
+      '<button type="button" class="bubble icon-pick" style="background:' + d.color + '" data-act="open-icons">' + glyph(d.icon) + "</button></div>" +
+      '<div class="color-grid">' + colors +
+      '<button type="button" class="cplus" data-act="open-colors" aria-label="Выбор цвета">' + uiIcon("plus") + "</button></div></div>";
+  }
+
+  function pageColors() {
+    var picked = ui.colorPick || (ui.createDraft && ui.createDraft.color) || "#61c2f9";
+    var page = ui.colorPage || 0;
+    if (page < 0 || page >= COLOR_PAGES.length) page = 0;
+    ui.colorPage = page;
+    var cells = COLOR_PAGES[0].map(function (c) {
+      var on = sameColor(c, picked);
+      return '<button type="button" class="' + (on ? "on" : "") + '" style="background:' + c + ";--ring:" + c + '" data-act="pick-palette" data-color="' + c + '" aria-label="Цвет"></button>';
+    }).join("");
+    var shift = page === 1 ? "-50%" : "0";
+    var prole = ui.paintRole ? paintRole(ui.paintRole) : null;
+    return K().header({ ui: "colors", cls: "top band", back: uiIcon("back"), title: prole ? esc(prole.label) : "Выбор цвета" }) +
+      '<div class="color-viewport" data-palette><div class="color-track" style="transform:translateX(' + shift + ')">' +
+      '<div class="color-pane"><div class="palette">' + cells + "</div></div>" +
+      '<div class="color-pane"><div class="wheel-page"><div class="wheel-box">' +
+      '<canvas class="hue-wheel" aria-label="Цветовой круг"></canvas>' +
+      '<div class="wheel-marker"></div></div></div></div></div></div>' +
+      (prole ? '<div class="paint-bar"><button type="button" data-act="paint-reset" data-v="' + prole.id + '">Сброс к теме</button></div>' : "");
+  }
+
+  function pageIcons() {
+    var keys = PICKER_ICONS;
+    var picked = ui.iconPick;
+    var cells = keys.map(function (k) {
+      return '<button type="button" class="' + (k === picked ? "on" : "") + '" data-act="pick-icon" data-icon="' + k + '">' + glyph(k) + "</button>";
+    }).join("");
+    return K().header({ ui: "icons", back: uiIcon("back"), backAria: "", title: "Выбор иконки" }) + "<div class=\"igrid\">" + cells + "</div>";
+  }
+
+  function initSort() {
+    var list = document.querySelector(".sort-list");
+    if (!list) return;
+    var dragEl = null;
+    list.addEventListener("pointerdown", function (e) {
+      var handle = e.target.closest(".handle");
+      if (!handle) return;
+      dragEl = handle.closest(".sort-item");
+      dragEl.classList.add("drag");
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    });
+    list.addEventListener("pointermove", function (e) {
+      if (!dragEl) return;
+      var items = Array.prototype.slice.call(list.querySelectorAll(".sort-item"));
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (it === dragEl) continue;
+        var r = it.getBoundingClientRect();
+        if (e.clientY > r.top && e.clientY < r.bottom) {
+          list.insertBefore(dragEl, e.clientY < r.top + r.height / 2 ? it : it.nextSibling);
+          break;
+        }
+      }
+    });
+    function end() {
+      if (!dragEl) return;
+      dragEl.classList.remove("drag");
+      ui.sortOrder = Array.prototype.map.call(list.querySelectorAll(".sort-item"), function (it) { return it.dataset.id; });
+      dragEl = null;
+    }
+    list.addEventListener("pointerup", end);
+    list.addEventListener("pointercancel", end);
+  }
+
+  function setHydration(value) {
+    if (!ui.createDraft) return;
+    var v = Math.max(0, Math.min(100, Math.round(value)));
+    ui.createDraft.hydration = v;
+    var el = document.querySelector(".hslider");
+    if (el) {
+      el.style.setProperty("--p", String(v));
+      el.setAttribute("aria-valuenow", String(v));
+    }
+    var b = document.querySelector(".hyd-val");
+    if (b) b.textContent = v + "%";
+  }
+
+  function initHydSlider() {
+    var el = document.querySelector(".hslider");
+    if (!el) return;
+    function fromPointer(e) {
+      var r = el.getBoundingClientRect();
+      var x = r.width ? (e.clientX - r.left) / r.width : 0;
+      setHydration(x * 100);
+    }
+    el.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      el.setPointerCapture(e.pointerId);
+      fromPointer(e);
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (!el.hasPointerCapture(e.pointerId)) return;
+      fromPointer(e);
+    });
+    el.addEventListener("keydown", function (e) {
+      var cur = ui.createDraft ? ui.createDraft.hydration : 0;
+      var next = cur;
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") next = cur + 1;
+      else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = cur - 1;
+      else if (e.key === "Home") next = 0;
+      else if (e.key === "End") next = 100;
+      else return;
+      e.preventDefault();
+      setHydration(next);
+    });
+  }
+
+  function wheelModel() {
+    if (!ui.wheel) {
+      var hsv = hexToHsv(ui.colorPick || "#61c2f9");
+      ui.wheel = { h: hsv.h, s: hsv.s, v: hsv.v < 0.08 ? 1 : hsv.v };
+    }
+    return ui.wheel;
+  }
+
+  function snapWheel(h, s) {
+    var step = 360 / WHEEL_HUES;
+    var hs = (Math.floor((((h % 360) + 360) % 360) / step) + 0.5) * step;
+    if (hs >= 360) hs -= 360;
+    if (s <= 0.02) return { h: hs, s: 0 };
+    var ring = Math.min(WHEEL_RINGS - 1, Math.max(0, Math.floor(s * WHEEL_RINGS)));
+    return { h: hs, s: (ring + 0.5) / WHEEL_RINGS };
+  }
+
+  function drawHueWheel(canvas) {
+    var box = canvas.parentElement;
+    var size = Math.max(120, Math.round(canvas.clientWidth || box.clientWidth || 300));
+    var dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    var ctx = canvas.getContext("2d");
+    var cx = canvas.width / 2;
+    var cy = canvas.height / 2;
+    var R = canvas.width / 2 - dpr;
+    var hole = R * WHEEL_HOLE;
+    var model = wheelModel();
+    var v = model.v;
+    for (var ring = 0; ring < WHEEL_RINGS; ring++) {
+      var r0 = hole + (R - hole) * ring / WHEEL_RINGS;
+      var r1 = hole + (R - hole) * (ring + 1) / WHEEL_RINGS;
+      var s = (ring + 0.5) / WHEEL_RINGS;
+      for (var i = 0; i < WHEEL_HUES; i++) {
+        var h0 = i * (360 / WHEEL_HUES);
+        var h1 = (i + 1) * (360 / WHEEL_HUES);
+        var a0 = -h1 * Math.PI / 180;
+        var a1 = -h0 * Math.PI / 180;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r1, a0, a1, false);
+        ctx.arc(cx, cy, r0, a1, a0, true);
+        ctx.closePath();
+        ctx.fillStyle = hsvToHex((h0 + h1) / 2, s, v);
+        ctx.fill();
+      }
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, hole + dpr, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+  }
+
+  function placeWheelMarker() {
+    var box = document.querySelector(".wheel-box");
+    if (!box) return;
+    var marker = box.querySelector(".wheel-marker");
+    var canvas = box.querySelector(".hue-wheel");
+    if (!marker || !canvas) return;
+    var model = wheelModel();
+    var snapped = snapWheel(model.h, model.s);
+    var size = canvas.clientWidth || box.clientWidth;
+    var R = size / 2;
+    var hole = R * WHEEL_HOLE;
+    var dist = snapped.s <= 0 ? hole * 0.35 : hole + snapped.s * (R - hole);
+    var ang = -snapped.h * Math.PI / 180;
+    marker.style.left = (R + Math.cos(ang) * dist) + "px";
+    marker.style.top = (R + Math.sin(ang) * dist) + "px";
+    marker.style.background = ui.colorPick || hsvToHex(snapped.h, snapped.s, model.v);
+  }
+
+  function applyWheelPoint(h, s, touched) {
+    var model = wheelModel();
+    var snapped = snapWheel(h, s);
+    model.h = snapped.h;
+    model.s = snapped.s;
+    var hex = snapped.s <= 0 ? "#ffffff" : hsvToHex(snapped.h, snapped.s, model.v);
+    ui.colorPick = hex;
+    if (ui.paintRole) commitPaint(hex, false);
+    if (touched) ui.colorTouched = true;
+    placeWheelMarker();
+  }
+
+  function initColorWheel() {
+    var canvas = document.querySelector(".hue-wheel");
+    if (!canvas) return;
+    function paint() {
+      drawHueWheel(canvas);
+      placeWheelMarker();
+    }
+    paint();
+    if (!canvas.clientWidth) requestAnimationFrame(paint);
+    function fromPointer(e) {
+      var r = canvas.getBoundingClientRect();
+      var x = e.clientX - r.left - r.width / 2;
+      var y = e.clientY - r.top - r.height / 2;
+      var R = r.width / 2;
+      var hole = R * WHEEL_HOLE;
+      var dist = Math.sqrt(x * x + y * y);
+      if (dist > R + 12) return;
+      var h = -Math.atan2(y, x) * 180 / Math.PI;
+      if (h < 0) h += 360;
+      var s = dist <= hole ? 0 : Math.min(1, (dist - hole) / (R - hole));
+      applyWheelPoint(h, s, true);
+    }
+    canvas.addEventListener("pointermove", function (e) {
+      if (!colorGesture.active || e.pointerId !== colorGesture.pointerId) return;
+      colorGesture.dx = e.clientX - colorGesture.x;
+      colorGesture.dy = e.clientY - colorGesture.y;
+      if (classifyColorGesture() !== "pick") return;
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* swipe owns the gesture */ }
+      fromPointer(e);
+    });
+    canvas.addEventListener("pointerup", function (e) {
+      if (!colorGesture.active || colorGesture.mode === "swipe" || colorGesture.mode === "pick") return;
+      if (!e.target.closest(".hue-wheel, .wheel-box")) return;
+      fromPointer(e);
+    });
+  }
+
+
+  function colorPageOf(color) {
+    for (var i = 0; i < COLOR_PAGES[0].length; i++) {
+      if (sameColor(COLOR_PAGES[0][i], color)) return 0;
+    }
+    return 1;
+  }
+
+  function sameColor(a, b) {
+    return String(a || "").toLowerCase() === String(b || "").toLowerCase();
+  }
+
+  function ensureRecent() {
+    if (state.recentColors && state.recentColors.length > RECENT_SLOTS) {
+      state.recentColors = state.recentColors.slice(0, RECENT_SLOTS);
+    }
+    if (!state.recentColors || state.recentColors.length !== RECENT_SLOTS) {
+      state.recentColors = BASE_COLORS.slice(0, RECENT_SLOTS);
+      state.recentCursor = 0;
+    }
+    if (state.recentCursor == null || state.recentCursor >= RECENT_SLOTS) state.recentCursor = 0;
+  }
+
+  function withWaterDay(entries) {
+    if (!LC.minutesOf(dayStartValue())) return entries;
+    return entries.map(function (e) {
+      var d = J().entryDay(state, e);
+      return d === e.date ? e : Object.assign({}, e, { date: d });
+    });
+  }
+
+  function uid() { return J().uid(); } /* m03 */
   function tzParts(d) { return N().tzParts(d); }
 
   function cupTarget(te, iso, mr) {
@@ -2493,6 +2880,16 @@
       /* Донор app.js 4274: плавающая галочка сохранения периодов. */
       out += K().roundBtn({ ui: "save-alert-edit", role: "check", pos: "float", act: "save-alert-edit", aria: "Сохранить периоды", icon: uiIcon("check") });
     }
+    if (ui.page === "drinks" && ui.sorting) out += K().roundBtn({ ui: "save-sort", role: "check", pos: "float", act: "save-sort", aria: "Сохранить порядок", icon: uiIcon("check") });
+    if (ui.page === "create") out += K().roundBtn({ ui: "save-drink", role: "check", pos: "float", act: "save-drink", aria: "Сохранить напиток", icon: uiIcon("check") });
+    if (ui.page === "icons") out += K().roundBtn({ ui: "save-icon", role: "check", pos: "float", act: "save-icon", aria: "Выбрать иконку", icon: uiIcon("check") });
+    if (ui.page === "colors") {
+      var dots = COLOR_PAGES.map(function (_, i) {
+        return '<button type="button" class="' + (i === ui.colorPage ? "on" : "") + '" data-act="color-page" data-page="' + i + '" aria-label="Страница ' + (i + 1) + '"></button>';
+      }).join("");
+      out += '<div class="pager">' + dots + "</div>";
+      out += '<button type="button" class="check float" data-act="save-color" aria-label="Выбрать цвет">' + uiIcon("check") + "</button>";
+    }
     /* M25: модалки и окна донора (settings-ui modalsHtml + app.js dupes/export). */
     if (window.SettingsUI) out += SU().modalsHtml(settingsEnv());
     if (ui.modal === "dupes") out += dupesDialogHtml();
@@ -2525,6 +2922,9 @@
     }
     var main, screenClass = "screen";
     if (ui.page === "drinks") { main = pageDrinks(); screenClass = "screen drinks-screen"; }
+    else if (ui.page === "create") { main = pageCreate(); screenClass = "screen create-screen"; }
+    else if (ui.page === "icons") { main = pageIcons(); screenClass = "screen icons-screen"; }
+    else if (ui.page === "colors") { main = pageColors(); screenClass = "screen colors-screen"; }
     else if (ui.page === "volumes") { main = pageVolumes(); screenClass = "screen hist-screen volumes-screen"; }
     else if (ui.page === "folder-alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
       else if (ui.page === "look") { main = SU().pageLook(settingsEnv()); screenClass = "screen settings-screen"; }
@@ -2810,6 +3210,7 @@
 
   function afterRender() {
     initPinHold(); /* донор: bindAll() из render (4603) */
+    initSort(); initHydSlider(); initColorWheel(); /* донор 7296-7299 */
     try { initWheels(); } catch (e) {} /* M25: колёса донора */
     try { markSheetEntrance(); } catch (e) {} /* M25: выезд шторки донора */
     try { initFields(); } catch (e) {} /* M25-mod2: поля текстов уведомлений */
@@ -2917,6 +3318,11 @@
       closeOpenSwipes(); render(); return;
     }
     if (act === "back") {
+    if (ui.page === "volumes") { ui.page = null; render(); return; }
+    if (ui.page === "colors" && ui.paintRole) { finishPaint(); return; }
+    if (ui.page === "icons" || ui.page === "colors") { ui.page = "create"; render(); return; }
+    if (ui.page === "create") { ui.page = "drinks"; ui.nameError = false; render(); return; }
+    if (ui.page === "drinks" && ui.sorting) { ui.sorting = false; ui.sortOrder = null; render(); return; }
     if (ui.page === "drinks" && ui.drinkReturn === "pin") {
       ui.page = null;
       ui.drinkReturn = "home";
@@ -3492,6 +3898,166 @@
       var wheel = document.querySelector('[data-wheel="volume"]');
       if (wheel && wheel._setValue) wheel._setValue(pv);
       document.querySelectorAll(".preset").forEach(function (p) { p.classList.toggle("on", Number(p.dataset.v) === pv); });
+      return;
+    }
+    if (act === "ask-del-drink") {
+      if (state.drinks.length <= 1) { toast("Последний напиток удалить нельзя"); return; }
+      var dd = drinkById(t.dataset.id);
+      ui.dialogSpec = { title: "Удалить напиток", text: "Удалить «" + esc(dd ? dd.name : "") + "»? Записи в истории сохранятся.", ok: "Удалить", cancel: "Отмена", okAct: "del-drink-ok", drinkId: t.dataset.id };
+      ui.modal = "dialog";
+      render();
+      return;
+    }
+    if (act === "del-drink-ok") {
+      var id = ui.dialogSpec && ui.dialogSpec.drinkId;
+      var victim = drinkById(id);
+      state.drinks = state.drinks.filter(function (d) { return d.id !== id; });
+      if (state.profile.drinkId === id) {
+        var water = drinkById("water") || state.drinks[0];
+        state.profile = { drinkId: water.id, volume: 200 };
+      }
+      ui.openSwipe = null;
+      ui.modal = null; ui.dialogSpec = null;
+      save();
+      toast("Удалён: " + (victim ? victim.name : "напиток"));
+      render();
+      return;
+    }
+    if (act === "open-sort") {
+      ui.sorting = true;
+      ui.sortOrder = state.drinks.map(function (d) { return d.id; });
+      render();
+      return;
+    }
+    if (act === "save-sort") {
+      var order = ui.sortOrder || state.drinks.map(function (d) { return d.id; });
+      var map = {};
+      state.drinks.forEach(function (d) { map[d.id] = d; });
+      state.drinks = order.map(function (id) { return map[id]; }).filter(Boolean);
+      ui.sorting = false;
+      save();
+      toast("Порядок сохранён");
+      return;
+    }
+    if (act === "pick-recent-volume") {
+      var rv = Number(t.dataset.v);
+      if (!(rv > 0)) return;
+      if (ui.drinkReturn === "history" && ui.addDraft) ui.addDraft.volume = rv;
+      else if (ui.drinkReturn === "pin") ui.volumeDraft = rv;
+      else {
+        state.profile.volume = rv;
+        save();
+      }
+      render();
+      return;
+    }
+    if (act === "add-drink") {
+      ui.createDraft = { name: "", hydration: 100, icon: "drop", color: QUICK_COLORS[0], editing: false };
+      ui.nameError = false;
+      ui.page = "create";
+      render();
+      return;
+    }
+    if (act === "edit-drink") {
+      var ed = drinkById(t.dataset.id);
+      if (!ed) return;
+      ui.createDraft = { id: ed.id, name: ed.name, hydration: ed.hydration, icon: ed.icon, color: ed.color, editing: true };
+      ui.nameError = false;
+      ui.page = "create";
+      ui.openSwipe = null;
+      render();
+      return;
+    }
+    if (act === "save-drink") {
+      var draft = ui.createDraft;
+      if (!draft || !String(draft.name || "").trim()) {
+        ui.nameError = true;
+        render();
+        return;
+      }
+      draft.name = String(draft.name).trim().slice(0, 100);
+      var savedMsg;
+      if (draft.editing) {
+        var target = drinkById(draft.id);
+        if (target) {
+          target.name = draft.name;
+          target.hydration = Number(draft.hydration);
+          target.icon = draft.icon;
+          target.color = draft.color;
+        }
+        savedMsg = "Напиток обновлён. Старые записи не пересчитаны.";
+      } else {
+        state.drinks.push({ id: "c" + uid(), name: draft.name, hydration: Number(draft.hydration), icon: draft.icon, color: draft.color });
+        savedMsg = "Напиток добавлен";
+      }
+      ui.page = "drinks";
+      ui.nameError = false;
+      save();
+      toast(savedMsg);
+      return;
+    }
+    if (act === "open-icons") {
+      ui.iconPick = ui.createDraft ? ui.createDraft.icon : "drop";
+      ui.page = "icons";
+      render();
+      return;
+    }
+    if (act === "pick-icon") {
+      ui.iconPick = t.dataset.icon;
+      document.querySelectorAll(".igrid button").forEach(function (b) { b.classList.toggle("on", b.dataset.icon === ui.iconPick); });
+      return;
+    }
+    if (act === "save-icon") {
+      if (ui.createDraft && ui.iconPick) ui.createDraft.icon = ui.iconPick;
+      ui.page = "create";
+      render();
+      return;
+    }
+    if (act === "pick-color") {
+      if (ui.createDraft) ui.createDraft.color = t.dataset.color;
+      render();
+      return;
+    }
+    if (act === "open-colors") {
+      var current = ui.createDraft && ui.createDraft.color;
+      ui.colorPick = current || "#61c2f9";
+      ui.colorPage = colorPageOf(ui.colorPick);
+      ui.colorTouched = false;
+      ui.wheel = null;
+      ui.page = "colors";
+      render();
+      return;
+    }
+    if (act === "pick-palette") {
+      ui.colorPick = t.dataset.color;
+      ui.colorTouched = true;
+      ui.wheel = null;
+      if (ui.paintRole) commitPaint(t.dataset.color, true);
+      render();
+      return;
+    }
+    if (act === "color-page") {
+      ui.colorPage = Number(t.dataset.page) || 0;
+      if (ui.colorPage === 1) ui.wheel = null;
+      render();
+      return;
+    }
+    if (act === "save-color") {
+      if (ui.paintRole) { finishPaint(); return; }
+      if (ui.createDraft && ui.colorPick) {
+        ui.createDraft.color = ui.colorPick;
+        if (ui.colorTouched) rememberColor(ui.colorPick);
+      }
+      ui.page = "create";
+      render();
+      return;
+    }
+    if (act === "more-drinks") {
+      ui.page = "drinks";
+      /* «Ещё» теперь есть в обоих меню: возврат туда, откуда открылись. */
+      ui.drinkReturn = ui.sheet === "volume" ? "volume" : "history";
+      ui.sorting = false;
+      render();
       return;
     }
     if (act === "toggle") {
