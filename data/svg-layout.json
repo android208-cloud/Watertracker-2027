@@ -1,0 +1,44 @@
+{
+ "svg0/screen/home-body/home-dock/open-fitness/wicon": {
+  "dx": 0,
+  "dy": 0,
+  "w": 26,
+  "h": 26
+ },
+ "span0/screen/home-body/home-dock/edit-row/ui-mask": {
+  "dx": 0,
+  "dy": 0,
+  "w": 36,
+  "h": 36
+ },
+ "span0/screen/top/back/ui-mask": {
+  "dx": 2,
+  "dy": 1,
+  "w": 26,
+  "h": 26,
+  "mx": -1,
+  "file": "arrow_forward.svg"
+ },
+ "img0/add.svg/open-weight/ui-ico": {
+  "dx": 0,
+  "dy": 0,
+  "w": 26,
+  "h": 26
+ },
+ "img0/arrow_forward.svg/screen/top/open-volumes/ui-ico": {
+  "dx": 0,
+  "dy": 0,
+  "w": 26,
+  "h": 26
+ },
+ "img0/add.svg/open-add/ui-ico": {
+  "dx": 0,
+  "dy": 0,
+  "w": 26,
+  "h": 26
+ },
+ "__removed": [
+  "span0/screen/home-body/home-dock/undo/ui-mask"
+ ],
+ "__rev": "2026-10-23-1"
+}

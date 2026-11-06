@@ -244,14 +244,15 @@ const histNums = () => {
     sw().click();
     const on = app.state.notifications.enabled;
     document.querySelector('[data-act="open-alert-freq"]').click();
-    const sheet = app.ui.sheet;
-    document.querySelector('[data-act="pick-period"][data-v="90"]').click();
+    const modal = app.ui.modal;
+    document.querySelector('[data-act="pick-freq"][data-min="90"]').click();
     const every = app.state.notifications.everyMin;
     document.querySelector('[data-act="open-alert-sound"]').click();
+    const soundPage = app.ui.page;
     document.querySelector('[data-act="pick-sound"][data-file="water_sound.mp3"]').click();
-    return { off: off, on: on, sheet: sheet, every: every, sound: app.state.notifications.sound, sheetClosed: app.ui.sheet === null };
+    return { off: off, on: on, modal: modal, every: every, soundPage: soundPage, sound: app.state.notifications.sound, modalClosed: app.ui.modal === null, stayed: app.ui.page === 'alert-sound' };
   });
-  ok('напоминания (донор): свич sw-alertOn, интервал 90 через pick-period, звук через pick-sound — всё в state, шторки закрываются', alerts.off === false && alerts.on === true && alerts.sheet === 'alert-period' && alerts.every === 90 && alerts.sound === 'water_sound.mp3' && alerts.sheetClosed, alerts);
+  ok('напоминания (донор): свич sw-alertOn, диалог частоты (90 через pick-freq), страница звука (pick-sound, страница остаётся)', alerts.off === false && alerts.on === true && alerts.modal === 'alert-freq' && alerts.every === 90 && alerts.soundPage === 'alert-sound' && alerts.sound === 'water_sound.mp3' && alerts.modalClosed && alerts.stayed, alerts);
 
   /* --- настройки: тема и вход M18 --- */
   await p.click('[data-tab="settings"]');

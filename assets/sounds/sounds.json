@@ -1,0 +1,34 @@
+[
+  {
+    "file": "standart_sound.mp3",
+    "title": "Watercat - Standart sound"
+  },
+  {
+    "file": "standart_sound_2.mp3",
+    "title": "Watercat - Standart sound 2"
+  },
+  {
+    "file": "water_sound.mp3",
+    "title": "Watercat - Water"
+  },
+  {
+    "file": "sparkling_water_sound.mp3",
+    "title": "Watercat - Sparkling water"
+  },
+  {
+    "file": "water_remind_notification.mp3",
+    "title": "Watercat - Cat meow"
+  },
+  {
+    "file": "cat_sound_meow_2.mp3",
+    "title": "Watercat - Cat meow 2"
+  },
+  {
+    "file": "cat_sound_meow_3.mp3",
+    "title": "Watercat - Cat meow 3"
+  },
+  {
+    "file": "cat_sound_purr.mp3",
+    "title": "Watercat - Cat purr"
+  }
+]

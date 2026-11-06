@@ -22,7 +22,6 @@
   var VERSION_CODE = 200;
   var SWIPE_W = 120;
   var VOLS = [50, 100, 150, 200, 250, 300, 330, 350, 400, 500, 700, 1000];
-  var PERIODS = [30, 45, 60, 90, 120, 180, 240];
   var B_SLEEP = [30, 60, 90, 120];
   var KG_VALS = [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130];
   var DAY_STARTS = ["00:00", "02:00", "03:00", "04:00", "05:00", "06:00"];
@@ -87,9 +86,21 @@
     var txt = l >= 100 ? String(Math.round(l)) : String(Math.round(l * 10) / 10).replace(".", ",");
     return txt + " л";
   }
+  /* Донор app.js:220 — имена рисунков пикера: напиток может хранить такое
+     имя напрямую (например energy_drink), не входя в DRINK_ICONS. */
+  var PICKER_ICONS = [
+    "drop", "alcohol", "apple_juice", "beer_barrels", "beer",
+    "beer_bottles", "brandy", "can", "champagne", "fiero_martini",
+    "cocktail", "coffee_mug", "coffee_cup", "bottle", "energy_drink",
+    "apple_juice_carton", "pineapple_cocktail", "lemonade", "extra_dry_martini", "milk_carton",
+    "milk", "port_wine", "orange_juice", "punch", "shaker",
+    "fruit_drink", "soda", "sake", "tea", "lemon_juice",
+    "ice_tea", "wine", "vodka", "water_bottle", "whiskey"
+  ];
   function glyph(name) {
     var file = DRINK_ICONS[name];
     if (!file && name && name.slice(-4) === ".svg") file = name;
+    if (!file && name && DRINK_ICONS[name] == null && PICKER_ICONS.indexOf(name) >= 0) file = name + ".svg";
     if (!file) file = "drop.svg";
     return '<img class="drink-ico" src="assets/icons/' + file + '" data-svg-file="' + file + '" alt="">';
   }
@@ -731,6 +742,41 @@
     return K().header({ ui: "drinks", back: uiIcon("back"), title: "Выбор напитка" }) + volRow + rows;
   }
 
+  var alertAudio = null;
+  function playAlertSound(file) {
+    /* Донор app.js: мост WaterAlerts.preview, иначе Web Audio из assets/sounds. */
+    var bridge = window.WaterAlerts;
+    if (bridge && typeof bridge.preview === "function") {
+      try { bridge.preview(file); return; } catch (e) {}
+    }
+    try {
+      if (alertAudio) { alertAudio.pause(); alertAudio = null; }
+      var a = new Audio("assets/sounds/" + file);
+      alertAudio = a;
+      a.volume = 0.9;
+      var p = a.play();
+      if (p && p.catch) p.catch(function () { toast("Звук не проигрался — проверьте громкость"); });
+    } catch (e) {}
+  }
+
+  function pageAlertSound() {
+    /* Донор settings-ui.js 866-879: строки мелодий с прослушиванием. */
+    var n = N().ensureAlerts(state);
+    var play = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8L18.4 12z" fill="currentColor"/></svg>';
+    var rows = N().ALERT_SOUNDS.map(function (snd) {
+      var on = n.sound === snd.file;
+      return K().row({ ui: "sound",
+        tag: "div", cls: "sound-row" + (on ? " on" : ""), act: "pick-sound", data: { file: snd.file },
+        title: esc(snd.title), sub: on ? "выбран" : "нажмите, чтобы выбрать",
+        right: '<button type="button" class="sound-play" data-act="play-sound" data-file="' + snd.file + '" aria-label="Прослушать">' + play + "</button>",
+        check: true, on: on, tick: uiIcon("tick")
+      });
+    }).join("");
+    return K().header({ ui: "alert-sound", cls: "top plain sub", back: uiIcon("back"), title: "Звук уведомления" }) +
+      rows +
+      '<p class="wake-note">Мелодия звучит в напоминаниях, когда приложение закрыто. В приложении Android звук можно поменять и в системных настройках уведомлений.</p>';
+  }
+
   /* Уведомления — каркас кожи донора (settings-ui.js alertsBody, ветка
      «без модели раскладки»: фиксированный порядок, разделы ALR_SECTIONS,
      строки-кубы донора, подсказки-абзацы при своих строках). Пустые места до
@@ -752,7 +798,7 @@
     function sSwitch(title, key, on) {
       return K().row({ ui: "sw-" + key, kind: "switch", cls: "switch-row", title: title, key: key, on: !!on, tick: uiIcon("tick") });
     }
-    return K().header({ ui: "alerts", cls: "top plain", title: "Уведомления" }) +
+    return K().header({ ui: "folder-alerts", cls: "top plain sub", back: uiIcon("back"), title: "Уведомления" }) +
       '<div class="n-section">Необходимые разрешения</div>' +
       sSwitch("Присылать напоминания, когда норма уже выпита", "whenGoalMet", n.whenGoalMet) +
       sSwitch("Присылать напоминания, даже если недавно пили воду", "evenIfRecent", n.evenIfRecent) +
@@ -791,11 +837,12 @@
     }
     var profileRow = cloud.signedIn
       ? K().row({ ui: "profile", cls: "profile-row", act: "cloud-sign", lead: guest, title: "Google: вход выполнен", sub: "нажмите, чтобы выйти" })
-      : K().row({ ui: "profile", cls: "profile-row", act: "cloud-sign", lead: guest, title: "Войти через Google" });
+      : K().row({ ui: "profile", cls: "profile-row", act: "cloud-needapp", lead: guest, title: "Войти через Google", sub: "доступно в приложении для Android" });
     var syncRow = cloud.signedIn
       ? nLine("Синхронизация", cloud.lastBackup ? '<span class="sync-when">копия ' + esc(String(cloud.lastBackup)) + "</span>" : "", syncIco, "cloud-sync")
       : "";
-    var alertsDoorSub = n.enabled ? (P().isPace(n) ? "темп (самоадаптивный)" : esc("каждые " + P().freqLabel(n.everyMin))) : "выключены";
+    /* Донор settings-ui.js:242 — ярлык двери без префикса «каждые». */
+    var alertsDoorSub = n.enabled ? esc(P().freqLabel(n.everyMin)) : "выключены";
     var wSorted = (state.weights || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     var curKg = wSorted.length ? wSorted[wSorted.length - 1].kg : state.weightKg;
     return '<header class="top plain"><h1>Настройки</h1></header>' +
@@ -899,21 +946,6 @@
           '<div class="field"><label>Дата</label><input type="date" data-act="weight-date" value="' + esc(wd.date) + '"></div>',
         tail: '<button type="button" class="check center" data-act="weight-save" aria-label="Сохранить">' + uiIcon("check") + "</button>" });
 
-    } else if (ui.sheet === "alert-period") {
-      var n = N().ensureAlerts(state);
-      var opts = PERIODS.map(function (m) {
-        return { value: m, label: "каждые " + P().freqLabel(m), on: n.everyMin === m };
-      });
-      opts.push({ value: -1, label: "Темп (самоадаптивный)", on: P().isPace(n) });
-      out += U().sheet({ ui: "period", cls: "period", title: "Интервал напоминаний",
-        body: U().optionList({ ui: "period", act: "pick-period", items: opts }) });
-    } else if (ui.sheet === "alert-sound") {
-      var nn = N().ensureAlerts(state);
-      var sopts = N().ALERT_SOUNDS.map(function (s) {
-        return { value: s.file, label: s.title, on: nn.sound === s.file };
-      });
-      out += U().sheet({ ui: "sound", cls: "sound", title: "Звук напоминания",
-        body: U().optionList({ ui: "sound", act: "pick-sound", attr: "file", items: sopts }) });
     } else if (ui.sheet === "entry-edit") {
       out += U().sheet({ ui: "entryedit", cls: "goal", title: "Объём записи",
         body: U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ui.editDraft ? ui.editDraft.volume : 0, act: "edit-vol-chip" }),
@@ -932,6 +964,20 @@
       out += U().sheet({ ui: "onbtime", cls: "goal", title: "Начало суток",
         body: '<div class="onb-kg-grid">' + dgrid + "</div>" +
           '<button type="button" class="time-btn" data-act="onb-time-sys">' + uiIcon("clock") + "<span>Системные часы</span></button>" });
+    }
+    if (ui.modal === "alert-freq") {
+      /* Донор settings-ui.js 1148-1163: диалог частоты, опции байт-в-байт. */
+      var nf = N().ensureAlerts(state);
+      out += U().dialog({ ui: "freq",
+        scrimAct: "freq-cancel",
+        cls: "modal n-modal freq-modal",
+        title: "Частота",
+        body: U().optionList({ ui: "freq",
+          act: "pick-freq", attr: "min",
+          items: [10, 30, 60, 90, 120, 150, 180, -1, 0].map(function (min) {
+            return { value: min, label: P().freqLabel(min), on: Number(nf.everyMin) === min };
+          }) }),
+        actions: [{ act: "freq-cancel", label: "Отмена" }] });
     }
     if (ui.modal === "theme") {
       /* Диалог темы донора (settings-ui.js 405–424); тема «Oneplus 7» —
@@ -971,6 +1017,8 @@
     var main, screenClass = "screen";
     if (ui.page === "drinks") { main = pageDrinks(); screenClass = "screen drinks-screen"; }
     else if (ui.page === "volumes") { main = pageVolumes(); screenClass = "screen hist-screen volumes-screen"; }
+    else if (ui.page === "folder-alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
+    else if (ui.page === "alert-sound") { main = pageAlertSound(); screenClass = "screen alerts-screen"; }
     else if (ui.tab === "history") { main = pageHistory(); screenClass = "screen hist-screen"; }
     else if (ui.tab === "weight") { main = pageWeight(); screenClass = "screen weight-screen"; }
     else if (ui.tab === "settings") { main = pageSettings(); screenClass = "screen settings-screen"; }
@@ -991,6 +1039,257 @@
     } catch (e) {}
     return APP_VERSION + " (" + VERSION_CODE + ")";
   }
+  /* ---------- Раскладка значков: данные проекта data/svg-layout.json --------
+     Внешность донора (app.js): вшитые правки значков (26px шеврон/FAB,
+     спина — зеркальный arrow_forward) приезжают файлом проекта и
+     применяются до первого рендера. Студия внутри приложения умерла
+     (слово владельца 06.11): остаются штамп ключей и применение боксов.
+     Функции перенесены байт-в-байт. */
+  function fetchT(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error("fetch timeout " + url)); }, ms);
+      fetch(url).then(function (r) { clearTimeout(timer); resolve(r); },
+                      function (e) { clearTimeout(timer); reject(e); });
+    });
+  }
+
+  function svgArtNode(el) {
+    if (!el) return null;
+    if (el.tagName === "IMG" || el.classList.contains("ui-mask") || el.tagName === "svg") return el;
+    return el.querySelector("img, .ui-mask, svg") || el;
+  }
+
+  function svgDetectFile(el) {
+    var node = svgArtNode(el);
+    if (!node) return "";
+    if (node._svgFile) return node._svgFile;
+    if (node.dataset && node.dataset.svgFile) return node.dataset.svgFile;
+    if (node.tagName === "IMG") {
+      var url = node.getAttribute("src") || "";
+      return url.slice(-4).toLowerCase() === ".svg" ? url.split("/").pop() : "";
+    }
+    var style = (node.getAttribute("style") || "") + " " + (node.style.webkitMaskImage || "") + " " + (node.style.maskImage || "");
+    var m = style.match(/icons\/([A-Za-z0-9_.-]+\.svg)/);
+    return m ? m[1] : "";
+  }
+
+  function svgEditTargets() {
+    var app = document.getElementById("app");
+    if (!app) return [];
+    var list = [];
+    app.querySelectorAll("svg, .ui-mask, img, .nav-ico").forEach(function (el) {
+      if (el.closest("[data-svg-editor], [data-svg-lock], defs")) return;
+      if (el.tagName === "IMG") {
+        var src = (el.getAttribute("src") || "").toLowerCase();
+        var known = el.dataset.svgFile || el._svgFile || "";
+        if (src.slice(-4) !== ".svg" && src.indexOf("data:image/svg") !== 0 && !known) return;
+      }
+      var r = el.getBoundingClientRect();
+      if (r.width < 2 && r.height < 2) return;
+      list.push(el);
+    });
+    return list;
+  }
+
+  function svgEditKey(el) {
+    var app = document.getElementById("app");
+    var parts = [];
+    var page = el.closest(".w-page");
+    if (page && page.parentElement) parts.push("wp" + Array.prototype.indexOf.call(page.parentElement.children, page));
+    var n = el;
+    while (n && n !== app) {
+      var bit = "";
+      if (n.dataset) {
+        if (n.dataset.act) bit += n.dataset.act;
+        if (n.dataset.id) bit += "#" + n.dataset.id;
+        if (n.dataset.tab) bit += "@" + n.dataset.tab;
+        if (n.dataset.slot) bit += ":" + n.dataset.slot;
+        if (n.dataset.level) bit += "=" + n.dataset.level;
+        if (n.dataset.field) bit += "." + n.dataset.field;
+      }
+      if (!bit && n.classList && n.classList.length) bit = n.classList[0];
+      if (bit) parts.push(bit);
+      n = n.parentElement;
+    }
+    var parent = el.parentElement;
+    var same = parent ? Array.prototype.filter.call(parent.children, function (c) {
+      return c.tagName === el.tagName;
+    }) : [el];
+    var src = el.getAttribute("src") || "";
+    var name = "";
+    // Only pictures carry the file name in the key: masks and inline svg keep
+    // the key they always had, so saved layouts stay valid.
+    if (el.tagName === "IMG") {
+      name = el.dataset.svgFile || el._svgFile || "";
+      if (!name && src.slice(-4).toLowerCase() === ".svg") name = src.split("/").pop();
+    }
+    parts.push(el.tagName.toLowerCase() + Array.prototype.indexOf.call(same, el) + (name ? "/" + name : ""));
+    return parts.reverse().join("/");
+  }
+
+  function applySvgBox(el, box) {
+    if (!box) return;
+    if (box.w > 0) {
+      el.style.width = box.w + "px";
+      el.style.height = box.h + "px";
+      el.style.maxWidth = "none";
+      el.style.maxHeight = "none";
+      el.style.flex = "none";
+    }
+    el.style.transform = "translate(" + (box.dx || 0) + "px," + (box.dy || 0) + "px)" +
+      (box.rot ? " rotate(" + box.rot + "deg)" : "") +
+      (box.mx === -1 || box.my === -1 ? " scale(" + (box.mx === -1 ? -1 : 1) + "," + (box.my === -1 ? -1 : 1) + ")" : "");
+    el.style.position = "relative";
+    el.style.zIndex = "7";
+    var app = document.getElementById("app");
+    var n = el.parentElement;
+    while (n && n !== app) {
+      if (!n.classList.contains("screen") && !n.classList.contains("chart-scroll") && !n.classList.contains("xscroll")) n.style.overflow = "visible";
+      n = n.parentElement;
+    }
+  }
+
+  function applySvgFile(el, file) {
+    if (!el || !file || !/^[A-Za-z0-9_.-]+\.svg$/.test(file)) return;
+    var node = svgArtNode(el);
+    if (!node) return;
+    var url = "assets/icons/" + file;
+    node._svgFile = file;
+    if (node.tagName === "IMG") {
+      node.setAttribute("src", url);
+      return;
+    }
+    if (node.classList.contains("ui-mask") || node.style.webkitMaskImage || node.style.maskImage || (node.getAttribute("style") || "").indexOf("mask-image") >= 0) {
+      node.style.webkitMaskImage = "url(" + url + ")";
+      node.style.maskImage = "url(" + url + ")";
+      return;
+    }
+    if (node.tagName !== "svg") return;
+    fetch(url).then(function (r) { return r.text(); }).then(function (text) {
+      if (!node.isConnected || node._svgFile !== file) return;
+      var doc = new DOMParser().parseFromString(text, "image/svg+xml");
+      var svg = doc.querySelector("svg");
+      if (!svg || doc.querySelector("parsererror")) return;
+      svg.querySelectorAll("script").forEach(function (s) { s.remove(); });
+      if (svg.getAttribute("viewBox")) node.setAttribute("viewBox", svg.getAttribute("viewBox"));
+      node.innerHTML = svg.innerHTML;
+    }).catch(function () {});
+  }
+
+  function sameSvgBox(a, b) {
+    if (!a || !b) return false;
+    return Math.round(Number(a.dx) || 0) === Math.round(Number(b.dx) || 0) &&
+      Math.round(Number(a.dy) || 0) === Math.round(Number(b.dy) || 0) &&
+      Math.round(Number(a.w) || 0) === Math.round(Number(b.w) || 0) &&
+      Math.round(Number(a.h) || 0) === Math.round(Number(b.h) || 0) &&
+      String(a.file || "") === String(b.file || "");
+  }
+
+  function cleanSvgLayout(raw) {
+    var out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    Object.keys(raw).forEach(function (k) {
+      if (k.indexOf("__") === 0) return; /* служебные поля файла проекта */
+      var box = raw[k];
+      if (!box || typeof box !== "object" || Array.isArray(box)) return;
+      out[k] = {
+        dx: Math.round(Number(box.dx) || 0),
+        dy: Math.round(Number(box.dy) || 0),
+        w: Math.round(Number(box.w) || 0),
+        h: Math.round(Number(box.h) || 0)
+      };
+      /* Зеркало и поворот входят в снимки и в очистку (контракт 23.10.2026). */
+      var rot = Math.round(Number(box.rot) || 0);
+      if (rot) out[k].rot = rot;
+      if (Number(box.mx) === -1) out[k].mx = -1;
+      if (Number(box.my) === -1) out[k].my = -1;
+      if (typeof box.file === "string" && /^[A-Za-z0-9_.-]+\.svg$/.test(box.file)) out[k].file = box.file;
+    });
+    return out;
+  }
+
+  function cloneSvgLayout(layout) {
+    var out = {};
+    Object.keys(layout || {}).forEach(function (k) {
+      var box = layout[k];
+      if (!box || typeof box !== "object") return;
+      out[k] = {
+        dx: Math.round(Number(box.dx) || 0),
+        dy: Math.round(Number(box.dy) || 0),
+        w: Math.round(Number(box.w) || 0),
+        h: Math.round(Number(box.h) || 0)
+      };
+      /* Зеркало и поворот входят в снимки и в очистку (контракт 23.10.2026). */
+      var rot = Math.round(Number(box.rot) || 0);
+      if (rot) out[k].rot = rot;
+      if (Number(box.mx) === -1) out[k].mx = -1;
+      if (Number(box.my) === -1) out[k].my = -1;
+      if (typeof box.file === "string" && /^[A-Za-z0-9_.-]+\.svg$/.test(box.file)) out[k].file = box.file;
+    });
+    return out;
+  }
+
+  function adoptProjectLayout(done) {
+    var hasLocal = state.svgLayout && Object.keys(state.svgLayout).length;
+    fetchT("data/svg-layout.json?t=" + Date.now(), 3000).then(function (r) {
+      if (!r.ok) throw 0;
+      return r.json();
+    }).then(function (data) {
+      var clean = cleanSvgLayout(data);
+      var rev = data && typeof data.__rev === "string" ? data.__rev : "";
+      // Ревизия проекта один раз перекрывает правки браузера: так присланная
+      // раскладка применяется при каждом запуске, а поздние правки не теряются.
+      var fresh = !!(rev && rev !== String(state.svgLayoutRev || ""));
+      if (!fresh && hasLocal) return;
+      var keys = Object.keys(clean);
+      var dropped = data && Array.isArray(data.__removed) ? data.__removed : [];
+      if (!keys.length && !dropped.length) return;
+      if (fresh) {
+        var merged = {};
+        var adopted = state.svgLayoutAdopted && typeof state.svgLayoutAdopted === "object" ? state.svgLayoutAdopted : {};
+        Object.keys(state.svgLayout || {}).forEach(function (k) {
+          var box = state.svgLayout[k];
+          // Автор проекта убрал правку, а в браузере она осталась: снимаем её,
+          // если с прошлого применения проекта её тут не трогали.
+          if (!clean[k] && adopted[k] && sameSvgBox(box, adopted[k])) return;
+          merged[k] = box;
+        });
+        // Список снятых правок проекта: они убираются у всех, даже если формат
+        // состояния старый и снимка принятых правок ещё нет.
+        dropped.forEach(function (k) { delete merged[k]; if (state.svgLayout) delete state.svgLayout[k]; });
+        keys.forEach(function (k) { merged[k] = clean[k]; });
+        state.svgLayout = merged;
+      } else {
+        state.svgLayout = clean;
+      }
+      if (dropped.length && !fresh) dropped.forEach(function (k) { delete state.svgLayout[k]; });
+      state.svgLayoutAdopted = cloneSvgLayout(clean);
+      if (rev) state.svgLayoutRev = rev;
+      save();
+    }).catch(function () {}).then(function () { if (done) done(); });
+  }
+
+  function initSvgEdit() {
+    var app = document.getElementById("app");
+    if (!app) return;
+    if (!state.svgLayout) state.svgLayout = {};
+    var seen = {};
+    svgEditTargets().forEach(function (el) {
+      var key = svgEditKey(el);
+      if (seen[key]) {
+        seen[key] += 1;
+        key += "~" + seen[key];
+      } else seen[key] = 1;
+      el.dataset.svgKey = key;
+      el.dataset.svgOrigin = svgDetectFile(el);
+      if (state.svgLayout[key]) {
+        var savedBox = state.svgLayout[key];
+        if (savedBox.w > 0 || savedBox.dx || savedBox.dy || savedBox.rot || savedBox.mx === -1 || savedBox.my === -1) applySvgBox(el, savedBox);
+        if (savedBox.file) applySvgFile(el, savedBox.file);
+      }
+          });
+  }
+
   function afterRender() {
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
@@ -1034,6 +1333,17 @@
     U().bindPhone();
     initSwipes();
     initSwipeTaps();
+    /* Донор app.js 7306-7315: ряд чипов довёрнут к выбранному. */
+    var pickedVol = document.querySelector(".vol-pick .preset.on");
+    if (pickedVol && pickedVol.parentElement) {
+      var row = pickedVol.parentElement;
+      row.scrollLeft = Math.max(0, pickedVol.offsetLeft - (row.clientWidth - pickedVol.offsetWidth) / 2);
+    }
+    var pickedMenuDrink = document.querySelector(".vol-drink.on");
+    if (pickedMenuDrink && pickedMenuDrink.parentElement) {
+      var drinkRow = pickedMenuDrink.parentElement;
+      drinkRow.scrollLeft = Math.max(0, pickedMenuDrink.offsetLeft - 8);
+    }
     /* Механика графика донора (bindAll 7315–7334): позиция после раскладки,
        два кадра, guard от ложного нуля WebView; затем окно и масштаб. */
     var sc = document.querySelector(".chart-scroll");
@@ -1054,6 +1364,7 @@
     }
     initXScroll();
     initWeightSwipe();
+    initSvgEdit(); /* донор app.js:7345 — штамп и боксы после каждого рендера */
     if (W.WT2X) W.WT2X.syncBars();
     if (R()) R().emit("ui:render", { tab: ui.tab, page: ui.page });
   }
@@ -1076,12 +1387,17 @@
   function performAction(t, act) {
     var ds = t.dataset || {};
     if (act === "goto") {
-      ui.tab = ds.tab; ui.page = null; ui.sheet = null; ui.modal = null;
+      /* v125 донора (app.js 8314-8317): колокольчик — ярлык: вкладка настроек
+         и раскрытая подпапка уведомлений (до отдельной замены колокольчика). */
+      if (ds.tab === "alerts") { ui.tab = "settings"; ui.page = "folder-alerts"; }
+      else { ui.tab = ds.tab; ui.page = null; }
+      ui.sheet = null; ui.modal = null;
       closeOpenSwipes(); render(); return;
     }
     if (act === "back") {
       if (ui.sheet) { ui.sheet = null; render(); return; }
       if (ui.page === "drinks") { ui.page = null; ui.tab = ui.drinkReturn || "home"; render(); return; }
+      if (ui.page === "alert-sound") { ui.page = "folder-alerts"; render(); return; }
       if (ui.page) { ui.page = null; render(); return; }
       render(); return;
     }
@@ -1170,8 +1486,8 @@
       ui.sheet = "weight-add"; render(); return;
     }
     if (act === "open-folder-alerts") { ui.tab = "alerts"; ui.page = null; render(); return; }
-    if (act === "open-alert-freq") { ui.sheet = "alert-period"; render(); return; }
-    if (act === "open-alert-sound") { ui.sheet = "alert-sound"; render(); return; }
+    if (act === "open-alert-freq") { ui.modal = "alert-freq"; render(); return; }
+    if (act === "open-alert-sound") { ui.page = "alert-sound"; render(); return; }
     if (act === "pick-recent-volume") {
       state.profile.volume = Number(ds.v) || state.profile.volume;
       save(); render(); return;
@@ -1186,12 +1502,13 @@
       else if (ds.key === "evenIfRecent") n.evenIfRecent = !n.evenIfRecent;
       save(); alertsSync(); render(); return;
     }
-    if (act === "alert-period") { ui.sheet = "alert-period"; render(); return; }
-    if (act === "pick-period") {
+    if (act === "pick-freq") {
+      /* Донор app.js: pick-freq — мин из data-min, диалог закрывается. */
       var np = N().ensureAlerts(state);
-      np.everyMin = Number(ds.v);
-      save(); alertsSync(); ui.sheet = null; render(); return;
+      np.everyMin = Number(ds.min);
+      save(); alertsSync(); ui.modal = null; render(); return;
     }
+    if (act === "freq-cancel") { ui.modal = null; render(); return; }
     if (act === "pick-bsleep") {
       var nb = N().ensureAlerts(state);
       nb.beforeSleepMin = Number(ds.v);
@@ -1199,15 +1516,19 @@
     }
     if (act === "alert-sound") { ui.sheet = "alert-sound"; render(); return; }
     if (act === "pick-sound") {
+      /* Донор: страница звука остаётся открытой. */
       var ns = N().ensureAlerts(state);
       ns.sound = ds.file;
-      save(); alertsSync(); ui.sheet = null; render(); return;
+      save(); alertsSync(); render(); return;
     }
+    if (act === "play-sound") { playAlertSound(ds.file || N().ensureAlerts(state).sound); return; }
     if (act === "pick-theme") {
       state.theme = ds.v === "light" || ds.v === "dark" ? ds.v : "system";
       ui.modal = null;
       save(); applyTheme(); render(); return;
     }
+    /* Донор app.js:9132 — гостевая строка в вебе/без моста. */
+    if (act === "cloud-needapp") { toast("Вход через Google работает в приложении для Android"); return; }
     if (act === "cloud-sign") {
       if (!(window.WaterGoogle)) { toast("Вход через Google доступен в приложении Android"); return; }
       if (cloud.signedIn) window.WaterGoogle.signOut(); else window.WaterGoogle.signIn();
@@ -1352,7 +1673,8 @@
       has: function (sel) { return !!document.querySelector(sel); }
     };
     if (W.WT2X) W.WT2X.bind(env);
-    render();
+    /* Донор app.js:10194: раскладка значков проекта применяется до первого рендера. */
+    adoptProjectLayout(function () { render(); });
     /* Загрузочные шаги донора: разрешение на уведомления, облако, сверка слотов. */
     var n = N().ensureAlerts(state);
     if (n.enabled && !state.alertPermAsked) {

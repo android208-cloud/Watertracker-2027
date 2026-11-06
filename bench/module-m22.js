@@ -231,10 +231,10 @@ const longDate = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.s
   await p.evaluate(() => { const el = document.querySelector('[data-ui="sw-alertOn"]') || document.querySelector('[data-key="alertOn"]'); el.click(); });
   await p.waitForFunction(() => window.__waterApp.state.notifications.enabled === true);
   await p.click('[data-act="open-alert-freq"]');
-  await p.waitForSelector('[data-act="pick-period"]');
-  const freq = await p.evaluate(() => document.querySelectorAll('[data-act="pick-period"]').length);
-  ok('уведомления: свич «Включить уведомления» пишет state, «Частота» открывает шторку интервалов', freq > 1, { freq });
-  await p.evaluate(() => { window.__waterApp.ui.sheet = null; window.__waterApp.render(); });
+  await p.waitForSelector('[data-act="pick-freq"]');
+  const freq = await p.evaluate(() => document.querySelectorAll('[data-act="pick-freq"]').length);
+  ok('уведомления: свич «Включить уведомления» пишет state, «Частота» открывает донорский диалог (9 опций)', freq === 9, { freq });
+  await p.evaluate(() => { window.__waterApp.ui.modal = null; window.__waterApp.render(); });
 
   /* 12. настройки: каркас донора + тема диалогом + версия */
   await p.click('[data-tab="settings"]');
