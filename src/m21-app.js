@@ -49,6 +49,7 @@
   var state = null;
   var ui = null;
   var suppressClick = false, suppressClickTimer = 0, swallowClickEl = null;
+  var animToken = 0;
   var alertsTimer = 0;
   var cloud = { signedIn: false, ready: false, busy: false, pending: "", dirty: false,
     chunks: null, lastBackup: "", firstCopy: false, pendingSig: "", lastMergeAdded: 0 };
@@ -68,7 +69,6 @@
   function U() { return W.WT2U; }
   function Wd() { return W.WT2W; }
   function Bc() { return W.WT2B; }
-  function Q() { return W.WT2Q; }
   function F() { return W.WT2F; }
   function K() { return W.UiKit; }
   function esc(s) { return U().esc(s); }
@@ -336,59 +336,270 @@
     bars.forEach(function (b) { b.goalPx = H().goalPxOf(b, scale); });
     var w = H().windowInit(bars, selected, ui.chartLeft);
     var bands = H().bandsHtml(bars);
+    /* Кэш окна — механика донора: прокрутка растит окно и пересчитывает
+       масштаб по видимым столбцам без пересборки экрана (C-004). */
+    ui.histBars = bars; ui.histWin = w; ui.histBands = bands;
     return H().rowHtml(bars, w, scale, selected, bands);
   }
-  /* Канон v2 (слово 05.11): неделя семью капсулами во всю ширину, капсула
-     44xR22, пояса обрезаются радиусом, наивысшая касается верха (потолок
-     динамический, слово 04.11). Донорская лента-скролл ушла: прототип не закон. */
-  /* Лента столбцов (слово владельца 06.11): пять колонок в кадре канона
-     (А–Е, pitch 66), лента тянется в прошлое до первой записи, но не длиннее
-     90 колонок; прокрутка с упорами: влево — не далее первого столбца. */
-  function ribbonDates(selected) {
-    var first = null;
-    (state.entries || []).forEach(function (e) {
-      if (e.date <= selected && (first == null || e.date < first)) first = e.date;
-    });
-    var floor = L().addDays(selected, -89);
-    if (first == null || first < floor) first = floor;
-    var dates = [];
-    for (var d = first; d <= selected; d = L().addDays(d, 1)) dates.push(d);
-    while (dates.length < 5) dates.unshift(L().addDays(dates[0], -1));
-    return dates;
+  /* ---- живой график и свайпы донора (байт-порт app.js: calendarIcon 3997,
+     layoutHistoryBar 4664, fitHistoryChart 4696, onHistoryChartScroll 4747,
+     growHistoryChart 2730, viewScale 9822, initXScroll 9832, initWeightSwipe
+     9736; адаптации: H()/N() модули, today вместо todayStr) ---- */
+  function calendarIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="4.6" width="17.6" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3.2 9.2h17.6M8 3v3.4M16 3v3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
   }
-  function chartPanel(selected) {
-    var dates = ribbonDates(selected);
-    var bars = S().bars(state, selected);
-    var byDate = {};
-    bars.forEach(function (b) { byDate[b.date] = b; });
-    var goal = S().dayStats(state, selected).goal;
-    var mx = goal;
-    dates.forEach(function (d) { var b = byDate[d]; if (b && b.raw > mx) mx = b.raw; });
-    var PLOT = 200;
-    var goalPx = Math.round(goal / mx * PLOT);
-    var cols = dates.map(function (d) {
-      var b = byDate[d];
-      var raw = b ? b.raw : 0;
-      var px = raw > 0 ? Math.max(6, Math.round(raw / mx * PLOT)) : 0;
-      var segs = "";
-      if (px && b && b.segs.length) {
-        var sum = 0;
-        b.segs.forEach(function (sg) { sum += sg.raw; });
-        var top = 0;
-        b.segs.forEach(function (sg, si) {
-          var hh = Math.floor(sg.raw / sum * px);
-          if (hh <= 0) return;
-          segs += '<i style="top:' + top + "px;height:" + hh + "px;background:" + sg.color + '"></i>';
-          top += hh;
-        });
+
+  function viewScale() {
+    var app = document.getElementById("app");
+    if (!app) return 1;
+    var tr = getComputedStyle(app).transform;
+    if (!tr || tr === "none") return 1;
+    var m = tr.match(/matrix\(([^,]+)/);
+    var s = m ? parseFloat(m[1]) : 1;
+    return s > 0 ? s : 1;
+  }
+
+  function layoutHistoryBar(bar, px) {
+    bar.style.height = px + "px";
+    var parts = bar.querySelectorAll("i");
+    if (!parts.length || px <= 0) return;
+    var raws = [];
+    var sum = 0;
+    for (var i = 0; i < parts.length; i++) {
+      var r = Number(parts[i].getAttribute("data-raw")) || 0;
+      raws.push(r);
+      sum += r;
+    }
+    if (!sum) return;
+    var hs = raws.map(function (r) { return Math.floor(r / sum * px); });
+    var used = 0;
+    hs.forEach(function (h) { used += h; });
+    var rest = px - used;
+    var order = raws.map(function (_, i) { return i; }).sort(function (a, b) { return raws[b] - raws[a]; });
+    for (var ri = 0; rest > 0; ri++) { hs[order[ri % order.length]] += 1; rest--; }
+    var top = 0;
+    for (var si = 0; si < parts.length; si++) {
+      if (hs[si] <= 0) {
+        parts[si].style.display = "none";
+        continue;
       }
-      return '<button type="button" class="wt-cap-col' + (d === selected ? " on" : "") + '" data-act="hist-day" data-v="' + d + '" aria-label="' + d + '">' +
-        '<span class="wt-cap-val">' + (raw || "") + "</span>" +
-        (px ? '<span class="wt-cap" style="height:' + px + 'px">' + segs + "</span>" : '<span class="wt-cap" style="height:0"></span>') +
-        '<span class="wt-cap-date">' + d.slice(8, 10) + "." + d.slice(5, 7) + "</span></button>";
-    }).join("");
-    return '<div class="wt-caps"><div class="wt-caps-in"><span class="wt-goal" style="bottom:' + (goalPx + 28) + 'px"></span>' + cols + "</div></div>";
+      parts[si].style.display = "block";
+      var extra = si < parts.length - 1 ? 1 : 0;
+      parts[si].style.top = top + "px";
+      parts[si].style.height = (hs[si] + extra) + "px";
+      top += hs[si];
+    }
   }
+
+  function fitHistoryChart() {
+    var sc = document.querySelector(".chart-scroll");
+    if (!sc || !sc.clientWidth) return;
+    var cols = sc.querySelectorAll(".col");
+    if (!cols.length) return;
+    var colW = 82;
+    var plotH = 146;
+    var dateArea = 36;
+    var n = cols.length;
+    var row = sc.querySelector(".chart-row");
+    var rowW = row ? row.scrollWidth : n * colW;
+    var ls = row ? row.querySelector(".chart-spacer.l") : null;
+    var packLeft = ls ? ls.offsetWidth : Math.max(0, rowW - n * colW);
+    var viewLeft = sc.scrollLeft;
+    var viewRight = viewLeft + sc.clientWidth;
+    var maxVal = 0;
+    var any = false;
+    for (var i = 0; i < n; i++) {
+      var left = packLeft + i * colW;
+      var overlap = Math.min(left + colW, viewRight) - Math.max(left, viewLeft);
+      if (overlap < 8) continue;
+      any = true;
+      var raw = Number(cols[i].getAttribute("data-raw")) || 0;
+      var goal = Number(cols[i].getAttribute("data-goal")) || 0;
+      if (raw > maxVal) maxVal = raw;
+      if (goal > maxVal) maxVal = goal;
+    }
+    if (!any) return;
+    var scale = Math.max(maxVal, 1);
+    if (sc._chartScale === scale) return;
+    sc._chartScale = scale;
+    for (var c = 0; c < n; c++) {
+      var col = cols[c];
+      var colRaw = Number(col.getAttribute("data-raw")) || 0;
+      var colGoal = Number(col.getAttribute("data-goal")) || 0;
+      var goalPx = Math.round(colGoal / scale * plotH);
+      var px = colRaw > 0 ? Math.max(2, Math.round(colRaw / scale * plotH)) : 0;
+      var bar = col.querySelector(".bar");
+      if (bar) layoutHistoryBar(bar, px);
+      var label = col.querySelector(".bar-label");
+      if (label) label.style.bottom = (label.classList.contains("on-line") ? goalPx : px + 18) + "px";
+    }
+    var marks = sc.querySelectorAll(".chart-below, .goal-line");
+    for (var m = 0; m < marks.length; m++) {
+      var el = marks[m];
+      var g = Number(el.getAttribute("data-goal")) || 0;
+      var h = dateArea + Math.round(g / scale * plotH);
+      if (el.classList.contains("chart-below")) el.style.height = h + "px";
+      else el.style.bottom = h + "px";
+    }
+  }
+
+  var chartFitRaf = 0;
+  function onHistoryChartScroll() {
+    var sc0 = document.querySelector(".chart-scroll");
+    if (sc0 && sc0._restoreGuard) return;
+    if (chartFitRaf) return;
+    chartFitRaf = requestAnimationFrame(function () {
+      chartFitRaf = 0;
+      growHistoryChart();
+      fitHistoryChart();
+    });
+  }
+
+  function growHistoryChart() {
+    var sc = document.querySelector(".chart-scroll");
+    if (!sc || !sc.clientWidth || !ui.histWin || !ui.histBars) return;
+    var bars = ui.histBars;
+    var n = bars.length;
+    var w = ui.histWin;
+    var v0 = Math.max(0, Math.floor(sc.scrollLeft / 82) - 8);
+    var v1 = Math.min(n, Math.ceil((sc.scrollLeft + sc.clientWidth) / 82) + 8);
+    if (v0 >= w.from && v1 <= w.to) return;
+    w.from = Math.min(w.from, v0);
+    w.to = Math.max(w.to, v1);
+    var row = sc.querySelector(".chart-row");
+    if (!row) return;
+    var cols = "";
+    for (var i = w.from; i < w.to; i++) cols += H().colHtml(bars[i], 1, ui.historyDate);
+    var leftW = w.from * 82;
+    var rightW = (n - w.to) * 82;
+    row.innerHTML = ui.histBands +
+      (leftW ? '<div class="chart-spacer l" style="width:' + leftW + 'px"></div>' : "") + cols +
+      (rightW ? '<div class="chart-spacer r" style="width:' + rightW + 'px"></div>' : "");
+    sc._chartScale = 0;
+  }
+
+  function initXScroll() {
+    document.querySelectorAll(".xscroll, .chart-scroll").forEach(function (el) {
+      var startX = null;
+      var startLeft = 0;
+      var moved = false;
+      el.addEventListener("pointerdown", function (e) {
+        if (e.pointerType === "touch") return;
+        startX = e.clientX;
+        startLeft = el.scrollLeft;
+        moved = false;
+      });
+      el.addEventListener("pointermove", function (e) {
+        if (startX == null || e.pointerType === "touch") return;
+        var dx = e.clientX - startX;
+        if (Math.abs(dx) > 5) {
+          moved = true;
+          el.scrollLeft = startLeft - dx;
+          e.preventDefault();
+        }
+      });
+      el.addEventListener("pointerup", function () {
+        if (moved) {
+          suppressNextClick(120);
+        }
+        startX = null;
+      });
+      el.addEventListener("pointercancel", function () { startX = null; });
+      el.addEventListener("wheel", function (e) {
+        if (el.scrollWidth <= el.clientWidth + 2) return;
+        if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+          el.scrollLeft += e.deltaY / viewScale();
+          e.preventDefault();
+        }
+      }, { passive: false });
+    });
+  }
+
+  function initWeightSwipe() {
+    var view = document.querySelector(".w-swipe");
+    var track = document.querySelector(".w-track");
+    if (!view || !track) return;
+    function width() { return view.clientWidth || 412; }
+    track.style.transform = "translateX(" + (-width()) + "px)";
+    var active = false;
+    var x = 0;
+    var y = 0;
+    var dx = 0;
+    var dy = 0;
+    var pid = null;
+    var mode = "";
+    function onDown(e) {
+      if (e.button != null && e.button !== 0) return;
+      active = true;
+      x = e.clientX;
+      y = e.clientY;
+      dx = 0;
+      dy = 0;
+      mode = "";
+      pid = e.pointerId;
+      track.style.transition = "none";
+      track.style.transform = "translateX(" + (-width()) + "px)";
+      window.addEventListener("pointermove", onMove, { passive: false });
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    }
+    function onMove(e) {
+      if (!active || e.pointerId !== pid) return;
+      dx = e.clientX - x;
+      dy = e.clientY - y;
+      if (!mode && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) mode = Math.abs(dx) > Math.abs(dy) * 1.15 ? "x" : "y";
+      if (mode !== "x") return;
+      if (e.cancelable) e.preventDefault();
+      track.style.transform = "translateX(" + (-width() + dx / viewScale()) + "px)";
+    }
+    function onUp(e) {
+      if (!active || (e && e.pointerId != null && e.pointerId !== pid)) return;
+      active = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      var w = width();
+      if (mode === "x" && Math.abs(dx) > 48) {
+        suppressNextClick(300);
+        var dir = dx < 0 ? 1 : -1;
+        var today = N().wallToday();
+        var nextAnchor = H().shiftPeriod(ui.weightRange || "year", ui.weightAnchor || today, dir, today);
+        var bounce = function () {
+          track.style.transition = "transform .2s ease";
+          track.style.transform = "translateX(" + (-w) + "px)";
+        };
+        if (nextAnchor > today) {
+          /* Будущее закрыто (v83): дорожка возвращается на место. */
+          bounce();
+          return;
+        }
+        if (dir === -1) {
+          /* v84 (владелец 25.10): прошлое ограничено периодом, в котором есть
+             первый замер. Замеров нет — назад не листается вовсе. */
+          var oldest = "";
+          (state.weights || []).forEach(function (x) {
+            if (x && x.date && (!oldest || x.date < oldest)) oldest = x.date;
+          });
+          if (!oldest) { bounce(); return; }
+          var winBack = H().weightWindow(ui.weightRange || "year", nextAnchor, today);
+          if (winBack.end < oldest) { bounce(); return; }
+        }
+        track.style.transition = "transform .24s ease";
+        track.style.transform = "translateX(" + (-w - dir * w) + "px)";
+        ui.weightAnchor = nextAnchor;
+        var token = animToken;
+        setTimeout(function () {
+          if (animToken !== token) return;
+          render();
+        }, 250);
+        return;
+      }
+      track.style.transition = "transform .2s ease";
+      track.style.transform = "translateX(" + (-w) + "px)";
+    }
+    view.addEventListener("pointerdown", onDown);
+  }
+
 
   /* ---- экраны ---- */
   function pageHome() {
@@ -416,24 +627,17 @@
     }
     var hint = "";
     if (!cuts.length) hint = '<p class="hint dock-hint">Ярлыки появятся из истории. Пример — в настройках.</p>';
-    /* Таблица мест дока (прототип; слово владельца 05.11: элемент не приехал —
-       место пустое и невидимое, геометрия держится):
-       ряд 0: c0 отмена, c5 выбор напитка;
-       ряд 1: c0–c4 ярлыки недавних пар, c5 избранные ряды (место пусто до слова);
-       ряд 2: c0–c1 пилюля объёма, c2–c3 чашка, c4 погода, c5 активность
-              (места пусты до M05/M08 и служб погоды/активности).
-       Сцена над доком — место кота (M05/M06): пустой cat-btn держит геометрию
-       и тап-зону записи порции, невидим.
-       Канон разговора (слово 05.11, docs/grid.md): линии — буквы (А–Е
-       вертикали, Ж–Н горизонтали), пересечения — цифры: 1 отмена, 6 выбор
-       напитка, 7–11 ярлыки, 12 место избранных, 13:14 пилюля объёма,
-       15:16 место чашки, 17 место погоды, 18 место активности; сцена — линия И. */
+    /* Кожа шага 1 (слово владельца 06.11 «интерфейс = прототип без кота»):
+       разметка главной — дословно донор app.js 2503–2573. Исключения: в слоте
+       кота — круг с жидкостью (M06/M08, тап пишет порцию, как тап кота);
+       значок пилюли — капля вместо miniCat (класс mini-cat сохранён: им
+       светлая тема отбеливает лицо на голубой пилюле, C-007). Места чашки,
+       погоды, активности и избранного ряда пусты и невидимы до своих модулей
+       (правило 05.11), геометрию дока держит донорская сетка --c/--r. */
     return "" +
-      /* v141: полоса прогресса — самая верхняя на главном экране (слово 02.11). */
-      '<div class="wt-topzone">' +
+      /* v141: строка с полосой прогресса — самая верхняя на главном экране. */
       '<div class="top home-bar-top"><div class="progress' + (mr.soft ? " soft" : "") + '"><div class="fill" style="width:' + fill + '%"></div><div class="label">' + drunk + "/" + goal + "</div></div></div>" +
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
-      '</div>' +
       '<div class="home-body">' +
       '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
       Wd().waterHtml({ frac: level, color: Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top),
@@ -487,9 +691,9 @@
          влево на серой полосе, справа круглая стрелка-шевроон в «Объёмы». */
       K().header({ ui: "history", cls: "top plain", title: "История и статистика",
         right: U().roundBtn({ ui: "volumes-open", role: "head", side: "right", act: "open-volumes", aria: "Объёмы напитков", icon: uiIcon("chevron") }) }) +
-      chartPanel(selected) +
+      '<div class="chart-panel"><div class="chart-scroll"><div class="chart-row">' + buildChart(selected) + "</div></div></div>" +
       '<div class="hist-head"><span class="hist-ico" aria-hidden="true">' + uiIcon("restore") + '</span><span>История</span><span class="grow"></span>' +
-      '<button type="button" class="hist-date" data-act="open-cal-hist" aria-label="Открыть календарь и перейти к дню">' + fmtLong(selected) + "</button></div>" +
+      '<button type="button" class="hist-date" data-act="open-cal-hist" aria-label="Открыть календарь и перейти к дню">' + fmtLong(selected) + '<span class="hist-cal-ico" aria-hidden="true">' + calendarIcon() + "</span></button></div>" +
       '<div class="hist-list">' + rows + "</div>";
   }
 
@@ -507,102 +711,152 @@
       '<div class="vol-list"><div class="vol-total">Всего ' + fmtVol(total) + ".</div>" + list + "</div>";
   }
 
+  /* Напитки — кожа донора (app.js 3688–3723): шапка без «plain», ряд
+     недавних объёмов (recentVolumeRow), строки drow с процентом справа.
+     Сортировка, свайп-правки и «Добавить напиток» — пустые невидимые места
+     до модуля создания напитка (правило 05.11). */
   function pageDrinks() {
-    var list = (state.drinks || []).map(function (d) {
-      return K().row({ ui: "drink", baseCls: "drow", act: "pick-drink", data: { id: d.id },
-        lead: bubble(d), title: esc(d.name), sub: "гидратация " + d.hydration + "%",
-        check: d.id === (state.profile && state.profile.drinkId), tick: uiIcon("tick") });
+    var selectedVol = ui.drinkReturn === "history" && ui.addDraft ? ui.addDraft.volume : state.profile.volume;
+    /* withWaterDay донора (380): сутки от dayStart — дата записи через entryDay. */
+    var ents = (state.entries || []).map(function (e) {
+      var dd = J().entryDay(state, e);
+      return dd === e.date ? e : Object.assign({}, e, { date: dd });
+    });
+    var vols = L().recentVolumes(ents, N().waterToday(state), selectedVol, 8);
+    var volRow = K().chipRow({ cls: "vol-pick", values: vols, selected: selectedVol, act: "pick-recent-volume", ui: "recent" });
+    var rows = (state.drinks || []).map(function (d) {
+      return K().row({ ui: "drink", baseCls: "drow", act: "pick-drink", data: { id: d.id }, nameClass: "name",
+        lead: bubble(d), title: esc(d.name), right: '<span class="pct">' + d.hydration + "%</span>" });
     }).join("");
-    return K().header({ ui: "drinks", cls: "top plain sub", back: uiIcon("back"), title: "Напиток" }) +
-      '<div class="drinks-list">' + list + "</div>";
+    return K().header({ ui: "drinks", back: uiIcon("back"), title: "Выбор напитка" }) + volRow + rows;
   }
 
+  /* Уведомления — каркас кожи донора (settings-ui.js alertsBody, ветка
+     «без модели раскладки»: фиксированный порядок, разделы ALR_SECTIONS,
+     строки-кубы донора, подсказки-абзацы при своих строках). Пустые места до
+     модуля папок уведомлений: тексты, проверка, страницы периода и привычки;
+     «Период уведомлений» читальный, правка частоты — в строке «Частота». */
   function pageAlerts() {
     var n = N().ensureAlerts(state);
-    var per = P().isPace(n) ? "Темп (самоадаптивный)" : "каждые " + P().freqLabel(n.everyMin);
     var win = N().dayWindow(state, N().weekdayIndex(N().wallToday()));
+    var per = P().isPace(n) ? "Темп (самоадаптивный)" : "каждые " + P().freqLabel(n.everyMin);
+    var hab = null;
+    try {
+      if (W.HabitSchedule && W.HabitSchedule.computeProfile) {
+        hab = W.HabitSchedule.computeProfile(state.entries || [], {
+          dayStart: state.dayStart || "02:00", afterWakeMin: n.afterWakeMin,
+          beforeSleepMin: n.beforeSleepMin, todayIso: N().wallToday()
+        });
+      }
+    } catch (e) {}
+    function sSwitch(title, key, on) {
+      return K().row({ ui: "sw-" + key, kind: "switch", cls: "switch-row", title: title, key: key, on: !!on, tick: uiIcon("tick") });
+    }
     return K().header({ ui: "alerts", cls: "top plain", title: "Уведомления" }) +
-      '<div class="set-list">' +
-      K().row({ ui: "alerts-on", cls: "switch-row", kind: "switch", key: "alerts-enabled", on: n.enabled,
-        title: "Напоминания", sub: n.enabled ? "включены" : "выключены" }) +
-      K().row({ ui: "alerts-period", act: "alert-period", title: "Интервал", right: '<span class="pct">' + esc(per) + "</span>" }) +
-      K().row({ ui: "alerts-window", title: "Окно сегодня", right: '<span class="pct">' + esc(win) + "</span>" }) +
-      '<div class="set-sec">До сна</div>' +
-      '<div class="presets xscroll">' + B_SLEEP.map(function (m) {
-        return '<button type="button" class="preset' + (Number(m) === Number(n.beforeSleepMin) ? " on" : "") +
-          '" data-act="pick-bsleep" data-v="' + m + '">' + m + " мин</button>";
-      }).join("") + "</div>" +
-      K().row({ ui: "alerts-hold", cls: "switch-row", kind: "switch", key: "hold-until", on: !!n.holdUntilDrink,
-        title: "Только если давно не пил", sub: "последняя порция держит напомин" }) +
-      '<div class="set-sec">Звук</div>' +
-      K().row({ ui: "alerts-sound", act: "alert-sound", title: "Звук напоминания",
-        right: '<span class="pct">' + esc(N().alertSoundTitle(n.sound)) + "</span>" }) +
-      '<p class="hint">' + esc(N().reminderText(state)) + "</p>" +
-      '<p class="hint">Подъём и сон по дням недели приедут с настройками (M15).</p>' +
-      "</div>";
+      '<div class="n-section">Необходимые разрешения</div>' +
+      sSwitch("Присылать напоминания, когда норма уже выпита", "whenGoalMet", n.whenGoalMet) +
+      sSwitch("Присылать напоминания, даже если недавно пили воду", "evenIfRecent", n.evenIfRecent) +
+      '<p class="hint">Включено — слоты каждые N от начала периода активности. Выключено — каждые N после последнего приёма.</p>' +
+      sSwitch("Не гасить напоминание, пока не добавлена порция", "holdUntilDrink", n.holdUntilDrink !== false) +
+      '<p class="hint">Уведомление переживёт вход в приложение и уйдёт из шторки, когда запишете порцию.</p>' +
+      '<div class="n-section">Настройки уведомлений</div>' +
+      K().row({ ui: "alert-sound", title: "Звук уведомления", sub: esc(N().alertSoundTitle(n.sound)), act: "open-alert-sound" }) +
+      sSwitch("Вибрация", "alertVibrate", n.vibrate !== false) +
+      K().row({ ui: "sys-note", title: "Системные настройки", sub: "Звук, вибрация и приоритет в Android" }) +
+      K().row({ ui: "alert-period", title: "Период уведомлений", sub: esc(win) }) +
+      (hab && W.HabitSchedule.subLabel ? K().row({ ui: "alert-habit", title: "Расписание по привычке", sub: W.HabitSchedule.subLabel(hab, esc) }) : "") +
+      K().row({ ui: "alert-freq", title: "Частота", sub: esc(per), act: "open-alert-freq" }) +
+      sSwitch("Включить уведомления", "alertOn", n.enabled);
   }
 
+  /* Настройки — каркас кожи донора (settings-ui.js pageSettings: шапка
+     «top plain», секции n-section дефолтной раскладки settings-model.js —
+     «Мой профиль», «Личные настройки», «Основные настройки», версия прибита
+     внизу). Пустые невидимые места до своих модулей: раскладка строк,
+     «Внешний вид», «Дополнительно», единицы, пол, начало суток, активность,
+     норма воды. Заявленные временные placements (переедут в свои модули):
+     строка темы — в доноре внутри «Внешнего вида»; секция «Перенос данных» —
+     в доноре внутри «Дополнительно». Профиль — куб донора profile-row. */
   function pageSettings() {
-    var themeRow = function (v, label) {
-      return K().row({ ui: "theme", act: "pick-theme", data: { v: v }, title: label,
-        check: state.theme === v, tick: uiIcon("tick") });
-    };
-    var cloudStatus = cloud.signedIn
-      ? "Google: вход выполнен" + (cloud.lastBackup ? ", копия " + esc(String(cloud.lastBackup)) : "")
-      : "Google: не подключён";
-    return K().header({ ui: "settings", cls: "top plain", title: "Настройки" }) +
-      '<div class="set-list">' +
-      '<div class="set-sec">Тема</div>' +
-      themeRow("light", "Светлая тема") + themeRow("dark", "Тёмная тема") + themeRow("system", "По умолчанию") +
-      '<div class="set-sec">Облако</div>' +
-      K().row({ ui: "cloud-status", title: cloudStatus }) +
-      K().row({ ui: "cloud-sign", act: "cloud-sign", title: cloud.signedIn ? "Выйти из Google" : "Войти через Google" }) +
-      K().row({ ui: "cloud-sync", act: "cloud-sync", title: "Синхронизировать сейчас" }) +
-      K().row({ ui: "cloud-save", act: "cloud-save", title: "Сохранить копию" }) +
-      /* M23 (слово 05.11): файл — главная дорога переноса, пак тот же, что у облака. */
-      '<div class="set-sec">Файл</div>' +
-      K().row({ ui: "file-save", act: "file-save", title: "Сохранить в файл" }) +
-      K().row({ ui: "file-open", act: "file-open", title: "Восстановить из файла" }) +
-      /* M24 (слово 05.11): приложение само читает интерфейсный пак из файла. */
-      '<div class="set-sec">Интерфейс</div>' +
-      K().row({ ui: "iface-open", act: "iface-open", title: "Загрузить интерфейс из файла" }) +
-      K().row({ ui: "iface-text", act: "iface-text", title: "Загрузить интерфейс из текста" }) +
-      K().row({ ui: "iface-save", act: "iface-save", title: "Сохранить интерфейс в файл" }) +
-      K().row({ ui: "iface-reset", act: "iface-reset", title: "Сбросить интерфейс к канону" }) +
-      '<div class="set-sec">О приложении</div>' +
-      '<div class="n-row set-ver"><span class="ttl">Версия …</span><span class="pct">' + versionLabel() + "</span></div>" +
-      "</div>";
+    var n = N().ensureAlerts(state);
+    var THEME_NAMES = { light: "Светлая тема", dark: "Тёмная тема", system: "По умолчанию" };
+    /* Кубы донора (settings-ui.js customRows): гостевой аватар и стрелки синка. */
+    var guest = '<span class="guest-ava" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#8b9198"/><path d="M24 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M12.5 36.5c1.8-6 6-8.6 11.5-8.6s9.7 2.6 11.5 8.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span>';
+    var syncIco = '<span class="set-sync' + (cloud.busy ? " spinning" : "") + '" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-13.5 5.8L4 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 12a8 8 0 0 1 13.5-5.8L20 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4v4h-4M4 20v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+    function nLine(title, sub, extra, act, cls) {
+      var tag = act ? "button" : "div";
+      return "<" + tag + ' class="n-row' + (cls ? " " + cls : "") + '"' +
+        (act ? ' type="button" data-act="' + act + '"' : "") + '><span class="ttl">' +
+        title + (sub ? "<small>" + sub + "</small>" : "") + "</span>" + (extra || "") + "</" + tag + ">";
+    }
+    var profileRow = cloud.signedIn
+      ? K().row({ ui: "profile", cls: "profile-row", act: "cloud-sign", lead: guest, title: "Google: вход выполнен", sub: "нажмите, чтобы выйти" })
+      : K().row({ ui: "profile", cls: "profile-row", act: "cloud-sign", lead: guest, title: "Войти через Google" });
+    var syncRow = cloud.signedIn
+      ? nLine("Синхронизация", cloud.lastBackup ? '<span class="sync-when">копия ' + esc(String(cloud.lastBackup)) + "</span>" : "", syncIco, "cloud-sync")
+      : "";
+    var alertsDoorSub = n.enabled ? (P().isPace(n) ? "темп (самоадаптивный)" : esc("каждые " + P().freqLabel(n.everyMin))) : "выключены";
+    var wSorted = (state.weights || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var curKg = wSorted.length ? wSorted[wSorted.length - 1].kg : state.weightKg;
+    return '<header class="top plain"><h1>Настройки</h1></header>' +
+      '<div class="n-section">Мой профиль</div>' +
+      profileRow + syncRow +
+      (cloud.signedIn ? K().row({ ui: "cloud-save", title: "Сохранить копию", sub: "отправить текущие данные на Диск", act: "cloud-save" }) : "") +
+      K().row({ ui: "set-open-folder-alerts", title: "Уведомления", sub: alertsDoorSub, act: "open-folder-alerts" }) +
+      '<div class="n-section">Личные настройки</div>' +
+      K().row({ ui: "set-open-set-weight", title: "Вес", sub: esc(H().fmtKg(curKg)), act: "open-set-weight" }) +
+      '<div class="n-section">Основные настройки</div>' +
+      K().row({ ui: "set-open-theme", title: "Выбор темы", sub: esc(THEME_NAMES[state.theme] || "Системная"), act: "open-theme" }) +
+      '<div class="n-section">Перенос данных</div>' +
+      K().row({ ui: "set-save-db-file", title: "Сохранить базу файлом", sub: "JSON с записями и настройками", act: "file-save" }) +
+      K().row({ ui: "set-load-history", title: "Восстановить из файла", sub: "записи и, с согласия, настройки", act: "file-open" }) +
+      '<p class="set-ver">Версия ' + versionLabel() + "</p>";
   }
 
-  /* Экран веса (M22, макет weight-layout v1): скелет истории, та же сетка. */
+  /* Экран веса — дословно донор (app.js 2944–2985): панель «Текущий вес» +
+     табы Неделя/Месяц/Год (дефолт — год), две страницы периодов в свайп-
+     дорожке (весы weightWindow/weightSvg — M11), «История» без даты, строки
+     wrow. Поведение next сохранено: могилы (M03) фильтруют список. */
   function pageWeight() {
     var today = N().wallToday();
-    var range = ui.weightRange || "month";
+    var range = ui.weightRange || "year";
     var anchor = ui.weightAnchor || today;
+    /* v83 (донор): будущей страницы нет — только прошлый период и текущий. */
+    var windows = [-1, 0].map(function (delta) {
+      return H().weightWindow(range, H().shiftPeriod(range, anchor, delta, today), today);
+    });
     var tombs = J().tombMap(state, "w");
-    var ws = (state.weights || []).filter(function (w) {
+    var all = (state.weights || []).filter(function (w) {
       return !J().tombBlocks(tombs, J().weightKey(w), J().entryTouch(w));
-    })
-      .sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0); });
-    var live = ws.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-    var cur = live.length ? live[live.length - 1].kg : state.weightKg;
-    var rows = ws.map(function (w) {
+    }).slice().sort(function (a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt || 0) - (b.createdAt || 0);
+    });
+    var shown = windows[1];
+    var current = all.length ? all[all.length - 1].kg : state.weightKg;
+    var scale = H().weightScale(all, windows, today, state.weightKg);
+    var pages = windows.map(function (item) {
+      return '<div class="w-page"><div class="w-period' + (item.under ? " under" : "") + '">' + esc(item.title) + "</div>" + H().weightSvg(all, today, item, scale) + "</div>";
+    }).join("");
+    var list = all.filter(function (w) { return w.date >= shown.start && w.date <= shown.end; }).map(function (w) {
       return K().swipeRow({ ui: "weight", sid: "w-" + w.id,
         actions: [
           { act: "edit-weight", id: w.id, aria: "Изменить", icon: uiIcon("pencilMask") },
           { act: "del-weight", id: w.id, cls: "danger", aria: "Удалить", icon: uiIcon("trash") }
         ],
-        front: '<div class="swipe-front entry"><span class="who"><span class="htime">' + w.date.slice(5, 7) + "." + w.date.slice(0, 4) +
-          '</span></span><span class="hvol">' + Q().fmtKg(w.kg) + " кг</span></div>" });
+        front: '<div class="swipe-front wrow"><span>' + (range === "year" ? w.date.slice(5, 7) + "." + w.date.slice(0, 4) : w.date.slice(8, 10) + "." + w.date.slice(5, 7) + "." + w.date.slice(0, 4)) + '</span><span class="wkg">' + H().fmtKg(w.kg) + "</span></div>" });
     }).join("");
-    if (!rows) rows = '<div class="empty">Нет взвешиваний — добавьте первое плюсом</div>';
-    return K().header({ ui: "weight", cls: "top plain", title: "История веса",
-        right: '<button type="button" class="head-pill" data-act="weight-range">' + Q().rangeLabel(range) + "</button>" }) +
-      '<div class="wt-wcur"><span>Текущий вес</span><b>' + Q().fmtKg(cur) + " кг</b></div>" +
-      '<div class="wt-wgraph">' + Q().chartSvg(live, range, anchor) + "</div>" +
-      '<div class="hist-head"><span class="hist-ico" aria-hidden="true">' + uiIcon("restore") + "</span><span>История</span><span class='grow'></span>" +
-      '<span class="hist-date">' + anchor.slice(8, 10) + "." + anchor.slice(5, 7) + "." + anchor.slice(0, 4) + "</span></div>" +
-      '<div class="hist-list">' + rows + "</div>";
+    if (!list) list = '<div class="empty w-empty">Нет данных</div>';
+    var tabs = [["week", "Неделя"], ["month", "Месяц"], ["year", "Год"]].map(function (it) {
+      return '<button type="button" class="' + (range === it[0] ? "on" : "") + '" data-act="weight-range" data-range="' + it[0] + '">' + it[1] + "</button>";
+    }).join("");
+    return "" +
+      K().header({ ui: "weight", cls: "top plain", title: "История веса" }) +
+      '<div class="w-panel">' +
+      '<div class="w-center"><div class="w-now"><span>Текущий вес</span><b>' + H().fmtKg(current) + "</b></div>" +
+      '<div class="wrange">' + tabs + "</div></div>" +
+      '<div class="w-swipe"><div class="w-track">' + pages + "</div></div></div>" +
+      '<div class="hist-head"><span class="hist-ico" aria-hidden="true">' + uiIcon("restore") + '</span><span>История</span></div>' +
+      '<div class="hist-list w-list">' + list + "</div>";
   }
 
   function onbScreen() {
@@ -644,13 +898,7 @@
         body: '<div class="field"><label>Вес, кг</label><input type="number" step="0.1" min="1" max="400" data-act="weight-kg" value="' + esc(String(wd.kg)) + '"></div>' +
           '<div class="field"><label>Дата</label><input type="date" data-act="weight-date" value="' + esc(wd.date) + '"></div>',
         tail: '<button type="button" class="check center" data-act="weight-save" aria-label="Сохранить">' + uiIcon("check") + "</button>" });
-    } else if (ui.sheet === "weight-range") {
-      var rr = ui.weightRange || "month";
-      out += U().sheet({ ui: "weightrange", title: "Период графика",
-        body: U().optionList({ ui: "wr", act: "weight-range-pick",
-          items: [["week", "Неделя"], ["month", "Месяц"], ["year", "Год"]].map(function (it) {
-            return { value: it[0], label: it[1], on: rr === it[0] };
-          }) }) });
+
     } else if (ui.sheet === "alert-period") {
       var n = N().ensureAlerts(state);
       var opts = PERIODS.map(function (m) {
@@ -685,6 +933,16 @@
         body: '<div class="onb-kg-grid">' + dgrid + "</div>" +
           '<button type="button" class="time-btn" data-act="onb-time-sys">' + uiIcon("clock") + "<span>Системные часы</span></button>" });
     }
+    if (ui.modal === "theme") {
+      /* Диалог темы донора (settings-ui.js 405–424); тема «Oneplus 7» —
+         пустое место до модуля «Внешний вид». */
+      out += U().dialog({ ui: "theme", scrimAct: "theme-cancel", cls: "modal n-modal theme-modal", title: "Выбор темы",
+        body: U().optionList({ ui: "theme", act: "pick-theme", attr: "v",
+          items: [["system", "По умолчанию"], ["light", "Светлая тема"], ["dark", "Тёмная тема"]].map(function (o) {
+            return { value: o[0], label: o[1], on: state.theme === o[0] };
+          }) }),
+        actions: [{ act: "theme-cancel", label: "Отмена" }] });
+    }
     if (ui.modal === "dialog" && ui.dialogSpec) {
       var d = ui.dialogSpec;
       out += U().dialog({ ui: d.kind || "dialog", cls: "modal", scrimAct: d.scrimAct || "dialog-cancel",
@@ -696,6 +954,7 @@
 
   /* ---- рендер (донор 4520, сокращённый) ---- */
   function render() {
+    animToken++;
     try {
       W.__waterRenders = (W.__waterRenders || 0) + 1;
       W.__hb = Date.now();
@@ -721,7 +980,6 @@
       U().navHtml(ui) + overlayHtml() + U().toastHtml(ui);
     afterRender();
   }
-  function I() { return W.WT2I; }
   /* Слово владельца 06.11: версия в программе = реальная версия сборки.
      Правда приходит из Java-моста (BuildConfig), константы — запас веб-режима. */
   function versionLabel() {
@@ -737,16 +995,6 @@
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
       W.__wtFileHook = function (text, err) {
-        /* M24: один файловый транспорт, диспетчер по kind пака. */
-        if (text != null && !err) {
-          try {
-            var pk0 = JSON.parse(text);
-            if (pk0 && pk0.kind === "watercat-iface") {
-              I().fileResult(text, null, { toast: toast, render: render });
-              return;
-            }
-          } catch (e) { /* не JSON — пусть M23 скажет своё слово */ }
-        }
         F().fileResult(state, text, err, {
           toast: toast,
           save: function () { C().save(state); },
@@ -786,35 +1034,27 @@
     U().bindPhone();
     initSwipes();
     initSwipeTaps();
-    /* M22 v3 (слово 06.11): прокрутка столбцов, упор влево — первый столбец. */
-    var cp = document.querySelector(".wt-caps");
-    if (cp) {
-      var cpMax = cp.scrollWidth - cp.clientWidth;
-      cp.scrollLeft = ui.capsLeft == null ? cpMax : Math.min(Math.max(0, ui.capsLeft), cpMax);
-      if (!cp._bound) {
-        cp._bound = true;
-        cp.addEventListener("scroll", function () {
-          var mx = cp.scrollWidth - cp.clientWidth;
-          if (cp.scrollLeft < 0) cp.scrollLeft = 0;
-          if (cp.scrollLeft > mx) cp.scrollLeft = mx;
-          ui.capsLeft = cp.scrollLeft;
-        });
-      }
-    }
+    /* Механика графика донора (bindAll 7315–7334): позиция после раскладки,
+       два кадра, guard от ложного нуля WebView; затем окно и масштаб. */
     var sc = document.querySelector(".chart-scroll");
     if (sc) {
-      sc.scrollLeft = ui.chartLeft == null ? sc.scrollWidth : ui.chartLeft;
-      if (!sc._bound) {
-        sc._bound = true;
-        sc.addEventListener("scroll", function () { ui.chartLeft = sc.scrollLeft; });
-      }
+      sc.addEventListener("scroll", onHistoryChartScroll);
+      sc.addEventListener("scroll", function () { if (!sc._restoreGuard) ui.chartLeft = sc.scrollLeft; });
+      sc._restoreGuard = true;
+      var wantLeft = function () { return ui.chartLeft == null ? sc.scrollWidth : ui.chartLeft; };
+      requestAnimationFrame(function () {
+        sc.scrollLeft = wantLeft();
+        requestAnimationFrame(function () {
+          sc.scrollLeft = wantLeft();
+          sc._restoreGuard = false;
+          growHistoryChart();
+          fitHistoryChart();
+        });
+      });
     }
+    initXScroll();
+    initWeightSwipe();
     if (W.WT2X) W.WT2X.syncBars();
-    /* M24: метки объектов для интерфейсного пака (редактор и применение). */
-    if (W.WT2I) {
-      var appRoot = document.getElementById("app");
-      W.WT2I.labelOids(appRoot, W.WT2I.screenIdOf(ui));
-    }
     if (R()) R().emit("ui:render", { tab: ui.tab, page: ui.page });
   }
   function closeSheet() { ui.sheet = null; render(); }
@@ -921,12 +1161,29 @@
       render(); return;
     }
     if (act === "pick-day") { ui.historyDate = ds.date; ui.chartLeft = null; render(); return; }
-    if (act === "open-cal-hist") { toast("Календарь приедет с настройками (M15)"); return; }
+    if (act === "open-cal-hist") { toast("Календарь приедет со своим модулем"); return; }
     if (act === "open-volumes") { ui.page = "volumes"; render(); return; }
+    if (act === "open-theme") { ui.modal = "theme"; render(); return; }
+    if (act === "theme-cancel") { ui.modal = null; render(); return; }
+    if (act === "open-set-weight") {
+      ui.weightDraft = { kg: "", date: N().wallToday() };
+      ui.sheet = "weight-add"; render(); return;
+    }
+    if (act === "open-folder-alerts") { ui.tab = "alerts"; ui.page = null; render(); return; }
+    if (act === "open-alert-freq") { ui.sheet = "alert-period"; render(); return; }
+    if (act === "open-alert-sound") { ui.sheet = "alert-sound"; render(); return; }
+    if (act === "pick-recent-volume") {
+      state.profile.volume = Number(ds.v) || state.profile.volume;
+      save(); render(); return;
+    }
     if (act === "toggle") {
+      /* Ключи донора (alertsBody) и прежние ключи next — одни поля M13. */
       var n = N().ensureAlerts(state);
-      if (ds.key === "alerts-enabled") n.enabled = !n.enabled;
-      else if (ds.key === "hold-until") n.holdUntilDrink = !n.holdUntilDrink;
+      if (ds.key === "alerts-enabled" || ds.key === "alertOn") n.enabled = !n.enabled;
+      else if (ds.key === "hold-until" || ds.key === "holdUntilDrink") n.holdUntilDrink = !n.holdUntilDrink;
+      else if (ds.key === "alertVibrate") n.vibrate = n.vibrate === false;
+      else if (ds.key === "whenGoalMet") n.whenGoalMet = !n.whenGoalMet;
+      else if (ds.key === "evenIfRecent") n.evenIfRecent = !n.evenIfRecent;
       save(); alertsSync(); render(); return;
     }
     if (act === "alert-period") { ui.sheet = "alert-period"; render(); return; }
@@ -947,7 +1204,8 @@
       save(); alertsSync(); ui.sheet = null; render(); return;
     }
     if (act === "pick-theme") {
-      state.theme = ds.v === "light" || ds.v === "dark" || ds.v === "oneplus" ? ds.v : "system";
+      state.theme = ds.v === "light" || ds.v === "dark" ? ds.v : "system";
+      ui.modal = null;
       save(); applyTheme(); render(); return;
     }
     if (act === "cloud-sign") {
@@ -956,7 +1214,6 @@
       return;
     }
     if (act === "cloud-save") { cloudUpload("manual"); return; }
-    if (act === "hist-day") { ui.historyDate = t.dataset.v; render(); return; }
     if (act === "open-add") {
       ui.addDraft = { drinkId: state.profile.drinkId, volume: state.profile.volume };
       ui.sheet = "add-entry"; render(); return;
@@ -978,10 +1235,10 @@
       ui.weightDraft = { kg: "", date: N().wallToday() };
       ui.sheet = "weight-add"; render(); return;
     }
-    if (act === "weight-range") { ui.sheet = "weight-range"; render(); return; }
-    if (act === "weight-range-pick") {
-      ui.weightRange = t.dataset.v; ui.weightAnchor = N().wallToday();
-      ui.sheet = null; render(); return;
+    if (act === "weight-range") {
+      /* Табы донора (9710): диапазон сразу, якорь — сегодня. */
+      ui.weightRange = ds.range; ui.weightAnchor = N().wallToday();
+      render(); return;
     }
     if (act === "edit-weight") {
       var wE = (state.weights || []).filter(function (w) { return w.id === t.dataset.id; })[0];
@@ -1022,31 +1279,6 @@
     }
     if (act === "file-save") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
-    if (act === "iface-open") { I().request(ui, toast); return; }
-    if (act === "iface-text") {
-      ui.modal = "dialog";
-      ui.dialogSpec = {
-        title: "Интерфейс из текста",
-        body: '<textarea id="ifaceText" class="svg-export-text" spellcheck="false" aria-label="Текст интерфейсного пака"></textarea>',
-        actions: [
-          { act: "iface-text-cancel", label: "Отмена" },
-          { act: "iface-text-apply", label: "Применить" }
-        ],
-        scrimAct: "iface-text-cancel"
-      };
-      render();
-      return;
-    }
-    if (act === "iface-text-cancel") { ui.modal = null; ui.dialogSpec = null; render(); return; }
-    if (act === "iface-text-apply") {
-      var ta = document.getElementById("ifaceText");
-      var txt = ta ? ta.value : "";
-      ui.modal = null; ui.dialogSpec = null;
-      I().fileResult(txt, null, { toast: toast, render: render });
-      return;
-    }
-    if (act === "iface-save") { I().saveToBridge(toast); return; }
-    if (act === "iface-reset") { I().reset(); toast("Интерфейс сброшен к канону"); render(); return; }
     if (act === "cloud-sync") {
       if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
         toast("Синхронизация доступна в приложении Android"); return;
@@ -1055,7 +1287,6 @@
       window.WaterGoogle.restore();
       return;
     }
-    if (act === "set-ver") { /* вход M18 слушает документ сам */ return; }
   }
 
   function onbAction(act, ds) {
@@ -1113,7 +1344,6 @@
     U().ICON_BASE_SET("assets/icons/");
     N().ensureAlerts(state);
     applyTheme();
-    if (W.WT2I) W.WT2I.bootApply();
     bindEvents();
     var env = {
       shell: ui, render: render, closeSheet: closeSheet,
@@ -1122,7 +1352,6 @@
       has: function (sel) { return !!document.querySelector(sel); }
     };
     if (W.WT2X) W.WT2X.bind(env);
-    if (W.WT2G) W.WT2G.bind(env);
     render();
     /* Загрузочные шаги донора: разрешение на уведомления, облако, сверка слотов. */
     var n = N().ensureAlerts(state);

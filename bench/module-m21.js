@@ -1,6 +1,10 @@
-/* Стенд M21: композитор против живого донора (v159-фикс) на одной фикстуре +
-   потоки нового дома (выпил/отмена/ярлык/лента/правка/удаление/напоминания/
-   тема/вход M18/онбординг). Снимки — bench/shots/m21-*.png (глаз владельца). */
+/* Стенд M21: композитор против живого донора на одной фикстуре + потоки
+   (выпил/отмена/ярлык/лента/правка/удаление/напоминания/тема/онбординг).
+   Шаг 1 (каркас донорской кожи): кейсы верха/пилюли переведены на байтовую
+   эквивалентность донор==следующий; вход M18 умер вместе с экранным
+   отладчиком — гейт «оверлея нет»; тема/звук/частота — донорскими дорогами
+   (диалог open-theme, шторки open-alert-freq/open-alert-sound).
+   Снимки — bench/shots/m21-*.png (глаз владельца). */
 const { chromium } = require('/home/user/pw/node_modules/playwright');
 const fs = require('fs');
 let fails = 0;
@@ -113,48 +117,60 @@ const histNums = () => {
     nextSeats.stats === false && nextSeats.chart === false && donorSeats.hint === nextSeats.hint,
     { donorSeats, nextSeats });
 
-  /* --- канон v2 верха (слово 05.11): бар на Ж, шапка на З, О-З = К-Л --- */
+  /* --- донорский верх: home-bar-top первый, геометрия шапки/сцены донор==следующий --- */
   await p.click('[data-tab="home"]');
   await p.waitForSelector('.home-dock .pill');
-  const topCanon = await p.evaluate(() => {
-    const cy = e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; };
-    const pitch = cy(document.querySelector('.home-dock .pill')) - cy(document.querySelector('.home-dock .shortcut'));
-    const band = parseFloat(getComputedStyle(document.querySelector('.wt-topzone > header.top')).height);
-    return { pitch: +pitch.toFixed(1),
-      bar: +cy(document.querySelector('.top.home-bar-top .progress')).toFixed(1),
-      head: +cy(document.querySelector('.home-screen h1')).toFixed(1),
-      stageTop: +document.querySelector('.cat-stage').getBoundingClientRect().top.toFixed(1),
-      wantBar: +(pitch / 2).toFixed(1), wantHead: +pitch.toFixed(1), wantStage: +(pitch + band / 2).toFixed(1) };
-  });
-  ok('канон v2 верха: центр полосы на Ж (О-З/2), шапка на З (О-З = К-Л), сцена от З + band/2',
-    Math.abs(topCanon.bar - topCanon.wantBar) <= 1 && Math.abs(topCanon.head - topCanon.wantHead) <= 1 &&
-    Math.abs(topCanon.stageTop - topCanon.wantStage) <= 1, topCanon);
+  const topProbe = () => {
+    const hs = document.querySelector('.home-screen');
+    const r = e => { if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]; };
+    const h1 = hs.querySelector('header.top h1');
+    return { first: hs.children[0] ? hs.children[0].className : null,
+      bar: r(hs.querySelector('.home-bar-top .progress')),
+      h1: h1 ? h1.textContent : null, h1r: r(h1),
+      stage: r(hs.querySelector('.cat-stage')) };
+  };
+  const nextTop = await p.evaluate(topProbe);
+  const pdt = await ctx.newPage();
+  await pdt.goto('http://127.0.0.1:8085/water-tracker/index.html');
+  await pdt.waitForFunction(() => document.querySelector('.home-bar-top .progress'));
+  const donorTop = await pdt.evaluate(topProbe);
+  await pdt.close();
+  ok('донорский верх: home-bar-top первый, полоса/шапка/сцена донор==следующий байт-в-байт',
+    nextTop.first.indexOf('home-bar-top') >= 0 && JSON.stringify(donorTop) === JSON.stringify(nextTop),
+    { donorTop, nextTop });
 
-  /* --- правило пилюли: значок в центре левой окружности (слово 05.11) --- */
-  await p.click('[data-tab="home"]');
-  await p.waitForSelector('.home-dock .pill');
-  const pillRule = await p.evaluate(() => {
+  /* --- пилюля донора: геометрия/текст/действие донор==следующий (капля вместо мордочки — объявленное исключение) --- */
+  const pillProbe = () => {
     const pill = document.querySelector('.home-dock .pill');
-    const ico = pill.querySelector('.ui-mask');
-    const pr = pill.getBoundingClientRect(), ir = ico.getBoundingClientRect();
-    const cs = getComputedStyle(ico);
-    return { circle: [Math.round(pr.x + pr.height / 2), Math.round(pr.y + pr.height / 2)],
-      ico: [Math.round(ir.x + ir.width / 2), Math.round(ir.y + ir.height / 2)],
-      face: [Math.round(ir.width), Math.round(ir.height)], pos: cs.position };
-  });
-  ok('правило пилюли: значок 28px абсолютно в центре левой окружности',
-    Math.abs(pillRule.circle[0] - pillRule.ico[0]) <= 1 && Math.abs(pillRule.circle[1] - pillRule.ico[1]) <= 1 &&
-    pillRule.face[0] === 28 && pillRule.pos === 'absolute', pillRule);
-  const pillLight = await p.evaluate(() => {
+    const mc = pill.querySelector('.mini-cat');
+    const sp = pill.querySelector('span:last-of-type');
+    const r = e => { const b = e.getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]; };
+    return { pill: r(pill), mc: r(mc), text: sp ? sp.textContent : null, act: pill.dataset.act };
+  };
+  const nextPill = await p.evaluate(pillProbe);
+  const pdp = await ctx.newPage();
+  await pdp.goto('http://127.0.0.1:8085/water-tracker/index.html');
+  await pdp.waitForFunction(() => document.querySelector('.home-dock .pill .mini-cat'));
+  const donorPill = await pdp.evaluate(pillProbe);
+  await pdp.close();
+  ok('пилюля донора: короб, место значка, текст «250 мл», действие open-volume — донор==следующий',
+    nextPill.act === 'open-volume' && JSON.stringify(donorPill) === JSON.stringify(nextPill),
+    { donorPill, nextPill });
+  const pillLight = await p.evaluate(async () => {
     document.querySelector('[data-tab="settings"]').click();
+    document.querySelector('[data-act="open-theme"]').click();
     document.querySelector('[data-act="pick-theme"][data-v="light"]').click();
     document.querySelector('[data-tab="home"]').click();
-    const ico = document.querySelector('.home-dock .pill .ui-mask');
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const ico = document.querySelector('.home-dock .pill .mini-cat');
     return getComputedStyle(ico).filter;
   });
-  ok('правило пилюли: светлая тема отбеливает лицо на голубой пилюле (C-007)', pillLight.indexOf('brightness(0)') === 0, pillLight);
-  await p.click('[data-tab="settings"]');
-  await p.click('[data-act="pick-theme"][data-v="dark"]');
+  ok('C-007: светлая тема отбеливает каплю на голубой пилюле (styles.css:926 донора)', pillLight.indexOf('brightness(0)') === 0, pillLight);
+  await p.evaluate(() => {
+    document.querySelector('[data-tab="settings"]').click();
+    document.querySelector('[data-act="open-theme"]').click();
+    document.querySelector('[data-act="pick-theme"][data-v="dark"]').click();
+  });
 
   /* --- поток «выпил» --- */
   await p.click('[data-tab="home"]');
@@ -222,42 +238,43 @@ const histNums = () => {
   await p.screenshot({ path: __dirname + '/shots/m21-alerts.png' });
   const alerts = await p.evaluate(() => {
     const app = window.__waterApp;
-    document.querySelector('[data-key="alerts-enabled"]').click();
+    const sw = () => document.querySelector('[data-ui="sw-alertOn"]') || document.querySelector('[data-key="alertOn"]');
+    sw().click();
     const off = app.state.notifications.enabled;
-    document.querySelector('[data-key="alerts-enabled"]').click();
+    sw().click();
     const on = app.state.notifications.enabled;
-    document.querySelector('[data-act="alert-period"]').click();
+    document.querySelector('[data-act="open-alert-freq"]').click();
     const sheet = app.ui.sheet;
     document.querySelector('[data-act="pick-period"][data-v="90"]').click();
     const every = app.state.notifications.everyMin;
-    document.querySelector('[data-act="alert-sound"]').click();
+    document.querySelector('[data-act="open-alert-sound"]').click();
     document.querySelector('[data-act="pick-sound"][data-file="water_sound.mp3"]').click();
     return { off: off, on: on, sheet: sheet, every: every, sound: app.state.notifications.sound, sheetClosed: app.ui.sheet === null };
   });
-  ok('напоминания: тумблер, интервал 90, звук — всё в state, шторки закрываются', alerts.off === false && alerts.on === true && alerts.sheet === 'alert-period' && alerts.every === 90 && alerts.sound === 'water_sound.mp3' && alerts.sheetClosed, alerts);
+  ok('напоминания (донор): свич sw-alertOn, интервал 90 через pick-period, звук через pick-sound — всё в state, шторки закрываются', alerts.off === false && alerts.on === true && alerts.sheet === 'alert-period' && alerts.every === 90 && alerts.sound === 'water_sound.mp3' && alerts.sheetClosed, alerts);
 
   /* --- настройки: тема и вход M18 --- */
   await p.click('[data-tab="settings"]');
-  await p.waitForSelector('.settings-screen');
+  await p.waitForSelector('.set-ver');
   await p.screenshot({ path: __dirname + '/shots/m21-settings.png' });
   const theme = await p.evaluate(() => {
     const app = window.__waterApp;
+    document.querySelector('[data-act="open-theme"]').click();
     document.querySelector('[data-act="pick-theme"][data-v="light"]').click();
     const light = [app.state.theme, document.documentElement.getAttribute('data-theme')];
+    document.querySelector('[data-act="open-theme"]').click();
     document.querySelector('[data-act="pick-theme"][data-v="dark"]').click();
     return { light: light, dark: [app.state.theme, document.documentElement.getAttribute('data-theme')] };
   });
-  ok('тема: light/dark переключают data-theme и state', theme.light[0] === 'light' && theme.light[1] === 'light' && theme.dark[1] === 'dark', theme);
+  ok('тема (донорский диалог): light/dark переключают data-theme и state', theme.light[0] === 'light' && theme.light[1] === 'light' && theme.dark[1] === 'dark', theme);
   const ver = await p.evaluate(async () => {
     const el = document.querySelector('.set-ver');
     if (!el) return null;
     for (let i = 0; i < 5; i++) el.click();
-    await new Promise(r => setTimeout(r, 600));
-    const ov = document.getElementById('wt-diag');
-    return { text: el.textContent, overlay: !!ov, head: ov ? ov.textContent.slice(0, 30) : '' };
+    await new Promise(r => setTimeout(r, 400));
+    return { text: el.textContent, overlay: !!document.getElementById('wt-diag') };
   });
-  ok('версия + пять тапов: отладчик M18 открылся из настоящих настроек', ver && ver.text.indexOf('2.0-next (200)') >= 0 && ver.overlay && ver.head.indexOf('Отладчик') === 0, ver);
-  await p.evaluate(() => { const o = document.getElementById('wt-diag'); if (o) o.remove(); });
+  ok('версия честная, экранный отладчик M18 из приложения удалён (пять тапов — оверлея нет)', ver && ver.text.indexOf('2.0-next') >= 0 && ver.overlay === false, ver);
 
   /* --- онбординг: свежий старт (C-014) --- */
   const ctx2 = await b.newContext({ viewport: { width: 412, height: 892 } });
