@@ -71,7 +71,7 @@ const longDate = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.s
   });
   ok('главная: полоса прогресса первая, каркас донора; в слоте кота круг с жидкостью; чашка/погода/активность/избранный ряд — пустые невидимые места; пилюля с каплей',
     home.firstIsBar && !home.topzone && home.orb && !home.catBtn && home.water &&
-    home.cupPill && home.weather && home.fitness && !home.editToggle && /* миска/погода/активность ожили (модули 3-5) */
+    home.cupPill && home.weather && home.fitness && home.editToggle && /* миска/погода/активность/ряд ожили (модули 3-6) */
     home.rounds === 4 /* undo+напиток+погода+активность (модуль 5) */ && home.shortcuts >= 1 && home.pillDrop && /350\s*мл/.test(home.pillText || ''), home);
 
   /* 2. история: донорские столбцы вместо капсул, верх донорский */

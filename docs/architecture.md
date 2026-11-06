@@ -353,3 +353,23 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   open-fitness/pick-activity/toggle-activity-save (m19 setActivity*).
 - Проверки: smoke-m25 97/97; pixel-m25 sheet-activity: карточка вне diff
   (13.79% — домашние сид-места сквозь скрим); m22: fitness ожила, rounds 4.
+
+### M25, модуль 6 шага 2 — pins (слово «продолжать», 06.11)
+
+- Избранный ряд донора (app.js 2518-2566): pins-ветка дока (5 слотов: пин или
+  pin-add «+»), hint-подсказки, dim тела в pinning, edit-toggle (5,1).
+- Редактор пина: openPinEditor (7379) через страницу напитков (drinkReturn
+  «pin»: заголовок «Избранный напиток», pin-current, selectedVol) и шторку
+  объёма донора (4134-4152: volumeSheetBody/presetsHtml/drinkRowItems,
+  «Объём избранного», ряд напитков скрыт); commit-volume пишет
+  customShortcuts[slot] + rowCustom.
+- Удержание пина: initPinHold (7396, 450 мс) + swallowUntilRelease (7358);
+  вызов initPinHold в afterRender (донор: bindAll из render).
+- Акты: edit-row/add-pin/preset донора; open-drinks/open-volume с сбросом
+  pinning; pin-ветки pick-drink и back; close-sheet сбрасывает pinning.
+- Тонкости: overlay next собирает out (донорская html += заменена); var pins
+  объявлен до pins-ветки (донор 2519).
+- Проверки: smoke-m25 109/109 (12 гейтов пинов, включая удержание);
+  pixel-m25 home-pins: ряд/хинт/тумблер вне diff (13.89% — сид-места шага 1);
+  m22: editToggle ожила. Новый пак владельца (13:24, с cat-настройками) принят
+  сидом: cat игнорируется по слову 06.11 (круг вместо кота).

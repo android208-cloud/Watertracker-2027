@@ -232,6 +232,43 @@ function ok(cond, name) {
   ok(!(await has(p, '[data-act="pick-activity"]')), 'шторка закрылась');
   await click(p, '[data-tab="settings"]');
 
+  console.log('Модуль 6: пины:');
+  await click(p, '[data-tab="home"]');
+  ok(await has(p, '[data-act="edit-row"]'), 'edit-toggle в доке (5,1)');
+  await click(p, '[data-act="edit-row"]');
+  ok((await S(p)).rowCustom === true, 'rowCustom включён');
+  ok((await p.$$('[data-act="add-pin"]')).length === 5, 'пять слотов + для пинов');
+  const hint = await p.evaluate(() => (document.querySelector('.dock-hint') || {}).textContent || '');
+  ok(/избранный ряд/.test(hint), 'hint «Нажмите +…»', hint.trim());
+  await shot(p, 'home-pins-empty');
+  await click(p, '[data-act="add-pin"][data-slot="1"]');
+  const ptitle = await p.evaluate(() => (document.querySelector('header .title, header h1') || {}).textContent || '');
+  ok(/Избранный напиток/.test(ptitle), 'страница напитков в pin-режиме', ptitle.trim());
+  await click(p, '.drow[data-act="pick-drink"]');
+  ok(await has(p, '[data-act="commit-volume"]'), 'шторка объёма пина открыта');
+  const volTitle = await p.evaluate(() => (document.querySelector('.sheet .sheet-title, .sheet h2') || {}).textContent || '');
+  ok(/Объём избранного/.test(volTitle), 'заголовок «Объём избранного»', volTitle.trim());
+  ok(!(await has(p, '[data-act="pick-volume-drink"]')), 'ряд напитков скрыт в pinning');
+  await shot(p, 'sheet-pin-volume');
+  await click(p, '[data-act="commit-volume"]');
+  const st6 = await S(p);
+  ok(!!(st6.customShortcuts && st6.customShortcuts[1]), 'customShortcuts[1] записан');
+  ok(await has(p, '.home-dock [data-act="apply-shortcut"][data-slot="1"]'), 'пин встал в док');
+  /* удержание пина → редактор (донор initPinHold) */
+  const box = await (await p.$('.home-dock [data-act="apply-shortcut"][data-slot="1"]')).boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.waitForTimeout(800);
+  await p.mouse.up();
+  await p.waitForTimeout(300);
+  const ptitle2 = await p.evaluate(() => (document.querySelector('header .title, header h1') || {}).textContent || '');
+  ok(/Избранный напиток/.test(ptitle2), 'удержание открыло редактор пина', ptitle2.trim());
+  await p.waitForTimeout(700); /* окно подавления догоняющего клика (донор 500 мс) */
+  await click(p, 'header [data-act="back"]');
+  await click(p, '[data-act="edit-row"]');
+  ok((await S(p)).rowCustom === false, 'edit-row вернул недавние');
+  await click(p, '[data-tab="settings"]');
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');

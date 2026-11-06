@@ -39,6 +39,7 @@ const VIEWS = [
   { id: 'settings-advanced',  theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-advanced"]'], ['wait', '[data-act="ask-delete-all"]']] },
   { id: 'settings-alerts',    theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['wait', '[data-act="open-alert-freq"]']] },
   { id: 'settings-light',     theme: 'light', nav: [['tab', 'settings']], waitExtra: '.set-ver' },
+  { id: 'home-pins',          theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="edit-row"]'], ['wait', '[data-act="add-pin"]']] },
   { id: 'sheet-activity',     theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-fitness"]'], ['wait', '[data-act="pick-activity"]']] },
   { id: 'home-cup',           theme: 'dark',  nav: [['tab', 'home'], ['wait', '.home-dock .cup-pill']] },
   { id: 'sheet-weather',      theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-weather"]'], ['wait', '[data-act="pick-weather"]']] },

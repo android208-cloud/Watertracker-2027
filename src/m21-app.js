@@ -632,15 +632,39 @@
     var cup = cupModel(wallMsNow()); /* донор 2513 */
     ui._cupLv = cup.level; /* донор 2514-2515: сигнатура миски для cupSecTick */
     ui._cupKind = cup.kind;
+    var pins = state.customShortcuts || []; /* донор 2519 */
     var slots = "";
-    for (var j = 0; j < L().SHORTCUT_LIMIT; j++) {
-      var s = cuts[j];
-      if (!s) continue;
-      var cutOn = s.drink.id === drink.id && s.volume === state.profile.volume;
-      slots += '<button type="button" class="shortcut' + (cutOn ? " on" : "") + '" style="--c:' + j + ';--r:1;--ring:' + s.drink.color + '" data-act="apply-shortcut" data-id="' + s.drink.id + '" data-volume="' + s.volume + '">' +
-        bubble(s.drink, "fill") + '<span class="vol">' + s.volume + "</span></button>";
+    var pinCount = 0;
+    if (state.rowCustom) {
+      for (var i = 0; i < LC.SHORTCUT_LIMIT; i++) {
+        var pin = pins[i];
+        var pinned = pin && drinkById(pin.drinkId);
+        if (pinned) {
+          pinCount++;
+          /* Выбранная сейчас пара «напиток + объём» подсвечена той же рамкой,
+             что быстрый ряд и ряд объёмов: цвет берём от подложки значка. */
+          var pinOn = pinned.id === drink.id && pin.volume === state.profile.volume;
+          slots += '<button type="button" class="shortcut' + (pinOn ? " on" : "") + '" style="--c:' + i + ";--r:1;--ring:" + pinned.color + '" data-act="apply-shortcut" data-slot="' + i + '" data-id="' + pinned.id + '" data-volume="' + pin.volume + '" aria-label="' + esc(pinned.name) + " " + pin.volume + ' мл. Удерживайте, чтобы изменить">' +
+            bubble(pinned, "fill") + '<span class="vol">' + pin.volume + "</span></button>";
+        } else {
+          slots += '<button type="button" class="pin-add" style="--c:' + i + ';--r:1" data-act="add-pin" data-slot="' + i + '" aria-label="Добавить избранный напиток">' + uiIcon("plus") + "</button>";
+        }
+      }
+    } else {
+      for (var j = 0; j < LC.SHORTCUT_LIMIT; j++) {
+        var s = cuts[j];
+        if (!s) continue;
+        /* Текущая пара «напиток + объём» подсвечена той же рамкой, что в
+           избранном ряду, в ряду объёмов и у быстрых напитков. */
+        var cutOn = s.drink.id === drink.id && s.volume === state.profile.volume;
+        slots += '<button type="button" class="shortcut' + (cutOn ? " on" : "") + '" style="--c:' + j + ";--r:1;--ring:" + s.drink.color + '" data-act="apply-shortcut" data-id="' + s.drink.id + '" data-volume="' + s.volume + '">' +
+          bubble(s.drink, "fill") + '<span class="vol">' + s.volume + "</span></button>";
+      }
     }
+    var dim = (ui.sheet === "volume" && ui.pinning) ? " dim" : "";
     var hint = "";
+    if (state.rowCustom && !pinCount) hint = '<p class="hint dock-hint">Нажмите +, чтобы собрать избранный ряд.</p>';
+    else if (!state.rowCustom && !cuts.length) hint = '<p class="hint dock-hint">Ярлыки появятся из истории. Пример — в настройках.</p>';
     if (!cuts.length) hint = '<p class="hint dock-hint">Ярлыки появятся из истории. Пример — в настройках.</p>';
     /* Кожа шага 1 (слово владельца 06.11 «интерфейс = прототип без кота»):
        разметка главной — дословно донор app.js 2503–2573. Исключения: в слоте
@@ -653,7 +677,7 @@
       /* v141: строка с полосой прогресса — самая верхняя на главном экране. */
       '<div class="top home-bar-top"><div class="progress' + (mr.soft ? " soft" : "") + '"><div class="fill" style="width:' + fill + '%"></div><div class="label">' + drunk + "/" + goal + "</div></div></div>" +
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
-      '<div class="home-body">' +
+      '<div class="home-body' + dim + '">' +
       '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
       Wd().waterHtml({ frac: level, color: Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top),
         rampColors: rampB.flat ? null : (Bc().visibleRamp() || rampB.colors),
@@ -672,6 +696,7 @@
       /* Правило пилюли (слово владельца 05.11): значок — в центре левой
          окружности; слот лица дока dona принимает классы mini-cat/mini-cup,
          ими же светлая тема отбеливает лицо на голубой пилюле (C-007). */
+      '<button type="button" class="edit-toggle' + (state.rowCustom ? " on" : "") + '" style="--c:5;--r:1" data-act="edit-row" aria-label="' + (state.rowCustom ? "Показать недавние" : "Показать избранные") + '">' + uiIcon("arrows") + "</button>" +
       U().pillHtml({ slot: { c: 0, r: 2 }, act: "open-volume", icon: uiIcon("drop").replace('class="ui-mask"', 'class="ui-mask mini-cat"'), label: state.profile.volume + " мл" }) +
       /* M25 модуль 3 (донор 2568): миска-тамагочи в слоте (2,2) — модель из
          истории, кот не участвует. */
@@ -738,7 +763,7 @@
      Сортировка, свайп-правки и «Добавить напиток» — пустые невидимые места
      до модуля создания напитка (правило 05.11). */
   function pageDrinks() {
-    var selectedVol = ui.drinkReturn === "history" && ui.addDraft ? ui.addDraft.volume : state.profile.volume;
+    var selectedVol = ui.drinkReturn === "history" && ui.addDraft ? ui.addDraft.volume : (ui.drinkReturn === "pin" ? ui.volumeDraft : state.profile.volume); /* донор 3718 */
     /* withWaterDay донора (380): сутки от dayStart — дата записи через entryDay. */
     var ents = (state.entries || []).map(function (e) {
       var dd = J().entryDay(state, e);
@@ -747,10 +772,12 @@
     var vols = L().recentVolumes(ents, N().waterToday(state), selectedVol, 8);
     var volRow = K().chipRow({ cls: "vol-pick", values: vols, selected: selectedVol, act: "pick-recent-volume", ui: "recent" });
     var rows = (state.drinks || []).map(function (d) {
-      return K().row({ ui: "drink", baseCls: "drow", act: "pick-drink", data: { id: d.id }, nameClass: "name",
+      var current = ui.drinkReturn === "pin" && ui.pinDrinkId === d.id; /* донор 3701 */
+      return K().row({ ui: "drink", baseCls: "drow", cls: current ? "pin-current" : "", act: "pick-drink", data: { id: d.id }, nameClass: "name",
         lead: bubble(d), title: esc(d.name), right: '<span class="pct">' + d.hydration + "%</span>" });
     }).join("");
-    return K().header({ ui: "drinks", back: uiIcon("back"), title: "Выбор напитка" }) + volRow + rows;
+    var title = ui.drinkReturn === "pin" ? "Избранный напиток" : "Выбор напитка"; /* донор 3720 */
+    return K().header({ ui: "drinks", back: uiIcon("back"), title: title }) + volRow + rows;
   }
 
   var alertAudio = null;
@@ -1933,6 +1960,140 @@
     return figureIcon(row[2], row[3], lock);
   }
 
+  function presetsHtml(value) {
+    return K().chipRow({ values: LC.PRESETS, selected: value, act: "preset", ui: "sheet" });
+  }
+
+  function drinkRowItems(selectedId) {
+    var drinks = state.drinks.slice(0, 8);
+    if (selectedId && !drinks.some(function (d) { return d.id === selectedId; })) {
+      var extra = drinkById(selectedId);
+      if (extra) drinks = [extra].concat(drinks);
+    }
+    return drinks.map(function (d) {
+      return { id: d.id, on: d.id === selectedId, color: d.color, name: esc(d.name), bubble: bubble(d, 52) };
+    });
+  }
+
+  function volumeSheetBody(cfg) {
+    var head = (cfg.editTag ? '<div class="edit-tag">Изменение записи</div>' : "") +
+      (cfg.date ? '<div class="sheet-date">Дата ' + cfg.date + "</div>" : "");
+    var row = cfg.pinning ? "" : K().drinkPickRow({
+      ui: cfg.ui, act: cfg.pickAct, more: true, moreIcon: uiIcon("chevron"),
+      items: drinkRowItems(cfg.selectedId)
+    });
+    return head + row + presetsHtml(cfg.volume) + cfg.wheel;
+  }
+
+  function openPinEditor(slot) {
+    var pins = state.customShortcuts || [];
+    var pin = pins[slot];
+    var drink = pin && drinkById(pin.drinkId);
+    ui.pinSlot = slot;
+    ui.pinning = false;
+    ui.pinDrinkId = drink ? drink.id : null;
+    ui.volumeDraft = pin && Number(pin.volume) > 0 ? Number(pin.volume) : (state.profile.volume || 200);
+    ui.page = "drinks";
+    ui.drinkReturn = "pin";
+    ui.sorting = false;
+    ui.sheet = null;
+    ui.modal = null;
+    ui.openSwipe = null;
+    render();
+  }
+
+  function initPinHold() {
+    document.querySelectorAll(".home-dock > .shortcut[data-slot]").forEach(function (btn) {
+      var holdTimer = null;
+      var showTimer = null;
+      var startX = 0;
+      var startY = 0;
+      var pid = null;
+      var fired = false;
+      function clearTimers() {
+        clearTimeout(holdTimer);
+        clearTimeout(showTimer);
+        holdTimer = null;
+        showTimer = null;
+      }
+      function detach() {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        pid = null;
+      }
+      function onMove(e) {
+        if (fired || pid == null || e.pointerId !== pid) return;
+        if (Math.abs(e.clientX - startX) > 12 || Math.abs(e.clientY - startY) > 12) {
+          clearTimers();
+          btn.classList.remove("holding");
+          detach();
+        }
+      }
+      function onUp(e) {
+        if (pid == null || (e && e.pointerId != null && e.pointerId !== pid)) return;
+        if (fired && e && e.type === "pointercancel") return;
+        var didFire = fired;
+        clearTimers();
+        detach();
+        fired = false;
+        if (didFire) {
+          suppressNextClick(450);
+        }
+      }
+      btn.addEventListener("pointerdown", function (e) {
+        if (e.button != null && e.button !== 0) return;
+        fired = false;
+        pid = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        clearTimers();
+        showTimer = setTimeout(function () { btn.classList.add("holding"); }, 140);
+        holdTimer = setTimeout(function () {
+          holdTimer = null;
+          fired = true;
+          suppressNextClick(500);
+          swallowUntilRelease();
+          try { if (navigator.vibrate) navigator.vibrate(12); } catch (err) { /* ignore */ }
+          openPinEditor(Number(btn.dataset.slot));
+        }, 450);
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
+      });
+      btn.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        if (fired) return;
+        clearTimers();
+        fired = true;
+        suppressNextClick(500);
+        swallowUntilRelease();
+        openPinEditor(Number(btn.dataset.slot));
+      });
+    });
+  }
+
+  function swallowUntilRelease() {
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      window.removeEventListener("pointerup", onRelease);
+      setTimeout(function () { document.removeEventListener("click", eat, true); }, 400);
+    }
+    function eat(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    function onRelease(e) {
+      if (!e || e.type !== "pointerup") return;
+      finish();
+    }
+    document.addEventListener("click", eat, true);
+    window.addEventListener("pointerup", onRelease);
+    setTimeout(finish, 12000);
+  }
+
   function tzParts(d) { return N().tzParts(d); }
 
   function cupTarget(te, iso, mr) {
@@ -2237,15 +2398,22 @@
     if (!ui.sheet && !ui.modal && !ui.page && ui.tab === "weight") {
       out += U().roundBtn({ ui: "add-weight", role: "fab", act: "open-weight-add", aria: "Добавить взвешивание", icon: uiIcon("plus") });
     }
-    if (ui.sheet === "volume") {
-      var items = (state.drinks || []).slice(0, 8).map(function (d) {
-        return { id: d.id, on: d.id === ui.volumeDrinkId, color: d.color,
-          name: esc(d.name), bubble: bubble(d) };
+    if (!ui.page && ui.sheet === "volume") {
+      var volumeControl = useSystemDrums()
+        ? sysLaunch("sys-volume", ui.volumeDraft + " мл")
+        : (window.UiKit ? K().wheelBlock({ ui: "volume-add",
+            cls: "wheel-block",
+            items: [{ wheel: { name: "volume", value: ui.volumeDraft, min: 10, max: 2000, step: 10 } },
+                    { unit: "мл", unitCls: "unit" }]
+          }) : "");
+      out += K().sheet({
+        ui: "volume", scrimCls: ui.pinning ? " heavy" : " menu", cls: "volume" + (ui.pinning ? "" : " menu"),
+        title: ui.pinning ? "Объём избранного" : null,
+        body: volumeSheetBody({ ui: "volume", pinning: ui.pinning, pickAct: "pick-volume-drink",
+          selectedId: ui.volumeDrinkId || (state.profile && state.profile.drinkId),
+          volume: ui.volumeDraft, wheel: volumeControl }),
+        tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "commit-volume", role: "check", pos: "center", act: "commit-volume", aria: "Применить объём", icon: uiIcon("check") }) + "</div>"
       });
-      out += U().sheet({ ui: "volume", cls: "volume", title: "Объём",
-        body: K().drinkPickRow({ ui: "volsheet", items: items, act: "pick-volume-drink" }) +
-          U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ui.volumeDraft, act: "vol-chip" }),
-        tail: '<button type="button" class="check center" data-act="commit-volume" aria-label="Готово">' + uiIcon("check") + "</button>" });
     } else if (ui.sheet === "add-entry") {
       var ad = ui.addDraft || { drinkId: state.profile.drinkId, volume: state.profile.volume };
       var aitems = (state.drinks || []).slice(0, 8).map(function (d) {
@@ -2641,6 +2809,7 @@
   }
 
   function afterRender() {
+    initPinHold(); /* донор: bindAll() из render (4603) */
     try { initWheels(); } catch (e) {} /* M25: колёса донора */
     try { markSheetEntrance(); } catch (e) {} /* M25: выезд шторки донора */
     try { initFields(); } catch (e) {} /* M25-mod2: поля текстов уведомлений */
@@ -2748,6 +2917,13 @@
       closeOpenSwipes(); render(); return;
     }
     if (act === "back") {
+    if (ui.page === "drinks" && ui.drinkReturn === "pin") {
+      ui.page = null;
+      ui.drinkReturn = "home";
+      ui.pinning = false;
+      render();
+      return;
+    }
       if (ui.sheet) { ui.sheet = null; render(); return; }
       if (ui.page === "drinks") { ui.page = null; ui.tab = ui.drinkReturn || "home"; render(); return; }
       if (ui.page === "alert-sound") { ui.page = "folder-alerts"; render(); return; }
@@ -2766,7 +2942,7 @@
       if (ui.page) { ui.page = null; render(); return; }
       render(); return;
     }
-    if (act === "close-sheet") { ui.sheet = null; render(); return; }
+    if (act === "close-sheet") { ui.sheet = null; ui.pinning = false; render(); return; }
     if (act === "dialog-cancel") { ui.modal = null; ui.dialogSpec = null; render(); return; }
     if (!state.onboarded) { onbAction(act, ds); return; }
     if (act === "add-profile") { writeProfile(); render(); return; }
@@ -2789,19 +2965,39 @@
       toast("Выбрано: " + (d ? d.name : "") + " " + ds.volume + " мл. Кот ещё не записал.");
       render(); return;
     }
-    if (act === "open-drinks") {
-      ui.page = "drinks"; ui.drinkReturn = "home"; ui.sheet = null; ui.modal = null; render(); return;
-    }
-    if (act === "pick-drink") {
-      if (!D().drinkById(state, ds.id)) return;
-      state.profile.drinkId = ds.id;
-      save();
-      ui.page = null; ui.tab = ui.drinkReturn || "home"; render(); return;
+    if (act === "open-drinks" || act === "open-default-drink") {
+      ui.page = "drinks";
+      ui.drinkReturn = act === "open-default-drink" ? "settings" : "home";
+      ui.pinning = false;
+      ui.sorting = false;
+      ui.sheet = null;
+      ui.modal = null;
+      ui.openSwipe = null;
+      render();
+      return;
     }
     if (act === "open-volume") {
       ui.volumeDraft = state.profile.volume;
       ui.volumeDrinkId = state.profile.drinkId;
-      ui.sheet = "volume"; render(); return;
+      ui.pinning = false;
+      ui.sheet = "volume";
+      render();
+      return;
+    }
+    if (act === "pick-drink") {
+      if (ui.drinkReturn === "pin") {
+        ui.pinDrinkId = t.dataset.id;
+        ui.pinning = true;
+        ui.page = null;
+        ui.sheet = "volume";
+        if (!(ui.volumeDraft > 0)) ui.volumeDraft = state.profile.volume || 200;
+        render();
+        return;
+      }
+      if (!D().drinkById(state, ds.id)) return;
+      state.profile.drinkId = ds.id;
+      save();
+      ui.page = null; ui.tab = ui.drinkReturn || "home"; render(); return;
     }
     if (act === "pick-volume-drink") {
       if (!D().drinkById(state, ds.id)) return;
@@ -2809,6 +3005,21 @@
     }
     if (act === "vol-chip") { ui.volumeDraft = Number(ds.v); render(); return; }
     if (act === "commit-volume") {
+      var chosenMl = readWheel("volume", ui.volumeDraft);
+      if (ui.pinning && ui.pinDrinkId) {
+        if (!state.customShortcuts) state.customShortcuts = [];
+        state.customShortcuts[ui.pinSlot] = { drinkId: ui.pinDrinkId, volume: chosenMl };
+        state.rowCustom = true;
+        ui.pinning = false;
+        ui.pinDrinkId = null;
+        ui.pinSlot = null;
+        save();
+        closeSheetThen(function () {
+          ui.page = null;
+          toast("Избранный напиток сохранён");
+        });
+        return;
+      }
       if (ui.volumeDrinkId && D().drinkById(state, ui.volumeDrinkId)) state.profile.drinkId = ui.volumeDrinkId;
       state.profile.volume = Number(ui.volumeDraft) || state.profile.volume;
       ui.volumeDrinkId = null;
@@ -3264,6 +3475,25 @@
       render();
       return;
     }
+    if (act === "edit-row") {
+      state.rowCustom = !state.rowCustom;
+      save();
+      render();
+      return;
+    }
+    if (act === "add-pin") {
+      openPinEditor(Number(t.dataset.slot));
+      return;
+    }
+    if (act === "preset") {
+      var pv = Number(t.dataset.v);
+      if (ui.sheet === "volume") ui.volumeDraft = pv;
+      if (ui.addDraft) ui.addDraft.volume = pv;
+      var wheel = document.querySelector('[data-wheel="volume"]');
+      if (wheel && wheel._setValue) wheel._setValue(pv);
+      document.querySelectorAll(".preset").forEach(function (p) { p.classList.toggle("on", Number(p.dataset.v) === pv); });
+      return;
+    }
     if (act === "toggle") {
       /* M25: ключи донора (app.js 9025) + прежние ключи next — одни поля M13.
          Ключи модулей-сидений (animation/warnExceed/dialTime/vibroDial/devMode/
@@ -3444,6 +3674,7 @@
     if (window.SettingsModel) window.SettingsModel = wrappedModel(); /* M25: сид-места */
     state = C().boot();
     ui = U().shellState();
+    ui.pinning = false; ui.pinSlot = null; ui.pinDrinkId = null; /* пины (модуль 6) */
     ui.historyDate = null; ui.chartLeft = null; ui.drinkReturn = "home";
     ui.volumeDraft = null; ui.volumeDrinkId = null; ui.editId = null; ui.editDraft = null;
     ui.onb = null; ui.dialogSpec = null;
