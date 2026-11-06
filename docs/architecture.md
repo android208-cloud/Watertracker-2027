@@ -328,3 +328,17 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   wallMsNowSec — на TZ (m13); сигнатура ui._cupLv/_cupKind ставится в pageHome
   (донор 2514-2515) — без неё cupSecTick перерисовывал каждую секунду.
   Бенч m22 обновлён: cup-pill больше не сид-место.
+
+### M25, модуль 4 шага 2 — Погода (слово «Продолжай», 06.11)
+
+- Кнопка погоды донора (app.js 2569) в доке (4,2); шторка «Погода» —
+  choiceSheet донора (4102-4119): 4 уровня с бонусами к цели, тумблер
+  «Сохранять выбор»; акты open-weather/pick-weather/toggle-weather-save
+  (L.setWeather/setWeatherSave из m19).
+- Grab: weatherIcon (2233, img assets/icons/sun*.svg — уже в wt2), adjustBase
+  (2267: useRecommended===false ? goalMl : genderBase); в pageHome добавлен
+  var cal = todayStr() (донор 2505).
+- Шторка после pick остаётся открытой (донор) — учтено в гейтах smoke.
+- Проверки: smoke-m25 90/90; pixel-m25 sheet-weather: карточка шторки вне
+  diff (13.52% — домашние сид-места сквозь полупрозрачный скрим); m22
+  обновлён (cupPill+weather ожили, rounds 3); регрессия m01..m25 GREEN.

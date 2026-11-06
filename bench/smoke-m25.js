@@ -197,6 +197,24 @@ function ok(cond, name) {
   ok((await S(p)).cupLabel == null, 'pick left → cupLabel null (донор 9468)');
   await click(p, 'header [data-act="back"]'); /* look → главная настроек */
 
+  console.log('Модуль 4: погода:');
+  await click(p, '[data-tab="home"]');
+  ok(await has(p, '[data-act="open-weather"]'), 'кнопка погоды в доке (4,2)');
+  await click(p, '[data-act="open-weather"]');
+  ok(await has(p, '[data-act="pick-weather"]'), 'шторка «Погода» открыта');
+  const wsub = await p.evaluate(() => (document.querySelector('.sheet .sub, .sheet-sub') || {}).textContent || '');
+  ok(/мл/.test(wsub), 'подзаголовок с целью на сегодня', wsub.trim());
+  ok((await p.$$('[data-act="pick-weather"]')).length === 4, 'четыре уровня погоды');
+  await shot(p, 'sheet-weather');
+  await click(p, '[data-act="pick-weather"][data-level="warm"]');
+  ok((await S(p)).weatherToday === 'warm', 'pick-weather → state.weatherToday');
+  /* шторка после pick остаётся открытой (донор) — save тумблерится прямо в ней */
+  await click(p, '[data-act="toggle-weather-save"]');
+  ok((await S(p)).weatherSave === true, 'toggle-weather-save → state.weatherSave');
+  await click(p, '[data-act="close-sheet"]');
+  ok(!(await has(p, '[data-act="pick-weather"]')), 'close-sheet закрыл шторку');
+  await click(p, '[data-tab="settings"]');
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');

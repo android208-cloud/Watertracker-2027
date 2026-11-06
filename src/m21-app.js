@@ -615,6 +615,7 @@
   /* ---- экраны ---- */
   function pageHome() {
     var drink = currentDrink();
+    var cal = todayStr(); /* донор 2505: настенный календарный день */
     var today = N().waterToday(state);
     var st = S().dayStats(state, today);
     var goal = st.goal, drunk = st.volume;
@@ -675,6 +676,8 @@
       /* M25 модуль 3 (донор 2568): миска-тамагочи в слоте (2,2) — модель из
          истории, кот не участвует. */
       '<div class="pill-slot" style="--c:2;--r:2"><div class="pill cup-pill" role="img" aria-label="Чашка котика: ' + esc(cup.label) + '">' + K().miniCup(cup.level, cup.color) + "<span>" + esc(cupLabelFor(cup, state.cupLabel)) + "</span></div></div>" +
+      /* M25 модуль 4 (донор 2569): кнопка погоды в слоте (4,2). */
+      '<button type="button" class="round dark" style="--c:4;--r:2" data-act="open-weather" aria-label="Погода">' + weatherIcon(LC.levelOn(state, cal, cal)) + "</button>" +
       "</div></div>";
   }
 
@@ -1890,6 +1893,15 @@
     if (changed) { save(); alertsSync(); }
   }
 
+  function weatherIcon(id, lock) {
+    var file = { hot: "sunHot.svg", warm: "sunWarm.svg", everyday: "sunEveryday.svg", cold: "sunrise.svg" }[id] || "sunEveryday.svg";
+    return '<span class="wicon"' + (lock ? ' data-svg-lock="1"' : '') + '><img class="ui-ico" src="assets/icons/' + file + '" data-svg-file="' + file + '" alt=""></span>';
+  }
+
+  function adjustBase() {
+    return state.useRecommended === false ? state.goalMl : LC.genderBase(state);
+  }
+
   function tzParts(d) { return N().tzParts(d); }
 
   function cupTarget(te, iso, mr) {
@@ -2157,6 +2169,22 @@
 
   function overlayHtml() {
     var out = "";
+    if (!ui.page && ui.sheet === "weather") {
+      /* Кубик choiceSheet (ui-kit): шторка-выбор собирается одним вызовом,
+         разметка побайтово равна прежней ручной сборке. */
+      var today = todayStr();
+      out += window.UiKit ? K().choiceSheet({ ui: "weather",
+        cls: "weather",
+        title: "Погода",
+        sub: "Сегодня " + LC.goalOn(state, today, today) + " мл",
+        current: LC.levelOn(state, today, today),
+        pickAct: "pick-weather",
+        save: { act: "toggle-weather-save", on: state.weatherSave, label: "Сохранять выбор для последующих дней?" },
+        options: [["hot", "Жарко"], ["warm", "Тепло"], ["everyday", "Повседневная"], ["cold", "Холодно"]].map(function (w) {
+          return { v: w[0], label: w[1], icon: weatherIcon(w[0]), bonus: LC.weatherBonus(adjustBase(), w[0]) };
+        })
+      }) : "";
+    }
     /* M22: FAB центром на линии М: история — добавить запись, вес — взвешивание. */
     if (!ui.sheet && !ui.modal && !ui.page && ui.tab === "history") {
       out += U().roundBtn({ ui: "add", role: "fab", act: "open-add", aria: "Добавить запись", icon: uiIcon("plus") });
@@ -3161,6 +3189,19 @@
     if (act === "pick-cup-label") {
       state.cupLabel = t.dataset.mode === "countdown" ? "countdown" : null;
       ui.modal = null;
+      save();
+      render();
+      return;
+    }
+    if (act === "open-weather") { ui.sheet = "weather"; render(); return; }
+    if (act === "pick-weather") {
+      LC.setWeather(state, t.dataset.level);
+      save();
+      render();
+      return;
+    }
+    if (act === "toggle-weather-save") {
+      LC.setWeatherSave(state, !state.weatherSave);
       save();
       render();
       return;
