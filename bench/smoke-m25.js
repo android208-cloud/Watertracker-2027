@@ -215,6 +215,23 @@ function ok(cond, name) {
   ok(!(await has(p, '[data-act="pick-weather"]')), 'close-sheet закрыл шторку');
   await click(p, '[data-tab="settings"]');
 
+  console.log('Модуль 5: активность:');
+  await click(p, '[data-tab="home"]');
+  ok(await has(p, '.home-dock [data-act="open-fitness"]'), 'кнопка активности в доке (5,2)');
+  await click(p, '[data-act="open-fitness"]');
+  ok(await has(p, '[data-act="pick-activity"]'), 'шторка «Физическая активность» открыта');
+  const rows = await p.evaluate(() => document.querySelectorAll('[data-act="pick-activity"]').length);
+  ok(rows === 4, 'четыре уровня активности', rows);
+  ok(await has(p, '[data-act="toggle-activity-save"]'), 'тумблер «Сохранять выбор»');
+  await shot(p, 'sheet-activity');
+  await click(p, '[data-act="pick-activity"][data-level="training"]');
+  ok((await S(p)).activityToday === 'training', 'state.activityToday === training');
+  await click(p, '[data-act="toggle-activity-save"]');
+  ok((await S(p)).activitySave === true, 'activitySave включён');
+  await click(p, '[data-act="close-sheet"]');
+  ok(!(await has(p, '[data-act="pick-activity"]')), 'шторка закрылась');
+  await click(p, '[data-tab="settings"]');
+
   console.log('Пикеры донора:');
   await click(p, '[data-act="open-gender"]');
   ok(await has(p, '.gender-modal'), 'модалка пола открылась');

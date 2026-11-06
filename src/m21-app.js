@@ -678,6 +678,8 @@
       '<div class="pill-slot" style="--c:2;--r:2"><div class="pill cup-pill" role="img" aria-label="Чашка котика: ' + esc(cup.label) + '">' + K().miniCup(cup.level, cup.color) + "<span>" + esc(cupLabelFor(cup, state.cupLabel)) + "</span></div></div>" +
       /* M25 модуль 4 (донор 2569): кнопка погоды в слоте (4,2). */
       '<button type="button" class="round dark" style="--c:4;--r:2" data-act="open-weather" aria-label="Погода">' + weatherIcon(LC.levelOn(state, cal, cal)) + "</button>" +
+      /* M25 модуль 5 (донор 2570): кнопка активности в слоте (5,2). */
+      '<button type="button" class="round dark" style="--c:5;--r:2" data-act="open-fitness" aria-label="Физическая активность: ' + esc(activityRow(LC.activityOn(state, cal, cal))[1]) + '">' + activityIcon(LC.activityOn(state, cal, cal)) + "</button>" +
       "</div></div>";
   }
 
@@ -1902,6 +1904,35 @@
     return state.useRecommended === false ? state.goalMl : LC.genderBase(state);
   }
 
+  function activityLevels() {
+    return [
+      ["heavy", "Тяж. тренировки", "run", "#e23b22"],
+      ["training", "Тренировки", "run", "#f07f1f"],
+      ["everyday", "Повседневная", "walk", "#d7d8dc"],
+      ["none", "Нет", "stand", "#ffffff"]
+    ];
+  }
+
+  function activityRow(level) {
+    var rows = activityLevels();
+    for (var i = 0; i < rows.length; i++) if (rows[i][0] === level) return rows[i];
+    return rows[3];
+  }
+
+  function figureIcon(pose, color, lock) {
+    var path = pose === "run"
+      ? "M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9 1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"
+      : pose === "walk"
+        ? "M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"
+        : "M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z";
+    return '<span class="wicon fig"' + (lock ? ' data-svg-lock="1"' : '') + '><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="' + color + '" d="' + path + '"/></svg></span>';
+  }
+
+  function activityIcon(level, lock) {
+    var row = activityRow(level);
+    return figureIcon(row[2], row[3], lock);
+  }
+
   function tzParts(d) { return N().tzParts(d); }
 
   function cupTarget(te, iso, mr) {
@@ -2169,6 +2200,20 @@
 
   function overlayHtml() {
     var out = "";
+    if (!ui.page && ui.sheet === "activity") {
+      /* Второй близнец: тот же кубик, другие данные. */
+      var actToday = todayStr();
+      out += window.UiKit ? K().choiceSheet({ ui: "activity",
+        cls: "activity",
+        title: "Физическая активность",
+        current: LC.activityOn(state, actToday, actToday),
+        pickAct: "pick-activity",
+        save: { act: "toggle-activity-save", on: state.activitySave, label: "Сохранять выбор для последующих дней?" },
+        options: activityLevels().map(function (row) {
+          return { v: row[0], label: row[1], icon: figureIcon(row[2], row[3]), bonus: LC.activityBonus(adjustBase(), row[0]) };
+        })
+      }) : "";
+    }
     if (!ui.page && ui.sheet === "weather") {
       /* Кубик choiceSheet (ui-kit): шторка-выбор собирается одним вызовом,
          разметка побайтово равна прежней ручной сборке. */
@@ -3202,6 +3247,19 @@
     }
     if (act === "toggle-weather-save") {
       LC.setWeatherSave(state, !state.weatherSave);
+      save();
+      render();
+      return;
+    }
+    if (act === "open-fitness") { ui.sheet = "activity"; render(); return; }
+    if (act === "pick-activity") {
+      LC.setActivity(state, t.dataset.level);
+      save();
+      render();
+      return;
+    }
+    if (act === "toggle-activity-save") {
+      LC.setActivitySave(state, !state.activitySave);
       save();
       render();
       return;

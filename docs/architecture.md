@@ -342,3 +342,14 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
 - Проверки: smoke-m25 90/90; pixel-m25 sheet-weather: карточка шторки вне
   diff (13.52% — домашние сид-места сквозь полупрозрачный скрим); m22
   обновлён (cupPill+weather ожили, rounds 3); регрессия m01..m25 GREEN.
+
+### M25, модуль 5 шага 2 — Активность (слово «Продолжай», 06.11)
+
+- Кнопка активности донора (app.js 2570) в доке (5,2) с aria-подписью уровня;
+  шторка «Физическая активность» — choiceSheet-близнец донора (4120-4133):
+  4 уровня с бонусами, тумблер «Сохранять выбор».
+- Grab: activityLevels/activityRow/figureIcon (inline-svg позы)/activityIcon
+  (2238-2265) — перекрывают заглушки settingsEnv (1178-1179); акты
+  open-fitness/pick-activity/toggle-activity-save (m19 setActivity*).
+- Проверки: smoke-m25 97/97; pixel-m25 sheet-activity: карточка вне diff
+  (13.79% — домашние сид-места сквозь скрим); m22: fitness ожила, rounds 4.
