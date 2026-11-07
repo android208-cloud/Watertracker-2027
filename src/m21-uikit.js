@@ -616,10 +616,30 @@
   /* Один барабан чисел: o = { name, value, min, max, step, pad?, item? }.
      Разметка и порядок data-атрибутов — как исторический wheelHtml app.js. */
   function wheel(o) {
-    return '<div class="wheel" data-wheel="' + o.name + '" data-value="' + o.value +
+    /* v211: цифры барабана рисуются сразу в разметке (донор держит список
+       пустым до JS-инициализации). На старых WebView инициализация может
+       не пройти — барабан остаётся пустым; SSR-цифры страхуют, а setupWheel
+       после просто пересобирает тот же список и вешает снап. */
+    var min = Number(o.min), max = Number(o.max), step = Number(o.step);
+    if (!(step > 0)) step = 1;
+    if (!(max >= min)) max = min;
+    var values = [];
+    for (var v = min; v <= max; v += step) values.push(v);
+    var value = Number(o.value);
+    if (values.indexOf(value) < 0 && values.length) {
+      value = values.reduce(function (a, b) {
+        return Math.abs(b - Number(o.value)) < Math.abs(a - Number(o.value)) ? b : a;
+      });
+    }
+    var pad = '<div class="wheel-pad"></div>';
+    var items = values.map(function (n) {
+      var label = o.pad ? (n < 10 ? "0" + n : String(n)) : String(n);
+      return '<div class="wheel-item' + (n === value ? " on" : "") + '" data-v="' + n + '">' + label + "</div>";
+    }).join("");
+    return '<div class="wheel" data-wheel="' + o.name + '" data-value="' + value +
       '" data-min="' + o.min + '" data-max="' + o.max + '" data-step="' + o.step +
       '" data-pad="' + (o.pad ? "1" : "") + '" data-item="' + (o.item || "") + '"' + uiAttr("wheel", o) + '>' +
-      '<div class="wheel-lines"></div><div class="wheel-list"></div></div>';
+      '<div class="wheel-lines"></div><div class="wheel-list">' + pad + items + pad + "</div></div>";
   }
 
   /* Рамка барабанов: o = { cls, items }. Элемент items:

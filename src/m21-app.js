@@ -2061,6 +2061,7 @@
   }
 
 
+  var ITEM = 44; /* донор app.js:6 — высота пункта барабана; без неё колёса без data-item молча умирали в catch */
   function setupWheel(el) {
     var min = Number(el.dataset.min);
     var max = Number(el.dataset.max);
@@ -3637,7 +3638,10 @@
   function afterRender() {
     initPinHold(); /* донор: bindAll() из render (4603) */
     initSort(); initHydSlider(); initColorWheel(); /* донор 7296-7299 */
-    try { initWheels(); } catch (e) {} /* M25: колёса донора */
+    try { initWheels(); } catch (e) { /* v211: слепой catch больше не слепой */
+      W.__wheelErr = (e && e.message) || String(e);
+      if (W.console) console.error("initWheels: " + W.__wheelErr);
+    } /* M25: колёса донора */
     try { markSheetEntrance(); } catch (e) {} /* M25: выезд шторки донора */
     try { initFields(); } catch (e) {} /* M25-mod2: поля текстов уведомлений */
     /* M23: колбэк файлового моста живёт один раз на приложение. */

@@ -402,6 +402,17 @@ function ok(cond, name) {
   /* системные тумблеры на паке владельца не рисуются ни у донора, ни у next
      (sLayout владельца) — вне объема модуля 9; механизм календаря проверен выше */
 
+  /* колёса без data-item (volume): ITEM донора */
+  await click(p, '[data-tab="home"]');
+  await click(p, '[data-act="open-volume"]');
+  await p.waitForSelector('.sheet.volume .wheel');
+  const vw = await p.evaluate(() => {
+    const w = document.querySelector('.sheet.volume .wheel .wheel-list');
+    return { items: w ? w.querySelectorAll('.wheel-item').length : 0, on: w ? w.querySelectorAll('.wheel-item.on').length : 0 };
+  });
+  ok(vw.items > 10 && vw.on === 1, 'барабан объёма жив: список и текущее значение', vw);
+  await click(p, '.scrim[data-act="close-sheet"]');
+
   console.log('Модуль 10: скины:');
   /* текстовая дорога: диалог вставки */
   await p.evaluate(() => window.__waterApp.performAction({dataset:{}}, 'skin-paste'));
