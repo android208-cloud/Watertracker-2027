@@ -69,7 +69,14 @@
     var goalPx = goalPxOf(b, scale);
     var px = b.raw > 0 ? Math.max(2, Math.round(b.raw / scale * PLOT_H)) : 0;
     var segs = "";
-    if (px && b.segs.length) {
+    /* «Столбцы одним цветом» (модуль chart-color): если модуль даёт цвет —
+       столбец окрашивается целиком, прежняя стопка сегментов не строится.
+       Модуль снят — ветка не работает вовсе (донор 2699-2702). */
+    if (px && window.ChartColor && window.__waterApp) {
+      var cc = ChartColor.color(window.__waterApp.state, b.date, b.goal ? b.raw / b.goal : 0);
+      if (cc) segs = '<i data-raw="' + b.raw + '" style="top:0;height:' + px + 'px;background:' + cc + '"></i>';
+    }
+    if (px && b.segs.length && !segs) {
       var rawSum = 0;
       b.segs.forEach(function (s) { rawSum += s.raw; });
       var hs = b.segs.map(function (s) { return Math.floor(s.raw / rawSum * px); });

@@ -483,3 +483,80 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
 - Проверки: smoke 151/151 (8 гейтов hist-add: шапка-дата, барабан, галка,
   время, запись, правка тем же шитом); pixel sheet-hist-add 0 px;
   регресс m03/m06/m14/m20/m22/m23/m25 GREEN.
+
+### Живые цвета (хвост шага 2, слово владельца 07.11 «давай живые цвета»)
+
+- Донорские модули перенесены байт-в-байт: src/liquid-color.js (491 стр.,
+  KEY cup-liquid-color-v1, режимы vessel/dominant/domhyst/last/belt/base)
+  и src/chart-color.js (95 стр., KEY cup-chart-color-v1). Теги в index.html
+  перед m12-habit-schedule (порядок донора: до настроек и app).
+- Подключения (волна НЕ тронута — отложена словом владельца):
+  * performAction-гварды LiquidColor.act / ChartColor.act перед «goto»
+    (донор app.js 8310-8312);
+  * орб (m21 homeHtml): цвет LiquidColor.color, пояса LiquidColor.ramp
+    (top/rampColors/belts {c,from,to}) в waterHtml m06 — волновые параметры
+    (waveOn/waveParams/smooth/пузырьки) не подключены;
+  * столбцы графика: m11 colHtml — однотон из ChartColor.color
+    (донор 2699-2702), state через __waterApp (модуль чист от state);
+  * onChange-хук в boot: render() без rebaseWaveSpeeds (донор 10206);
+  * мост пака: lcEnv() (m21) — exportPack lc: LiquidColor.store(),
+    applyPack importLc: LiquidColor.importState (донор 5977/6005); настройки
+    из пака едут только с env.withSettings (облачная линия M09, спит).
+- Сиды: liqBlock/bubBlock/chartBlock сняты (модули приехали); wave добавлен
+  в SEAT_IDS — волновой ряд и дверь «Волна» не рисуются до слова владельца.
+  Пузырьки воды в next отсутствуют (линия волны): строка «Пузырьки в цвет»
+  живая, её цвет применится с волной; экспорт lc-export живёт в волновом
+  блоке и спит вместе с ним.
+- Проверки: bench/smoke-livecolor.js 17/17 (строки видны, волновой ряд
+  сидит, dilute осветляет орб, режимы last/base различны, chart-on даёт
+  столбцы одним сегментом 1,1,1,1,1, пак владельца включает belt и орб
+  красится поясами); smoke-m25 151/151; m22 15/15; m25 28/28.
+- Пиксель: settings/advanced/alerts 0 px; settings-look 5.02% — остаток
+  ровно волновой блок донора (ряд и ползунки), уйдёт с волной; home-cup и
+  компания 13.7% — давнее исключение «круг вместо кота» (слово 06.11).
+- Снимки-доказательства: bench/shots/pixel-m25/settings-look-panel.png,
+  home-belt-live.png (пояса чая и воды на дне круга), look-livecolor-next.png.
+
+### M09 облако (слово владельца 07.11 «облако M09», «можно»)
+
+- Заглушка «M09 ещё не переехал» снята; акты донора (9129, 9147-9160):
+  open-profile (страница профиля), google-signin (cloudSignIn: тост +
+  WaterGoogle.signIn), cloud-signout, cloud-profile (refreshProfile),
+  cloud-sync/save/restore через cloudSyncNow(mode) с guard'ами донора
+  (872-882: мост, вход, занятость, v85 resetHold).
+- cloudApply(withSettings) по донору (998-1046): предложение диалога при
+  restore с настройками, первая копия когда в облаке пусто, historySource/
+  historyCounts после слияния, cloudSay-слова; авто-механики донора
+  (cloudTouch/cloudBackupQuiet/autoPulled) не переносились: у донора
+  cloud.auto не взводится, обмен тянет мост — остаток линии, честен.
+- Диалог «Применить настройки из копии?» (донор 5352-5378) — единый на обе
+  дороги: облако (cloudApply-offer) и файл (m23.fileResult: пак с
+  настройками спрашивает ДО применения, донор 5299-5304; старый next-диалог
+  file-*-settings/pendingSettings удалён вместе с askSettings-хуком).
+  Акты settings-choice-both/hist (донор 9163-9180): облако повторяет
+  cloudApply(both), файл_applyPack merge + withSettings; lc едет через
+  env.importLc (мост живых цветов).
+- Мост-колбэки: W.__googleState добавлен (донор 1209-1221: cloudFrom +
+  cloud.applied→cloudStamp), W.__googlePicture — пустой стаб (донор 1308:
+  портрет больше не показывается; avatarSrc/фото не переносились сознательно).
+- Подписи состояния: cloudWhen/cloudBackupLabel по донору (666-680) вместо
+  заглушек; cloud.picture в cloudFrom (донор 646).
+- Проверки: bench/smoke-m09.js 18/18 (подставной транспорт WaterGoogle
+  поверх localStorage: вход, сохранение и подпись «сохранено сегодня…»,
+  диалог с перечислением частей, «только историю» не трогает тему,
+  «историю и настройки» применяет тему и lc, file-дорога спрашивает до
+  применения, C-015: cloudSay auto без нового = null, ручной обмен говорит
+  «всё совпадает»); smoke-m25 151/151; livecolor 17/17; m22 15/15; m25 28/28.
+- Пиксель: bench/pixel-m09.js вид settings-choice — диалог байт-в-байт
+  (красного на карточке нет); 0.56% фона — давнее исключение «кот vs круг».
+  pixel-m25 без регресса: settings/advanced/alerts/light 0 px, look 5.02%
+  (волновой блок), home 13.69% (кот vs круг).
+- Остаток линии M09 отдельным словом: зажигание OAuth в Google-консоли
+  (пакет ru.watermeter.tracker.next + SHA1 нашей подписи, google-setup.md);
+  авто-механики обмена сверить на живом APK.
+- Правокa владельца 07.11 по диалогу выбора: надписи кнопок наслаивались
+  (flex 40% + nowrap у донора) — в next кнопки диалога settings-choice
+  стоят столбиком, надписи переносятся (styles.css, правило по
+  [data-ui="dialog.settings-choice"]). Донор не тронут: его вид остаётся
+  прежним до отдельного слова; pixel-m09 теперь показывает это расхождение
+  намеренно (6.55%: карточка next против карточки донора + кот/круг).

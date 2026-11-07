@@ -46,21 +46,22 @@
       if (hooks.toast) hooks.toast("Файл не похож на пак watercat-24");
       return { ok: false };
     }
-    var res = W.WT2Y.applyPack(state, pack, "merge", {});
+    /* v145 донор (5299-5304): пак с настройками спрашивает ДО применения:
+       история и настройки ждут выбора в диалоге (слово владельца 05.11). */
+    if (pack && pack.settings && Array.isArray(pack.entries) && pack.entries.length && hooks.deferChoice) {
+      hooks.deferChoice(pack);
+      return { ok: true, deferred: true };
+    }
+    var res = W.WT2Y.applyPack(state, pack, "merge", { importLc: function (lc) {
+      if (window.LiquidColor && LiquidColor.importState) LiquidColor.importState(lc);
+    } });
     if (!res || !res.ok) {
       if (hooks.toast) hooks.toast("Файл не похож на пак watercat-24");
       return { ok: false };
     }
-    /* Настройки пака — только явным выбором владельца в диалоге после
-       восстановления (осторожность владельца 05.11): записи едут сразу,
-       настройки ждут кнопки. */
-    var hasSettings = !!(pack.settings && W.WT2Y.applySettings);
-    if (hasSettings && hooks.askSettings) hooks.askSettings(pack.settings);
     if (hooks.save) hooks.save();
-    if (hooks.toast) hooks.toast("Из файла: добавлено " + res.added + ", пропущено " + res.dropped +
-      (hasSettings ? "; настройки — выбором в диалоге" : ""));
+    if (hooks.toast) hooks.toast("Из файла: добавлено " + res.added + ", пропущено " + res.dropped);
     if (hooks.render) hooks.render();
-    res.hasSettings = hasSettings;
     return res;
   }
   W.WT2F = {

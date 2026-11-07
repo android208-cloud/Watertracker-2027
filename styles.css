@@ -2623,6 +2623,11 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .n-wheels .wheel-item.on { color: var(--blue-ink); font-size: 28px; font-weight: 700; }
 .n-wheels .colon { color: var(--blue-ink); }
 .n-modal .modal-actions button { color: var(--blue-ink); letter-spacing: .06em; }
+/* Слово владельца 07.11: в диалоге «Применить настройки из копии?» длинные
+   надписи кнопок наслаивались в одну строку — кнопки встают столбиком,
+   каждая надпись на своей строке и переносится по словам. */
+[data-ui="dialog.settings-choice"] .modal-actions { flex-direction: column; align-items: stretch; gap: 4px; }
+[data-ui="dialog.settings-choice"] .modal-actions button { flex: 0 0 auto; width: 100%; white-space: normal; }
 .freq-modal { padding-bottom: 4px; }
 .freq-opt {
   display: flex;

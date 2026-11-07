@@ -77,6 +77,15 @@
     var d = new Date();
     return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   }
+  /* v-live: окружение пака: оформление жидкости едет с базой и возвращается
+     (донор 5977 importState / 6005 store). Волна внутри lc спит до слова. */
+  function lcEnv() {
+    return {
+      lcStore: function () { return window.LiquidColor && LiquidColor.store ? LiquidColor.store() : null; },
+      importLc: function (lc) { if (window.LiquidColor && LiquidColor.importState) LiquidColor.importState(lc); }
+    };
+  }
+
   function nowHM() { /* донор: часы в поясе TZ (Europe/Samara), не локаль машины */
     var p = tzParts();
     return p.hour + ":" + p.minute;
@@ -174,42 +183,109 @@
   /* ---- облако-транспорт (донор 1233+, тишина C-015) ---- */
   function cloudFrom(s) {
     cloud.signedIn = !!(s && s.signedIn);
+    cloud.picture = (s && s.picture) || "";
     cloud.lastBackup = (s && (s.at || s.lastBackup)) || "";
   }
   function cloudRead() {
     if (!(window.WaterGoogle && typeof window.WaterGoogle.state === "function")) return;
     try { cloudFrom(JSON.parse(window.WaterGoogle.state() || "{}")); } catch (e) {}
   }
+  /* Любой обмен с Диском начинается с чтения облачной копии и слияния её
+     с телефоном — и только потом телефон отправляет объединённую историю
+     (донор 866-882). v85: владелец сам нажал обмен — сброс-удержание снято. */
+  function cloudSyncNow(mode) {
+    if (!cloudBridge() || !cloud.signedIn) { toast("Сначала войдите в Google-аккаунт"); return; }
+    if (cloud.busy) { toast("Обмен с Диском уже идёт"); return; }
+    if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
+      toast("Синхронизация доступна в приложении Android"); return;
+    }
+    if (state.resetHold) { delete state.resetHold; save(); }
+    cloud.busy = true;
+    cloud.pending = mode || "sync";
+    cloud.chunks = [];
+    render();
+    window.WaterGoogle.restore();
+  }
+
   function cloudUpload(mode) {
     if (!(window.WaterGoogle && typeof window.WaterGoogle.backup === "function")) {
       toast("Облако: вход через Google доступен в приложении Android");
       return;
     }
-    var pack = Y().exportPack(state);
+    var pack = Y().exportPack(state, lcEnv());
     cloud.pendingSig = Y().cloudPackSign(pack);
     cloud.pending = mode;
     cloud.busy = true;
     window.WaterGoogle.backup(JSON.stringify(pack));
   }
-  function cloudApply() {
+  function cloudApply(withSettings) {
     var text = (cloud.chunks || []).join("");
+    var mode = cloud.pending || "restore";
+    var packPre = null;
+    try { packPre = JSON.parse(text); } catch (e) { packPre = null; }
+    /* v145: восстановление с настройками — только явным выбором: диалог
+       «история + настройки / только история» (по умолчанию — только история). */
+    if (!withSettings && mode === "restore" && packPre && packPre.settings && !ui.settingsChoice) {
+      ui.settingsChoice = { src: "cloud", text: text, mode: mode };
+      cloud.busy = false;
+      render();
+      return;
+    }
     cloud.chunks = null;
-    var pack = null;
-    try { pack = JSON.parse(text); } catch (e) { pack = null; }
-    var mode = cloud.pending || "auto";
+    cloud.busy = false;
     cloud.pending = "";
-    if (!pack) { if (mode !== "auto" && mode !== "quiet") toast("Облако: копия не прочиталась"); render(); return; }
-    var res = Y().applyPack(state, pack, mode === "sync" ? "merge" : "auto", {});
-    if (res && res.ok) {
-      state.cloudSig = Y().cloudPackSign(pack);
-      cloud.lastMergeAdded = res.added || 0;
-      save();
-      if (mode === "sync") { cloudUpload("sync"); return; }
-      var txt = Y().cloudSay("auto", res.added || 0, (state.entries || []).length);
-      if (txt) toast(txt);
-    } else if (mode === "sync") toast("Облако: копия не подошла");
+    var pack = packPre;
+    var hasEntries = !!(pack && Array.isArray(pack.entries) && pack.entries.length);
+    if (!hasEntries) {
+      /* В облаке пусто, а в телефоне есть записи: это первая копия, отправляем её. */
+      if (mode !== "restore" && state.entries && state.entries.length) {
+        cloud.pending = mode;
+        cloud.firstCopy = true;
+        cloud.busy = true;
+        cloudUpload(mode);
+        return;
+      }
+      if (mode !== "auto" && mode !== "quiet") toast("В облаке ещё нет копии истории");
+      render();
+      return;
+    }
+    var env = lcEnv();
+    if (withSettings) env.withSettings = true;
+    var res = Y().applyPack(state, pack, mode === "sync" ? "merge" : "auto", env);
+    if (!res || !res.ok) {
+      toast("Копия не разобралась");
+      render();
+      return;
+    }
+    state.cloudSig = Y().cloudPackSign(pack);
+    state.historySource = "google-drive";
+    var sorted = state.entries;
+    state.historyCounts = {
+      entries: sorted.length,
+      from: sorted.length ? sorted[0].date : "",
+      to: sorted.length ? sorted[sorted.length - 1].date : ""
+    };
+    save();
+    cloud.applied = true; /* донор 1053: состояние донесёт настоящее время копии */
+    cloud.lastMergeAdded = res.added || 0;
+    if (mode === "sync") { cloudUpload("sync"); return; }
+    var txt = Y().cloudSay(mode === "restore" ? "restore" : "auto", res.added || 0, (state.entries || []).length);
+    if (txt) toast(txt);
     render();
   }
+
+  W.__googleState = function (json) {
+    try {
+      cloudFrom(typeof json === "string" ? JSON.parse(json) : (json || {}));
+      /* Только что применили копию — запоминаем её настоящее время (донор 1213). */
+      if (cloud.applied && cloud.lastBackup) {
+        cloud.applied = false;
+        state.cloudStamp = cloud.lastBackup;
+        save();
+      }
+      render();
+    } catch (e) { /* ничего не ломаем */ }
+  };
   W.__googleCloud = function (json) {
     cloud.busy = false;
     var o = json || {};
@@ -259,6 +335,8 @@
     cloud.chunks[i] = text || "";
   };
   W.__googleRestoreDone = function () { cloudApply(); };
+  /* Старая оболочка может прислать портрет — он больше не нужен (донор 1308). */
+  W.__googlePicture = function () { /* портрет не показываем */ };
   W.__googleToast = function (text) { if (text) toast(String(text)); };
 
   /* ---- свайп-механика ленты (донор 7650–7745 дословно) ---- */
@@ -682,12 +760,33 @@
       K().header({ ui: "home", title: esc(drink ? drink.name : "") }) +
       '<div class="home-body' + dim + '">' +
       '<div class="cat-stage"><button type="button" class="wt-orb" data-act="add-profile" aria-label="Записать ' + esc(drink ? drink.name : "") + " " + state.profile.volume + ' мл">' +
-      Wd().waterHtml({ frac: level, color: Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top),
-        rampColors: rampB.flat ? null : (Bc().visibleRamp() || rampB.colors),
-        belts: rampB.flat ? null : (rampB.belts.map(function (bl, i) {
-          var vc = Bc().visibleBelts();
-          return { c: (vc && vc[i]) || bl.c, from: bl.from, to: bl.to };
-        })),
+      Wd().waterHtml({ frac: level, color: (function () {
+          if (window.LiquidColor) {
+            var liqL = LiquidColor.color(state, waterToday(), level);
+            if (LiquidColor.ramp && LiquidColor.mode && LiquidColor.mode() === "belt") {
+              var rrL = LiquidColor.ramp(state, waterToday(), level);
+              if (rrL && !rrL.flat) return rrL.top;
+            }
+            return liqL;
+          }
+          return Bc().visibleColor() || (rampB.flat ? Wd().liquidColor(state) : rampB.top);
+        })(),
+        rampColors: (window.LiquidColor && LiquidColor.ramp && LiquidColor.mode && LiquidColor.mode() === "belt")
+          ? (function () { var rrL = LiquidColor.ramp(state, waterToday(), level); return rrL && !rrL.flat ? rrL.colors : null; })()
+          : (rampB.flat ? null : (Bc().visibleRamp() || rampB.colors)),
+        /* пояса донорской рампы: стыки {c, from, to} — вода красится полосами,
+           как в доноре (1551-1552), пока волновой модуль спит без своих поясов */
+        belts: (window.LiquidColor && LiquidColor.ramp && LiquidColor.mode && LiquidColor.mode() === "belt")
+          ? (function () {
+              var rrL = LiquidColor.ramp(state, waterToday(), level);
+              return rrL && !rrL.flat && rrL.belts
+                ? rrL.belts.map(function (s) { return { c: s.c, from: s.from, to: s.to }; })
+                : null;
+            })()
+          : (rampB.flat ? null : (rampB.belts.map(function (bl, i) {
+              var vc = Bc().visibleBelts();
+              return { c: (vc && vc[i]) || bl.c, from: bl.from, to: bl.to };
+            }))),
         spanPct: Bc().beltSpanPct(Wd().visible() == null ? Wd().liftPct(level) : Wd().visible()),
         liftPct: Wd().visible() }) +
       Wd().orbRing + "</button></div>" +
@@ -1532,7 +1631,20 @@
     }).catch(function () { done && done(); });
   }
   function avatarSrc() { return ""; }
-  function cloudBackupLabel() { return ""; }
+  function cloudWhen(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    var now = new Date();
+    var hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    var same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    return same ? "сегодня " + hm : pad(d.getDate()) + "." + pad(d.getMonth() + 1) + " " + hm;
+  }
+  function cloudBackupLabel() {
+    if (cloud.busy) return "идёт обмен с Диском…";
+    var w = cloudWhen(cloud.lastBackup);
+    return w ? "сохранено " + w : "копии пока нет";
+  }
   function activityRow() { return null; }
   function activityIcon() { return null; }
   function weatherIcon() { return null; }
@@ -1547,6 +1659,36 @@
   function parseHM(s) { return N().parseHM(s); }
   function shiftHM(hm, d) { return N().shiftHM(hm, d); }
   function wallMsNow() { return N().wallMsNow(); }
+  /* v145 донор (5352-5378): диалог «взять настройки из копии» — состав частей
+     перечисляется словами, по умолчанию только история. */
+  function settingsChoiceDialogHtml() {
+    var ch = ui.settingsChoice;
+    if (!ch) return "";
+    var st = null;
+    try { st = ch.pack ? ch.pack.settings : JSON.parse(ch.text).settings; } catch (e) { st = null; }
+    var parts = [];
+    if (st) {
+      if (st.theme) parts.push("тема");
+      if (st.notifications) parts.push("уведомления");
+      if (st.lc) parts.push("оформление жидкости");
+      if (st.paceGoals && Object.keys(st.paceGoals).length) parts.push("объёмы периодов");
+      if (st.rowCustom || st.cupLabel) parts.push("стакан и ряд");
+    }
+    return K().dialog({
+      ui: "settings-choice",
+      scrimAct: "settings-choice-hist",
+      cls: "modal n-modal",
+      title: "Применить настройки из копии?",
+      body: '<p class="hint">История объединится в любом случае. Настройки копии (' +
+        esc(parts.join(", ") || "пусто") + ") применяются только вашим выбором: " +
+        "по умолчанию — только история, чтобы местные настройки не перезаписались.",
+      actions: [
+        { act: "settings-choice-hist", label: "Только историю" },
+        { act: "settings-choice-both", label: "Историю и настройки" }
+      ]
+    });
+  }
+
   function waterToday() { return N().waterToday(state); }
   function dayEntries(d) { return J().dayEntries(state, d); }
 
@@ -1693,12 +1835,12 @@
 
 
   function historyExportJson() {
-    return JSON.stringify(Y().exportPack(state), null, 1);
+    return JSON.stringify(Y().exportPack(state, lcEnv()), null, 1);
   }
 
 
   function historyExportCsv() {
-    var pack = Y().exportPack(state);
+    var pack = Y().exportPack(state, lcEnv());
     var head = ["date", "time", "drink", "volume_ml", "credited_ml"];
     var lines = [head.join(";")];
     pack.entries.forEach(function (e) {
@@ -1851,7 +1993,7 @@
 
 
   function historyExportPreview() {
-    var pack = Y().exportPack(state);
+    var pack = Y().exportPack(state, lcEnv());
     var shown = pack.entries.slice(0, HIST_PREVIEW_ROWS);
     var head = "// Предпросмотр: первые " + shown.length + " из " + pack.counts.entries + " " +
       ruCount(pack.counts.entries, "записи", "записей", "записей") + ".\n" +
@@ -1892,7 +2034,7 @@
 
 
   function historyExportDialogHtml() {
-    var pack = Y().exportPack(state);
+    var pack = Y().exportPack(state, lcEnv());
     var c = pack.counts;
     var note = c.entries + " " + ruCount(c.entries, "запись", "записи", "записей") + " (" + ruDate(c.from) + " — " + ruDate(c.to) + "), " +
       c.days + " " + ruCount(c.days, "день", "дня", "дней") + ", " + c.weights + ruCount(c.weights, " измерение", " измерения", " измерений") + " веса, цели по дням. " +
@@ -1968,7 +2110,7 @@
     var n = (state.entries || []).length;
     var w = (state.weights || []).length;
     if (!n) return "Пока нечего выгружать";
-    var pack = Y().exportPack(state);
+    var pack = Y().exportPack(state, lcEnv());
     var c = pack.counts;
     return c.entries + " записей и " + w + ruCount(w, " измерение веса", " измерения веса", " измерений веса") + ", " + ruDate(c.from) + " — " + ruDate(c.to);
   }
@@ -3010,11 +3152,13 @@
     var SM = window.SettingsModel;
     if (!SM || SM.__wt2Wrapped) return SM;
     var SEAT_IDS = {
-      animation: 1, warnExceed: 1, waveBox: 1 };
+      animation: 1, warnExceed: 1, waveBox: 1,
+      wave: 1 }; /* волна отложена словом владельца 07.11 */
     function seatCustom(r) {
       if (!r || r.type !== "custom") return false;
-      if (r.custom === "wave" || r.custom === "liqBlock" || r.custom === "bubBlock") return !window.LiquidColor;
-      if (r.custom === "chartBlock") return !window.ChartColor;
+      /* живые цвета перенесены (модуль шага 2): liqBlock/bubBlock/chartBlock живые;
+         волновой ряд сидит до слова владельца о волне. */
+      if (r.custom === "wave") return true;
       return false;
     }
     function mark(cat) {
@@ -3437,6 +3581,7 @@
     if (window.SettingsUI) out += SU().modalsHtml(settingsEnv());
     if (ui.modal === "dupes") out += dupesDialogHtml();
     if (ui.modal === "history-export") out += historyExportDialogHtml();
+    if (ui.settingsChoice) { out += settingsChoiceDialogHtml(); }
     if (ui.modal === "dialog" && ui.dialogSpec) {
       var d = ui.dialogSpec;
       out += U().dialog({ ui: d.kind || "dialog", cls: "modal", scrimAct: d.scrimAct || "dialog-cancel",
@@ -3767,20 +3912,10 @@
           toast: toast,
           save: function () { C().save(state); },
           render: render,
-          /* Осторожность владельца 05.11: настройки из файла — только явным
-             выбором в диалоге после восстановления записей. */
-          askSettings: function (st) {
-            ui.pendingSettings = st;
-            ui.modal = "dialog";
-            ui.dialogSpec = {
-              title: "Файл содержит настройки",
-              body: "<p>Записи восстановлены. Применить также настройки из файла: тему, цель, напоминания?</p>",
-              actions: [
-                { act: "file-skip-settings", label: "Только записи" },
-                { act: "file-apply-settings", label: "Применить и настройки" }
-              ],
-              scrimAct: "file-skip-settings"
-            };
+          /* Осторожность владельца 05.11 + донор v145: пак с настройками
+             спрашивает ДО применения — единый диалог выбора на обе дороги. */
+          deferChoice: function (pack) {
+            ui.settingsChoice = { src: "file", pack: pack };
             render();
           }
         });
@@ -3855,6 +3990,8 @@
   /* ---- действия ---- */
   function performAction(t, act) {
     var ds = t.dataset || {};
+    if (window.LiquidColor && LiquidColor.act(act, t)) { render(); return; }
+    if (window.ChartColor && ChartColor.act(act, t)) { render(); return; }
     if (act === "goto") {
       /* v125 донора (app.js 8314-8317): колокольчик — ярлык: вкладка настроек
          и раскрытая подпапка уведомлений (до отдельной замены колокольчика). */
@@ -4013,11 +4150,6 @@
 
     if (act === "do-delete-all") { ui.modal = null; ui.dialogSpec = null; resetAll(); return; }
     if (act === "do-restore-history") { ui.modal = null; ui.dialogSpec = null; restoreHistoryBackup(); return; }
-    if (act === "cloud-profile" || act === "cloud-restore" || act === "google-signin" || act === "open-profile") {
-      /* M09 (облако/профиль) — содержательная линия отдельным словом владельца. */
-      toast("Облако и профиль — модуль M09, ещё не переехал");
-      return;
-    }
 
     if (act === "open-gender") { ui.modal = "gender"; render(); return; }
     if (act === "gender-cancel") { ui.modal = null; render(); return; }
@@ -4253,24 +4385,11 @@
       return;
     }
     if (act === "load-history") { F().request(ui, toast); return; }
-    if (act === "cloud-sync") {
-      if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
-        toast("Синхронизация доступна в приложении Android"); return;
-      }
-      cloud.pending = "sync"; cloud.busy = true;
-      window.WaterGoogle.restore();
-      return;
-    }
+    if (act === "cloud-sync") { cloudSyncNow("sync"); return; }
+    if (act === "cloud-save") { cloudSyncNow("save"); return; }
+    if (act === "cloud-restore") { cloudSyncNow("restore"); return; }
     if (act === "save-db-file" || act === "share-db-file") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
-    if (act === "cloud-sync") {
-      if (!(window.WaterGoogle && typeof window.WaterGoogle.restore === "function")) {
-        toast("Синхронизация доступна в приложении Android"); return;
-      }
-      cloud.pending = "sync"; cloud.busy = true;
-      window.WaterGoogle.restore();
-      return;
-    }
     if (act === "open-alert-period") { ui.page = "alert-period"; ui.modal = null; render(); return; }
     if (act === "open-alert-texts") { ui.page = "alert-texts"; ui.modal = null; render(); return; }
     if (act === "open-activity") {
@@ -4816,6 +4935,49 @@
     }
     /* Донор app.js:9132 — гостевая строка в вебе/без моста. */
     if (act === "cloud-needapp") { toast("Вход через Google работает в приложении для Android"); return; }
+    if (act === "settings-choice-both" || act === "settings-choice-hist") {
+      var ch = ui.settingsChoice;
+      var both = act === "settings-choice-both";
+      ui.settingsChoice = null;
+      ui.modal = null;
+      if (!ch) { render(); return; }
+      if (ch.src === "cloud") {
+        cloud.chunks = [ch.text];
+        cloud.pending = ch.mode;
+        cloud.busy = true;
+        cloudApply(both);
+      } else {
+        var envF = lcEnv();
+        if (both) envF.withSettings = true;
+        var resF = Y().applyPack(state, ch.pack, "merge", envF);
+        if (resF && resF.ok) save();
+        toast(both ? "История и настройки применены из копии" : "История применена из копии");
+      }
+      render();
+      return;
+    }
+    if (act === "open-profile") { ui.page = "register"; ui.modal = null; render(); return; }
+    if (act === "google-signin") {
+      if (!cloudBridge()) { toast("Вход через Google работает в приложении для Android"); return; }
+      toast("Открываю окно Google…");
+      window.WaterGoogle.signIn();
+      return;
+    }
+    if (act === "cloud-signout") {
+      if (cloudBridge()) window.WaterGoogle.signOut();
+      toast("Вы вышли из аккаунта — история осталась на телефоне");
+      render();
+      return;
+    }
+    if (act === "cloud-profile") {
+      if (window.WaterGoogle && typeof window.WaterGoogle.refreshProfile === "function") {
+        toast("Запрашиваю данные профиля…");
+        window.WaterGoogle.refreshProfile();
+      } else {
+        toast("Данные профиля обновятся при следующем входе");
+      }
+      return;
+    }
     if (act === "cloud-sign") {
       if (!(window.WaterGoogle)) { toast("Вход через Google доступен в приложении Android"); return; }
       if (cloud.signedIn) window.WaterGoogle.signOut(); else window.WaterGoogle.signIn();
@@ -4917,16 +5079,6 @@
       }
       return;
     }
-    if (act === "file-apply-settings") {
-      W.WT2Y.applySettings(state, ui.pendingSettings || {}, {});
-      C().save(state);
-      ui.pendingSettings = null; ui.modal = null; ui.dialogSpec = null;
-      render(); toast("Настройки применены"); return;
-    }
-    if (act === "file-skip-settings") {
-      ui.pendingSettings = null; ui.modal = null; ui.dialogSpec = null;
-      render(); toast("Настройки не применялись"); return;
-    }
     if (act === "file-save") { F().save(state, ui, toast); return; }
     if (act === "file-open") { F().request(ui, toast); return; }
     if (act === "cloud-sync") {
@@ -5015,6 +5167,9 @@
     };
     if (W.WT2X) W.WT2X.bind(env);
     /* Донор app.js:10194: раскладка значков проекта применяется до первого рендера. */
+    /* v99 донора: применение в модуле цвета перерисовывает воду; рейз скоростей
+       волны не зовём — волна отложена словом владельца 07.11. */
+    if (window.LiquidColor && LiquidColor.onChange) LiquidColor.onChange(function () { render(); });
     adoptProjectLayout(function () { adoptProjectSkin(function () { render(); }); });
     /* Загрузочные шаги донора: разрешение на уведомления, облако, сверка слотов. */
     var n = N().ensureAlerts(state);
