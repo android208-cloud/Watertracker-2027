@@ -2352,6 +2352,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 }
 /* Картинка проявляется, только когда действительно загрузилась. */
 .ava-round.loaded img { opacity: 1; }
+/* Удержание портрета (скрытые облачные инструменты): круг слегка вжимается. */
+.ava-round.holding { transform: scale(0.92); }
+.ava-round { transition: transform 0.12s ease; }
 /* Кольцо вокруг круга — снаружи рамки: на картинку оно не влияет. */
 .ava-row { width: 48px; height: 48px; box-shadow: 0 0 0 2px #fff; }
 .ava-big { width: 104px; height: 104px; box-shadow: 0 0 0 3px rgba(255, 255, 255, .16); }

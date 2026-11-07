@@ -343,6 +343,51 @@
     window.WaterGoogle.restore();
   }
 
+  /* v85 у донора: ремонт облака — выкинуть копию вместе с накопившимися
+     метками удалений. Никакого предварительного чтения: смысл именно в том,
+     чтобы перезаписать отравленный файл, не впуская его содержимое на
+     устройство. Данные телефона не трогаются; следующая «Синхронизация»
+     выложит их заново. Дорога — скрытая, за портретом (слово владельца 07.11). */
+  function cloudClear() {
+    if (!cloudBridge() || !cloud.signedIn) { toast("Сначала войдите в Google-аккаунт"); return; }
+    if (cloud.busy) { toast("Обмен с Диском уже идёт"); return; }
+    cloud.busy = true;
+    cloud.pending = "clear";
+    cloud.chunks = [];
+    render();
+    window.WaterGoogle.backup(JSON.stringify({
+      source: "watercat-24", version: 1, exportedAt: new Date().toISOString(),
+      entries: [], weights: [], dayGoals: {}, tombstones: { e: {}, w: {} }
+    }));
+  }
+
+  /* Параметры входа Google (донор 838-864): сверка сборки с консолью.
+     Пакет-запас — настоящий пакет этой ветки; на устройстве мост присылает
+     живые значения. */
+  function cloudDiag() {
+    var vals = [
+      ["Пакет", cloud.pkg || "ru.watermeter.tracker.next"],
+      ["Отпечаток SHA-1", cloud.sha1 || "не прочитался"],
+      ["Сервисы Google Play", cloud.available ? "доступны" : "не найдены"],
+      ["Режим входа", "по пакету и подписи (ключ не нужен)"]
+    ];
+    var lines = ["Приложению нужен Android-клиент в Google Cloud с этими значениями:"];
+    vals.forEach(function (kv) {
+      lines.push("<b>" + kv[0] + ":</b> <span class=\"wrapval\">" + esc(kv[1]) + "</span>");
+    });
+    lines.push("В том же проекте на странице «Доступ к данным» должна быть область drive.appdata, " +
+      "а ваша почта — в «Тестовых пользователях». Правки доезжают за несколько минут.");
+    ui.dialogSpec = {
+      kind: "google-diag",
+      title: "Параметры входа Google",
+      body: "<p>" + lines.join("<br>") + "</p>",
+      copyText: "Параметры входа Google\n" + vals.map(function (kv) { return kv[0] + ": " + kv[1]; }).join("\n"),
+      actions: [{ act: "google-diag-copy", label: "Скопировать" }, { act: "dialog-cancel", label: "Закрыть" }]
+    };
+    ui.modal = "dialog";
+    render();
+  }
+
   function cloudUpload(mode) {
     if (!(window.WaterGoogle && typeof window.WaterGoogle.backup === "function")) {
       toast("Облако: вход через Google доступен в приложении Android");
@@ -3723,6 +3768,17 @@
     return out;
   }
 
+  /* Скрытая страница облачных инструментов (слово владельца 07.11):
+     открывается долгим удержанием портрета в окне «Профиль». Строки те же,
+     что модель настроек держит для диагностики, но второй дороги в
+     «Дополнительно» по слову владельца не делаем. */
+  function pageCloudTools() {
+    var back = K().header({ ui: "cloud-tools", cls: "top plain sub", back: uiIcon("back"), title: "Облачные инструменты" });
+    return back + '<div class="n-section">Облако</div>' +
+      K().row({ ui: "cloud-clear", act: "ask-cloud-clear", title: "Очистить облако", sub: "стереть копию и метки удалений на Диске" }) +
+      K().row({ ui: "google-diag", act: "google-diag", title: "Параметры входа Google", sub: "пакет и отпечаток этой сборки" });
+  }
+
   /* ---- рендер (донор 4520, сокращённый) ---- */
   /* ---------- Удержание прокрутки экрана (донор 2435-2494) ------------------
      Позиция каждого экрана живёт по ключу page/tab и возвращается после
@@ -3802,6 +3858,7 @@
     else if (ui.page === "folder-alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
       else if (ui.page === "look") { main = SU().pageLook(settingsEnv()); screenClass = "screen settings-screen"; }
       else if (ui.page === "register") { main = SU().pageRegister(settingsEnv()); screenClass = "screen settings-screen"; } /* донор 4569 */
+      else if (ui.page === "cloud-tools") { main = pageCloudTools(); screenClass = "screen settings-screen"; }
       else if (ui.page === "advanced") { main = SU().pageAdvanced(settingsEnv()); screenClass = "screen settings-screen"; }
       else if (ui.page === "struct-export") { main = SU().pageStructExport(settingsEnv()); screenClass = "screen settings-screen"; }
       else if (String(ui.page || "").indexOf("folder-") === 0) { main = SU().pageFolder(settingsEnv(), ui.page.slice(7)); screenClass = "screen settings-screen"; }
@@ -4088,8 +4145,74 @@
           });
   }
 
+  /* Скрытая дорога (слово владельца 07.11): долгое удержание большого
+     портрета в окне «Профиль» открывает «Облачные инструменты». Жест —
+     тот же, что у ярлыков (initPinHold): 500 мс, отмена при движении
+     пальца, вибрация, глушилка случайного клика после срабатывания. */
+  function initAvatarHold() {
+    var box = document.querySelector(".ava-round.ava-big");
+    if (!box || !cloud.signedIn) return;
+    var holdTimer = null, showTimer = null, fired = false, pid = null, startX = 0, startY = 0;
+    function clearTimers() {
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+    }
+    function detach() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    }
+    function openTools() {
+      fired = true;
+      suppressNextClick(500);
+      swallowUntilRelease();
+      try { if (navigator.vibrate) navigator.vibrate(12); } catch (err) { /* ignore */ }
+      ui.page = "cloud-tools";
+      ui.modal = null;
+      render();
+    }
+    function onMove(e) {
+      if (fired || pid == null || e.pointerId !== pid) return;
+      if (Math.abs(e.clientX - startX) > 12 || Math.abs(e.clientY - startY) > 12) {
+        clearTimers();
+        box.classList.remove("holding");
+        detach();
+      }
+    }
+    function onUp(e) {
+      if (pid == null || (e && e.pointerId != null && e.pointerId !== pid)) return;
+      if (fired && e && e.type === "pointercancel") return;
+      var didFire = fired;
+      clearTimers();
+      box.classList.remove("holding");
+      detach();
+      fired = false;
+      if (didFire) suppressNextClick(450);
+    }
+    box.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      fired = false;
+      pid = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      clearTimers();
+      showTimer = setTimeout(function () { box.classList.add("holding"); }, 140);
+      holdTimer = setTimeout(function () { holdTimer = null; openTools(); }, 500);
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    });
+    box.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+      if (fired) return;
+      clearTimers();
+      openTools();
+    });
+  }
+
   function afterRender() {
     initPinHold(); /* донор: bindAll() из render (4603) */
+    initAvatarHold(); /* скрытые облачные инструменты за портретом */
     initSort(); initHydSlider(); initColorWheel(); /* донор 7296-7299 */
     try { initWheels(); } catch (e) { /* v211: слепой catch больше не слепой */
       W.__wheelErr = (e && e.message) || String(e);
@@ -5146,6 +5269,28 @@
       return;
     }
     if (act === "open-profile") { ui.page = "register"; ui.modal = null; render(); return; }
+    if (act === "ask-cloud-clear") {
+      ui.dialogSpec = {
+        title: "Очистить облако?",
+        text: "Копия истории на Google Диске будет стёрта вместе с метками удалений. " +
+          "Данные на этом устройстве останутся нетронутыми, а следующая «Синхронизация» " +
+          "выложит текущую историю заново.",
+        ok: "Очистить", cancel: "Отмена", kind: "cloud-clear", okAct: "do-cloud-clear"
+      };
+      ui.modal = "dialog";
+      render();
+      return;
+    }
+    if (act === "do-cloud-clear") { ui.modal = null; ui.dialogSpec = null; cloudClear(); return; }
+    if (act === "google-diag") { cloudDiag(); return; }
+    if (act === "google-diag-copy") {
+      var ct = ui.dialogSpec && ui.dialogSpec.copyText;
+      if (ct && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(ct).then(function () { toast("Параметры скопированы"); },
+          function () { toast("Скопировать не вышло — перепишите вручную"); });
+      } else toast("Скопировать не вышло — перепишите вручную");
+      return;
+    }
     if (act === "google-signin") {
       if (!cloudBridge()) { toast("Вход через Google работает в приложении для Android"); return; }
       toast("Открываю окно Google…");
