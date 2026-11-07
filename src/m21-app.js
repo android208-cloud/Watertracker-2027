@@ -271,7 +271,12 @@
   /* Скачали — показываем в этом запуске. Ошибки тихие: останется иконка. */
   function avatarFetch() {
     var pic = /^https:\/\//.test(cloud.picture || "") ? cloud.picture : "";
-    if (!pic) { avatarLive = ""; return; }
+    /* Фикс 07.11 (уедет со следующим релизом): оболочка после входа шлёт
+       повторное состояние с мгновенно пустой ссылкой на фото, и портрет
+       сносило через секунду — а обратно он уже не скачивался (ссылка
+       помечена попробованной). Пустая ссылка при живом входе портрет
+       не трогает; сброс — только при выходе из аккаунта. */
+    if (!pic) { if (!cloud.signedIn) avatarLive = ""; return; }
     if (avatarLive || avatarTrying || avatarTried === pic) return;
     avatarTrying = true;
     var big = avatarBigUrl(pic) || pic;
@@ -2183,6 +2188,11 @@
     render();
   }
 
+
+  // В окне — только начало списка: полторы тысячи строк JSON в textarea
+  // подвешивают телефон, а честно выгружают кнопки. (Донор 6115-6117;
+  // константа не доехала при переносе — диалог экспорта падал, 07.11.)
+  var HIST_PREVIEW_ROWS = 60;
 
   function historyExportPreview() {
     var pack = Y().exportPack(state, lcEnv());

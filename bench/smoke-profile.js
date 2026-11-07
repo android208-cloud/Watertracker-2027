@@ -89,6 +89,16 @@ const ok = (name, cond, extra) => { if (cond) { pass++; console.log('  PASS  ' +
   await nat('[data-act="back"]');
   await p.waitForTimeout(250);
 
+  /* повторное обновление состояния с пустой ссылкой (оболочка после входа):
+     портрет обязан уцелеть — на устройстве он исчезал через секунду */
+  await gstate({ signedIn: true, name: 'Тест', email: 't@t.ru', picture: '' });
+  await p.waitForTimeout(400);
+  const a6 = await p.evaluate(() => {
+    const img = document.querySelector('.ava-round img');
+    return { src: img ? (img.getAttribute('src') || '').slice(0, 12) : 'norow', live: window.__avatarInfo().вПамяти };
+  });
+  ok('A6 повторное обновление с пустой ссылкой портрет не сносит', a6.live === true && a6.src.indexOf('data:image/') === 0, JSON.stringify(a6));
+
   await gstate({ signedIn: false });
   await p.waitForTimeout(400);
   const a3 = await p.evaluate(() => {

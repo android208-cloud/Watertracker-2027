@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Атлас экранов — Водомер next</title>
+<!-- Атлас экранов next (слово владельца 07.11, вариант 2): настоящее приложение
+     в рамке телефона + каталог всех экранов и меню для быстрого перехода.
+     Приложение не меняет и ничего не экспортирует: это смотровая площадка.
+     В APK не входит (сборка берёт только index.html/styles.css/src/assets/data). -->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, sans-serif; background: #141519; color: #e8e9ee; }
+  header { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: #1e2025; border-bottom: 1px solid #2e3038; flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0 14px 0 0; font-weight: 600; }
+  .btn { background: #2b2d34; color: #e8e9ee; border: 1px solid #3c3f49; border-radius: 8px; padding: 6px 11px; cursor: pointer; font: inherit; }
+  .btn:hover { background: #35373f; }
+  .btn.pri { background: #1da0e8; border-color: #1da0e8; color: #fff; }
+  .btn.on { background: #14506e; border-color: #1da0e8; }
+  .hint { color: #9aa0ad; font-size: 12px; }
+  #cur { color: #7fd4ff; font-size: 12.5px; font-family: ui-monospace, monospace; }
+  main { display: flex; height: calc(100vh - 50px); }
+  #left { width: 264px; flex: none; overflow: auto; background: #191b1f; border-right: 1px solid #2e3038; padding: 10px; }
+  .sec { color: #9aa0ad; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin: 14px 2px 6px; }
+  .sec:first-child { margin-top: 2px; }
+  .scr { display: block; width: 100%; text-align: left; background: none; border: 0; color: #d5d8e0; padding: 6px 9px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13.5px; }
+  .scr:hover { background: #23252c; }
+  .scr small { color: #78808f; margin-left: 6px; font-size: 11px; }
+  #center { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow: auto; background: #0f1013; }
+  #frame { position: relative; width: 412px; height: 892px; flex: none; border-radius: 20px; overflow: hidden; box-shadow: 0 0 0 1px #33363f, 0 22px 60px rgba(0,0,0,.55); background: #000; }
+  #frame iframe { width: 412px; height: 892px; border: 0; display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Атлас экранов next</h1>
+  <button class="btn pri" id="seedOwner">База владельца</button>
+  <button class="btn" id="seedEmpty">Пустой старт</button>
+  <button class="btn" id="seedOnb">Онбординг</button>
+  <button class="btn" id="themeBtn">Тема: тёмная</button>
+  <button class="btn" id="reloadBtn">Перезагрузить</button>
+  <span id="cur">загрузка…</span>
+  <span class="hint">Слева — все экраны и меню. Внутри рамки можно кликать: приложение настоящее, данные тестовые.</span>
+</header>
+<main>
+  <aside id="left"></aside>
+  <section id="center">
+    <div id="frame"><iframe id="app" title="Водомер next"></iframe></div>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var frame = document.getElementById("app");
+  var left = document.getElementById("left");
+  var cur = document.getElementById("cur");
+  var KEY = "cup-tracker-v1";
+  var ownerPack = null;
+
+  /* ---------- сиды (как в bench: база владельца из uploads) ---------- */
+  function buildSeed(pack, opts) {
+    opts = opts || {};
+    var s = (pack && pack.settings) || {}, pr = (pack && pack.profile) || {};
+    return {
+      goalMl: pr.consumptionRate || 1900, gender: pr.gender || "male",
+      weightKg: pr.weightKg || 59, units: "metric", dayStart: pr.dayStart || "02:00",
+      theme: "dark", animation: false,
+      onboarded: opts.onboarded ? 0 : 1, historyDismissed: 1, alertPermAsked: 1,
+      profile: { drinkId: "water", volume: 250 },
+      drinks: pack ? (pack.drinks || []) : [],
+      entries: opts.empty ? [] : (pack ? (pack.entries || []) : []),
+      weights: opts.empty ? [] : (pack ? (pack.weights || []) : []),
+      dayGoals: {}, tombstones: { e: {}, w: {} },
+      notifications: { enabled: false, everyMin: 120, days: [] },
+      cupLabel: s.cupLabel, rowCustom: s.rowCustom, habitAuto: s.habitAuto,
+      paceGoals: s.paceGoals, lc: s.lc
+    };
+  }
+  function boot(seed) {
+    try { localStorage.setItem(KEY, JSON.stringify(seed)); } catch (e) {}
+    frame.src = "index.html";
+  }
+  function loadOwner(cb) {
+    if (ownerPack) { cb(ownerPack); return; }
+    fetch("../uploads/vodomer-baza-owner.json").then(function (r) { return r.json(); })
+      .then(function (j) { ownerPack = j; cb(j); })
+      .catch(function () { cb(null); });
+  }
+
+  /* ---------- доступ к приложению в рамке ---------- */
+  function app() {
+    try { return frame.contentWindow && frame.contentWindow.__waterApp; } catch (e) { return null; }
+  }
+  function go(fn) {
+    var A = app(); if (!A) return;
+    fn(A);
+    A.render();
+  }
+  /* настоящий клик по кнопке приложения в рамке (честный путь пользователя) */
+  function clickAct(act) {
+    try {
+      var el = frame.contentDocument.querySelector('[data-act="' + act + '"]');
+      if (el) { el.click(); return true; }
+    } catch (e) {}
+    return false;
+  }
+  function base(A, tab) {
+    A.ui.page = null; A.ui.sheet = null; A.ui.modal = null; A.ui.dialogSpec = null;
+    A.ui.tab = tab || "home";
+  }
+
+  /* ---------- каталог: все экраны и меню ---------- */
+  var CAT = [
+    { g: "Вкладки", items: [
+      ["Главная", "home", function (A) { base(A, "home"); }],
+      ["История", "history", function (A) { base(A, "history"); }],
+      ["Вес", "weight", function (A) { base(A, "weight"); }],
+      ["Настройки", "settings", function (A) { base(A, "settings"); }],
+      ["Уведомления", "alerts", function (A) { base(A, "alerts"); }]
+    ]},
+    { g: "Страницы", items: [
+      ["Внешний вид", "page:look", function (A) { base(A, "settings"); A.ui.page = "look"; }],
+      ["Дополнительно", "page:advanced", function (A) { base(A, "settings"); A.ui.page = "advanced"; }],
+      ["Профиль", "page:register", function (A) { base(A, "settings"); A.ui.page = "register"; }],
+      ["Облачные инструменты", "page:cloud-tools", function (A) { base(A, "settings"); A.ui.page = "cloud-tools"; }],
+      ["Напитки", "page:drinks", function (A) { base(A, "home"); A.ui.page = "drinks"; }],
+      ["Создание напитка", "page:create", function (A) { base(A, "home"); A.ui.page = "create"; }],
+      ["Цвета кубиков", "page:colors", function (A) { base(A, "settings"); A.ui.page = "colors"; }],
+      ["Иконки", "page:icons", function (A) { base(A, "settings"); A.ui.page = "icons"; }],
+      ["Объёмы", "page:volumes", function (A) { base(A, "settings"); A.ui.page = "volumes"; }],
+      ["Структура (экспорт)", "page:struct-export", function (A) { base(A, "settings"); A.ui.page = "struct-export"; }],
+      ["Папка уведомлений", "page:folder-alerts", function (A) { base(A, "alerts"); A.ui.page = "folder-alerts"; }]
+    ]},
+    { g: "Уведомления — страницы", items: [
+      ["Звук", "page:alert-sound", function (A) { base(A, "alerts"); A.ui.page = "alert-sound"; }],
+      ["Период активности", "page:alert-period", function (A) { base(A, "alerts"); A.ui.page = "alert-period"; }],
+      ["Тексты", "page:alert-texts", function (A) { base(A, "alerts"); A.ui.page = "alert-texts"; }],
+      ["Дни недели", "page:alert-days", function (A) { base(A, "alerts"); A.ui.page = "alert-days"; }],
+      ["Правка уведомления", "page:alert-edit", function (A) { base(A, "alerts"); A.render(); A.performAction({ dataset: {} }, "open-alert-edit"); }],
+      ["Привычный график", "page:alert-habit", function (A) { base(A, "alerts"); A.ui.page = "alert-habit"; }]
+    ]},
+    { g: "Шторки", items: [
+      ["Добавить запись", "sheet:hist-add", function (A) { base(A, "history"); A.render(); if (!clickAct("open-add")) { A.performAction(null, "open-add"); } }],
+      ["Добавить вес", "sheet:weight", function (A) { base(A, "weight"); A.ui.sheet = "weight"; }],
+      ["Задать вес", "sheet:set-weight", function (A) { base(A, "settings"); A.render(); if (!clickAct("open-set-weight")) { A.performAction(null, "open-set-weight"); } }],
+      ["Норма воды", "sheet:goal", function (A) { base(A, "settings"); A.ui.sheet = "goal"; }],
+      ["Объём порции", "sheet:volume", function (A) { base(A, "home"); A.ui.sheet = "volume"; }],
+      ["Активность", "sheet:activity", function (A) { base(A, "home"); A.ui.sheet = "activity"; }],
+      ["Погода", "sheet:weather", function (A) { base(A, "home"); A.ui.sheet = "weather"; }]
+    ]},
+    { g: "Диалоги и меню", items: [
+      ["Тема оформления", "modal:theme", function (A) { base(A, "settings"); A.ui.modal = "theme"; }],
+      ["Единицы измерения", "modal:units", function (A) { base(A, "settings"); A.ui.modal = "units"; }],
+      ["Пол", "modal:gender", function (A) { base(A, "settings"); A.ui.modal = "gender"; }],
+      ["Норма (диалог)", "modal:norm", function (A) { base(A, "settings"); A.ui.modal = "norm"; }],
+      ["Начало суток", "modal:day-start", function (A) { base(A, "settings"); A.ui.modal = "day-start"; }],
+      ["Подпись стакана", "modal:cup-label", function (A) { base(A, "settings"); A.ui.modal = "cup-label"; }],
+      ["Частота напоминаний", "modal:alert-freq", function (A) { base(A, "alerts"); A.ui.modal = "alert-freq"; }],
+      ["Часы напоминаний", "modal:alert-clock", function (A) { base(A, "alerts"); A.ui.modal = "alert-clock"; }],
+      ["Пауза напоминаний", "modal:alert-gap", function (A) { base(A, "alerts"); A.ui.modal = "alert-gap"; }],
+      ["Календарь", "modal:calendar", function (A) { base(A, "weight"); A.ui.modal = "calendar"; }],
+      ["Время записи", "modal:time", function (A) { base(A, "history"); A.ui.timeDraft = { hour: 12, minute: 30 }; A.ui.modal = "time"; }],
+      ["Дубликаты", "modal:dupes", function (A) { base(A, "settings"); A.ui.modal = "dupes"; }],
+      ["Экспорт истории", "modal:history-export", function (A) { base(A, "settings"); A.ui.modal = "history-export"; }]
+    ]}
+  ];
+
+  CAT.forEach(function (grp) {
+    var h = document.createElement("div");
+    h.className = "sec"; h.textContent = grp.g;
+    left.appendChild(h);
+    grp.items.forEach(function (it) {
+      var b = document.createElement("button");
+      b.className = "scr"; b.dataset.atlas = it[1];
+      b.innerHTML = it[0] + "<small>" + it[1] + "</small>";
+      b.addEventListener("click", function () { go(it[2]); });
+      left.appendChild(b);
+    });
+  });
+
+  /* ---------- панель сверху ---------- */
+  document.getElementById("seedOwner").addEventListener("click", function () {
+    loadOwner(function (p) { boot(buildSeed(p, {})); });
+  });
+  document.getElementById("seedEmpty").addEventListener("click", function () {
+    loadOwner(function (p) { boot(buildSeed(p, { empty: true })); });
+  });
+  document.getElementById("seedOnb").addEventListener("click", function () {
+    loadOwner(function (p) { boot(buildSeed(p, { empty: true, onboarded: true })); });
+  });
+  document.getElementById("reloadBtn").addEventListener("click", function () {
+    frame.src = "index.html";
+  });
+  var dark = true;
+  document.getElementById("themeBtn").addEventListener("click", function () {
+    dark = !dark;
+    this.textContent = "Тема: " + (dark ? "тёмная" : "светлая");
+    go(function (A) { A.state.theme = dark ? "dark" : "light"; });
+  });
+
+  /* ---------- индикатор текущего экрана ---------- */
+  setInterval(function () {
+    var A = app();
+    if (!A) { cur.textContent = "загрузка…"; return; }
+    var u = A.ui;
+    cur.textContent = "сейчас: tab=" + u.tab + (u.page ? " page=" + u.page : "") +
+      (u.sheet ? " sheet=" + u.sheet : "") + (u.modal ? " modal=" + u.modal : "");
+  }, 600);
+
+  /* первый старт — база владельца */
+  loadOwner(function (p) { boot(buildSeed(p, {})); });
+})();
+</script>
+</body>
+</html>
