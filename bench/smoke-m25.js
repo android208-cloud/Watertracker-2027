@@ -72,6 +72,16 @@ function ok(cond, name) {
   ok(await has(p, '[data-act="open-activity"]'), 'строка «Период активности» ожила (модуль 2)');
   ok(!(await has(p, '[data-act="open-theme"]')), 'тема уехала из главной');
   await shot(p, 'settings-main');
+  /* дверь «Уведомления» с тумблером (слово владельца 07.11) */
+  ok(await has(p, '.door-row .switch'), 'у двери уведомлений свой тумблер');
+  const doorSub = await p.evaluate(() => { const el = document.querySelector('.door-row .ttl small'); return el ? el.textContent : ''; });
+  ok(/выключены|уведомлен|по темпу|не напоминать/.test(doorSub), 'подпись двери живая: «' + doorSub + '»');
+  const en0 = await p.evaluate(() => window.__waterApp.state.notifications.enabled);
+  await click(p, '.door-row .switch');
+  const en1 = await p.evaluate(() => window.__waterApp.state.notifications.enabled);
+  ok(en0 !== en1, 'тумблер двери переключает уведомления на месте');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === null, 'тумблер не уводит со страницы настроек');
+  await click(p, '.door-row .switch'); /* вернуть как было */
 
   console.log('Внешний вид:');
   await click(p, '[data-act="open-look"]');

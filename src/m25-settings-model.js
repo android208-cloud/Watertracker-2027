@@ -111,7 +111,7 @@
       look: { id: "look", type: "row", title: "Внешний вид", sub: "Тема, волна, цвета жидкости и графика", act: "open-look", home: "main", system: true },
       advanced: { id: "advanced", type: "row", title: "Дополнительно", act: "open-advanced", home: "main", system: true },
       /* v125: уведомления — строка-дверь; v127: живёт в блоке «Мой профиль». */
-      alertsDoor: { id: "alertsDoor", type: "row", title: "Уведомления", sub: ctx.labels.alertsDoor, act: "open-folder-alerts", home: "profile", system: true },
+      alertsDoor: { id: "alertsDoor", type: "row", title: "Уведомления", sub: ctx.labels.alertsDoor, act: "open-folder-alerts", switchKey: "alertOn", on: ctx.flags.alertOn, home: "profile", system: true },
       /* v126: вход в редактор порядка — фиксированная строка, видна только
          в режиме разработчика; в раскладке не участвует. */
     };

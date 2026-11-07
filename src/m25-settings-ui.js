@@ -31,6 +31,20 @@
     if (!window.UiKit) return "";
     return UiKit.row({ ui: act ? "set-" + act : "set-" + (cls || "plain"), title: title, sub: sub, right: extra, act: act, cls: cls });
   }
+  /* Строка-дверь с собственным тумблером (слово владельца 07.11, по
+     образцу системных настроек): левая часть ведёт внутрь раздела,
+     тумблер справа за разделителем включает/выключает на месте —
+     тот же ключ, что у главного тумблера внутри раздела. */
+  function sDoorSwitch(it) {
+    var on = !!it.on;
+    return '<div class="n-row door-row">' +
+      '<button type="button" class="door-main" data-act="' + it.act + '">' +
+      '<span class="ttl">' + it.title + (it.sub ? "<small>" + it.sub + "</small>" : "") + "</span></button>" +
+      '<span class="door-sep" aria-hidden="true"></span>' +
+      '<button type="button" class="switch' + (on ? " on" : "") + '" data-act="toggle" data-key="' + it.switchKey +
+      '" role="switch" aria-checked="' + (on ? "true" : "false") + '" aria-label="Включить уведомления"><i></i></button></div>';
+  }
+
   function sBox(on, key) {
     var state=E.state, ui=E.ui, save=E.save, render=E.render, esc=E.esc, uiIcon=E.uiIcon,
       UiKit=E.UiKit, SettingsModel=E.SettingsModel, LiquidColor=E.LiquidColor, L=E.L,
@@ -102,6 +116,7 @@
         if (!it || it.visible === false) return;
         if (it.type === "custom") { body += (customs && customs[it.custom]) || ""; return; }
         if (it.type === "switch") { body += sSwitch(it.title, it.sub || "", it.key, !!it.on); return; }
+        if (it.switchKey) { body += sDoorSwitch(it); return; }
         var extra = it.type === "check" ? sBox(!!it.on, it.key) : "";
         var act = it.enabled === false ? "" : (it.act || "");
         var cls = it.enabled === false ? "off" : (it.cls || "");
@@ -238,8 +253,21 @@
         norm: esc(volLabel(recommended ? recommendedMl() : (state.customGoalMl || goal)) + (recommended ? " · рекомендуемая" : " · своя")),
         cupLabel: state.cupLabel === "countdown" ? "Подпись: обратный отсчёт" : "Подпись: остаток времени",
         theme: esc(THEME_NAMES[state.theme] || "Системная"),
-        /* v125: живая подпись двери «Уведомления». */
-        alertsDoor: n.enabled ? esc(freqLabel(n.everyMin)) : "выключены"
+        /* Живая подпись двери «Уведомления» (слово владельца 07.11 —
+           как в системных настройках: оценка числа напоминаний в день
+           по окну активности и частоте; темп и «не напоминать» — словами. */
+        alertsDoor: (function () {
+          if (!n.enabled) return "выключены";
+          if (Number(n.everyMin) === -1) return "по темпу";
+          if (!(Number(n.everyMin) > 0)) return "не напоминать";
+          var win = parseHM(n.to) - parseHM(n.from);
+          if (win <= 0) win += 1440;
+          win = Math.max(0, win - (Number(n.afterWakeMin) || 0) - (Number(n.beforeSleepMin) || 0));
+          var cnt = Math.max(1, Math.floor(win / Number(n.everyMin)) + 1);
+          var word = cnt % 10 === 1 && cnt % 100 !== 11 ? "уведомление"
+            : (cnt % 10 >= 2 && cnt % 10 <= 4 && (cnt % 100 < 12 || cnt % 100 > 14) ? "уведомления" : "уведомлений");
+          return "~ " + cnt + " " + word + " в день";
+        })()
       }
     };
   }
