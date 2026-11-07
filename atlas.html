@@ -45,6 +45,38 @@
   .bar2 select, .bar2 input[type=number] { background: #121317; color: #e8e9ee; border: 1px solid #3c3f49; border-radius: 7px; padding: 5px 7px; font: inherit; }
   .bar2 input[type=number] { width: 76px; }
   .bar2 .lbl { color: #9aa0ad; font-size: 12.5px; }
+
+  /* ---------- редактор ---------- */
+  #edBtn.on { background: #4da3ff; color: #08131f; border-color: #4da3ff; font-weight: 700; }
+  #edPanel { width: 302px; flex: none; background: #17181c; border-left: 1px solid #2c2e35;
+    padding: 12px 14px 20px; overflow-y: auto; display: none; color: #e8e9ee; font-size: 13px; }
+  #edPanel.open { display: block; }
+  #edPanel h3 { font-size: 13px; margin: 14px 0 8px; color: #9db8d6; letter-spacing: .04em; }
+  #edPanel h3:first-child { margin-top: 0; }
+  #edPanel label { color: #a7abb6; }
+  #edPanel .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+  #edPanel input[type=number] { width: 62px; }
+  #edPanel input[type=text], #edPanel textarea { width: 100%; }
+  #edPanel input, #edPanel select, #edPanel textarea { background: #232529; color: #e8e9ee;
+    border: 1px solid #3a3c44; border-radius: 8px; padding: 6px 8px; font: inherit; }
+  #edPanel input[type=color] { width: 44px; height: 28px; padding: 2px; }
+  #edPanel input[type=range] { flex: 1; padding: 0; }
+  #edPanel button { background: #232529; color: #e8e9ee; border: 1px solid #3a3c44;
+    border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  #edPanel button:hover { border-color: #4da3ff; }
+  #edPath { font: 11px/1.5 monospace; color: #8fd0ff; word-break: break-all;
+    background: #101216; border: 1px solid #2c2e35; border-radius: 8px; padding: 6px 8px; }
+  #edGeom { font: 11px monospace; color: #a7abb6; }
+  #edLogN { color: #ffd479; font-weight: 700; }
+  #edReport { height: 120px; font: 11px/1.5 monospace; display: none; }
+  .ed-note { color: #7c808c; font-size: 12px; line-height: 1.5; }
+  #edPanel .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+  #edPanel .nums label { display: flex; align-items: center; gap: 6px; }
+  #edPanel .nums input { width: 64px; flex: none; }
+  #edGuideList { margin: 6px 0; }
+  #edGuideList .grow { display: flex; align-items: center; gap: 8px; margin: 3px 0;
+    font: 11px monospace; color: #ffb3c8; }
+  #edGuideList .grow button { padding: 2px 8px; margin-left: auto; }
 </style>
 </head>
 <body>
@@ -55,6 +87,7 @@
   <button class="btn" id="seedOnb">Онбординг</button>
   <button class="btn" id="themeBtn">Тема: тёмная</button>
   <button class="btn" id="reloadBtn">Перезагрузить</button>
+  <button id="edBtn" title="Визуальный редактор поверх живого приложения">✏ Редактор</button>
   <span id="cur">загрузка…</span>
   <span class="hint">Слева — все экраны и меню. Внутри рамки можно кликать: приложение настоящее, данные тестовые.</span>
   <div class="bar2">
@@ -101,6 +134,78 @@
     </div>
   </section>
 </main>
+
+<aside id="edPanel">
+  <h3>РЕДАКТОР · СЕТКА</h3>
+  <div class="row">
+    <label>шаг</label>
+    <select id="edStep"><option>4</option><option selected>8</option><option>12</option><option>16</option><option>24</option></select>
+    <label><input type="checkbox" id="edGridOn" checked> сетка</label>
+    <label><input type="checkbox" id="edSnapOn" checked> прилипание</label>
+    <label><input type="checkbox" id="edOurOn"> наша сетка</label>
+    <label><input type="checkbox" id="edOurNum"> нумерация</label>
+  </div>
+  <p class="ed-note">Клик — выбрать элемент. Тянуть — двигать, ручки по краям — размер.
+    Стрелки — сдвиг на 1px (с Shift — на шаг сетки), Esc — снять выбор.</p>
+  <h3>РАЗМЕТОЧНЫЕ ЛИНИИ</h3>
+  <div class="row">
+    <label><input type="checkbox" id="edGuidesOn" checked> показывать линии</label></div>
+  <div class="row">
+    <button id="edGuideV">+ вертикальная</button>
+    <button id="edGuideH">+ горизонтальная</button></div>
+  <div class="row">
+    <button id="edGuideEl">Линии по выбранному элементу</button>
+    <button id="edGuideClear">Убрать все</button></div>
+  <div id="edGuideList"></div>
+  <p class="ed-note">Линии таскаются мышью; прилипание ловит и их тоже.
+    Живут поверх всех экранов, в журнал правок не пишутся.</p>
+  <h3>ЭЛЕМЕНТ</h3>
+  <div id="edPath">ничего не выбрано</div>
+  <div class="row"><span id="edGeom">—</span></div>
+  <div class="nums">
+    <label>сдвиг X <input type="number" id="edX" step="1"></label>
+    <label>сдвиг Y <input type="number" id="edY" step="1"></label>
+    <label>ширина <input type="number" id="edW" step="1" min="1"></label>
+    <label>высота <input type="number" id="edH" step="1" min="1"></label>
+  </div>
+  <div class="row"><label style="flex:1">Текст
+    <input type="text" id="edText" placeholder="текст элемента"></label></div>
+  <h3>ШРИФТ</h3>
+  <div class="row"><label>размер</label>
+    <input type="range" id="edFontSize" min="8" max="44" step="1"><input type="number" id="edFontSizeN" min="8" max="60"></div>
+  <div class="row"><label>вес</label>
+    <select id="edFontWeight"><option value="">—</option><option>400</option><option>500</option><option>600</option><option>700</option><option>800</option></select>
+    <label>цвет</label><input type="color" id="edColor"></div>
+  <h3>ВИД</h3>
+  <div class="row"><label>фон</label><input type="color" id="edBg">
+    <button id="edBgClear">прозрачный</button></div>
+  <div class="row"><label>скругление</label>
+    <input type="range" id="edRadius" min="0" max="60" step="1"><input type="number" id="edRadiusN" min="0" max="200"></div>
+  <div class="row"><label>отступы</label>
+    <input type="range" id="edPad" min="0" max="48" step="1"><input type="number" id="edPadN" min="0" max="120"></div>
+  <div class="row"><label>прозрачность</label>
+    <input type="range" id="edOpacity" min="5" max="100" step="1"><span id="edOpacityV"></span></div>
+  <div class="row">
+    <button id="edHide">Скрыть/показать</button>
+    <button id="edResetEl">Сброс элемента</button></div>
+  <h3>ТОСТЫ</h3>
+  <div class="row"><label style="flex:1">текст
+    <input type="text" id="edToastText" value="Так будет выглядеть тост"></label></div>
+  <div class="row"><button id="edToastShow">Вызвать и закрепить тост</button>
+    <button id="edToastHide">Скрыть тост</button></div>
+  <p class="ed-note">Тост вызывается настоящим механизмом приложения и закрепляется копией —
+    оригинал исчезнет по таймеру, копию можно крутить сколько угодно.</p>
+  <h3>ЖУРНАЛ ПРАВОК · <span id="edLogN">0</span></h3>
+  <div class="row">
+    <button id="edExport">Отчёт</button>
+    <button id="edReapply">Переприменить к экрану</button></div>
+  <div class="row">
+    <button id="edWipe">Сбросить всё</button>
+    <span id="edStatus" class="ed-note"></span></div>
+  <textarea id="edReport" readonly></textarea>
+  <p class="ed-note">Правки живут только в этой живой странице и в журнале.
+    В исходный код приложения они попадут, если принести отчёт мне и сказать «примени».</p>
+</aside>
 <script>
 (function () {
   "use strict";
@@ -352,6 +457,558 @@
   /* первый старт — база владельца */
   loadOwner(function (p) { boot(buildSeed(p, {})); });
 })();
+
+  /* ================= РЕДАКТОР ИНТЕРФЕЙСА ================= */
+  var edFrame = document.getElementById("app");
+  var edOn = false, edSelEl = null, edHover = null, edEdits = [], edLastDoc = null;
+  var edDrag = null;
+  var edPanel = document.getElementById("edPanel");
+  /* панель — третьим столбцом рядом с рамкой, а не под страницей */
+  var mainEl = document.querySelector("main");
+  if (mainEl) mainEl.appendChild(edPanel);
+  function edD() { try { return edFrame.contentDocument; } catch (e) { return null; } }
+  function edW() { try { return edFrame.contentWindow; } catch (e) { return null; } }
+  function edStep() { return parseInt(document.getElementById("edStep").value, 10) || 8; }
+  function edSnap(v) { return document.getElementById("edSnapOn").checked ? Math.round(v / edStep()) * edStep() : Math.round(v); }
+
+  var ED_CSS = [
+    "#edGrid{position:fixed;inset:0;z-index:2147483000;pointer-events:none;display:none;",
+    "background-image:linear-gradient(rgba(77,163,255,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(77,163,255,.14) 1px,transparent 1px);}",
+    "#edBox{position:fixed;z-index:2147483001;border:1.5px solid #4da3ff;box-shadow:0 0 0 1px rgba(0,0,0,.4);pointer-events:none;display:none;box-sizing:border-box;}",
+    "#edBox .ed-h{position:absolute;width:11px;height:11px;margin:-6px 0 0 -6px;background:#fff;border:1.5px solid #4da3ff;border-radius:2px;pointer-events:all;box-sizing:border-box;}",
+    "#edBox .ed-h[data-h=nw]{left:0;top:0;cursor:nwse-resize}#edBox .ed-h[data-h=n]{left:50%;top:0;cursor:ns-resize}",
+    "#edBox .ed-h[data-h=ne]{left:100%;top:0;cursor:nesw-resize}#edBox .ed-h[data-h=e]{left:100%;top:50%;cursor:ew-resize}",
+    "#edBox .ed-h[data-h=se]{left:100%;top:100%;cursor:nwse-resize}#edBox .ed-h[data-h=s]{left:50%;top:100%;cursor:ns-resize}",
+    "#edBox .ed-h[data-h=sw]{left:0;top:100%;cursor:nesw-resize}#edBox .ed-h[data-h=w]{left:0;top:50%;cursor:ew-resize}",
+    "#edTag{position:absolute;left:-1.5px;top:-25px;background:#4da3ff;color:#08131f;font:600 10px system-ui;padding:3px 6px;border-radius:4px;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;}",
+    "[data-ed-hover]{outline:1px dashed rgba(77,163,255,.9)!important;outline-offset:1px;}",
+    "#edGuides{position:fixed;inset:0;z-index:2147483000;pointer-events:none;}",
+    ".ed-guide{position:fixed;pointer-events:all;}",
+    ".ed-guide-v{top:0;bottom:0;width:11px;margin-left:-5px;border-left:1px solid rgba(255,93,143,.85);cursor:ew-resize;}",
+    ".ed-guide-h{left:0;right:0;height:11px;margin-top:-5px;border-top:1px solid rgba(255,93,143,.85);cursor:ns-resize;}",
+    ".ed-guide:hover{border-color:#ff5d8f;}",
+    "#edOur{position:fixed;inset:0;z-index:2147482999;pointer-events:none;}",
+    ".ed-our-v{position:fixed;top:0;bottom:0;width:0;border-left:1px solid rgba(64,170,145,.5);}",
+    ".ed-our-h{position:fixed;left:0;right:0;height:0;border-top:1px solid rgba(64,170,145,.5);}",
+    ".ed-our-lab{position:fixed;z-index:2147483000;background:#123528;color:#7fe3c3;",
+    "font:700 9px system-ui;line-height:1;padding:2px 4px;border-radius:3px;transform:translate(-50%,0);}"
+  ].join("\n");
+
+  function edEnsureDom() {
+    var d = edD(); if (!d || !d.body || !d.head) return;
+    if (!d.getElementById("edStyle")) {
+      var st = d.createElement("style"); st.id = "edStyle"; st.textContent = ED_CSS; d.head.appendChild(st);
+    }
+    if (!d.getElementById("edGrid")) {
+      var g = d.createElement("div"); g.id = "edGrid"; d.body.appendChild(g);
+    }
+    if (!d.getElementById("edBox")) {
+      var bx = d.createElement("div"); bx.id = "edBox";
+      bx.innerHTML = "<div id=\"edTag\"></div>" + ["nw", "n", "ne", "e", "se", "s", "sw", "w"].map(function (h) {
+        return "<div class=\"ed-h\" data-h=\"" + h + "\"></div>";
+      }).join("");
+      d.body.appendChild(bx);
+    }
+    edLayoutGrid();
+  }
+  function edLayoutGrid() {
+    var d = edD(); if (!d) return;
+    var g = d.getElementById("edGrid"); if (!g) return;
+    g.style.backgroundSize = edStep() + "px " + edStep() + "px";
+    g.style.display = (edOn && document.getElementById("edGridOn").checked) ? "block" : "none";
+  }
+  function edPath(el) {
+    var d = edD(), parts = [], n = el;
+    while (n && n.nodeType === 1 && n !== d.body && n !== d.documentElement) {
+      if (n.id && n.id.indexOf("ed") === 0) break;
+      var seg = n.tagName.toLowerCase();
+      if (n.id) { seg += "#" + n.id; parts.unshift(seg); break; }
+      var cls = (typeof n.className === "string" ? n.className : "").trim().split(/\s+/)
+        .filter(function (c) { return c && c.indexOf("ed-") !== 0; }).slice(0, 2);
+      if (cls.length) seg += "." + cls.join(".");
+      var par = n.parentElement;
+      if (par) {
+        var same = 0, idx = 0, c;
+        for (c = par.firstElementChild; c; c = c.nextElementSibling) {
+          if (c.tagName === n.tagName) { same++; if (c === n) idx = same; }
+        }
+        if (same > 1) seg += ":nth-of-type(" + idx + ")";
+      }
+      parts.unshift(seg);
+      n = par;
+    }
+    return parts.join(" > ");
+  }
+  function edScreen() { return document.getElementById("cur").textContent || "?"; }
+  function edRec(el, prop, value, from) {
+    if (from && String(from) === String(value)) return; /* было = стало: не пишем */
+    var scr = edScreen(), sel = edPath(el);
+    var key = scr + "|" + sel + "|" + prop;
+    for (var i = 0; i < edEdits.length; i++) {
+      if (edEdits[i].key === key) { edEdits[i].value = value; edLogRender(); return; }
+    }
+    edEdits.push({ key: key, screen: scr, sel: sel, prop: prop, from: from, value: value });
+    edLogRender();
+  }
+  function edLogRender() { document.getElementById("edLogN").textContent = edEdits.length; }
+  function edSet(el, prop, value) {
+    if (!el) return;
+    var from;
+    if (prop === "text") { from = el.textContent; el.textContent = value; }
+    else {
+      var w = edW();
+      from = w ? w.getComputedStyle(el)[prop] : "";
+      el.style[prop] = value;
+    }
+    edRec(el, prop, value, from);
+  }
+  function edBoxTo() {
+    var d = edD(); if (!d || !edSelEl) return;
+    var bx = d.getElementById("edBox"); if (!bx) return;
+    if (!edSelEl.isConnected) { edDeselect(); return; }
+    var r = edSelEl.getBoundingClientRect();
+    bx.style.display = "block";
+    bx.style.left = r.left + "px"; bx.style.top = r.top + "px";
+    bx.style.width = r.width + "px"; bx.style.height = r.height + "px";
+    var tag = d.getElementById("edTag");
+    if (tag) tag.textContent = edSelEl.tagName.toLowerCase() +
+      (typeof edSelEl.className === "string" && edSelEl.className.trim() ? "." + edSelEl.className.trim().split(/\s+/)[0] : "");
+    document.getElementById("edGeom").textContent =
+      Math.round(r.width) + " × " + Math.round(r.height) + " px · x " + Math.round(r.left) + " · y " + Math.round(r.top);
+    edFillNums();
+  }
+  function edSelect(el) {
+    edDeselect(true);
+    edSelEl = el;
+    try { edW().__edSelected = el; } catch (e) { /* стенду: выбранный элемент */ }
+    var w = edW(), cs = w.getComputedStyle(el);
+    document.getElementById("edPath").textContent = edPath(el);
+    var t = document.getElementById("edText");
+    var leaf = el.children.length === 0;
+    t.disabled = !leaf;
+    t.value = leaf ? el.textContent : "";
+    t.placeholder = leaf ? "" : "внутри есть вложенные элементы — текст не трогаем";
+    var fs = parseFloat(cs.fontSize) || 14;
+    document.getElementById("edFontSize").value = fs;
+    document.getElementById("edFontSizeN").value = Math.round(fs);
+    document.getElementById("edFontWeight").value = "";
+    document.getElementById("edColor").value = edHex(cs.color);
+    document.getElementById("edBg").value = edHex(cs.backgroundColor);
+    var rad = parseFloat(cs.borderTopLeftRadius) || 0;
+    document.getElementById("edRadius").value = Math.min(60, rad);
+    document.getElementById("edRadiusN").value = Math.round(rad);
+    var pad = parseFloat(cs.paddingTop) || 0;
+    document.getElementById("edPad").value = Math.min(48, pad);
+    document.getElementById("edPadN").value = Math.round(pad);
+    var op = Math.round((parseFloat(cs.opacity) || 1) * 100);
+    document.getElementById("edOpacity").value = op;
+    document.getElementById("edOpacityV").textContent = op + "%";
+    edFillNums();
+    edBoxTo();
+  }
+  function edDeselect(keepPanel) {
+    edSelEl = null;
+    var d = edD();
+    if (d) { var bx = d.getElementById("edBox"); if (bx) bx.style.display = "none"; }
+    try { edW().__edSelected = null; } catch (e) {}
+    if (!keepPanel) {
+      document.getElementById("edPath").textContent = "ничего не выбрано";
+      document.getElementById("edGeom").textContent = "—";
+    }
+  }
+  function edHex(rgb) {
+    var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/.exec(rgb || "");
+    if (!m) return "#000000";
+    function h(x) { return ("0" + Number(x).toString(16)).slice(-2); }
+    return "#" + h(m[1]) + h(m[2]) + h(m[3]);
+  }
+  function edTx(el) {
+    return { x: parseFloat(el.dataset.edTx || "0"), y: parseFloat(el.dataset.edTy || "0") };
+  }
+  function edApplyTx(el, x, y, recordIt) {
+    el.dataset.edTx = x; el.dataset.edTy = y;
+    el.style.transform = "translate(" + x + "px," + y + "px)";
+    if (recordIt) edRec(el, "transform", "translate(" + x + "px, " + y + "px)", "translate(0px, 0px)");
+  }
+  /* --- мышь внутри рамки --- */
+  /* --- разметочные линии: живут в родителе, рисуются в рамке --- */
+  var edGuides = [];
+  function edGuidesRender() {
+    var d = edD(); if (!d || !d.body) return;
+    var box = d.getElementById("edGuides");
+    if (!box) { box = d.createElement("div"); box.id = "edGuides"; d.body.appendChild(box); }
+    box.style.display = document.getElementById("edGuidesOn").checked ? "block" : "none";
+    box.innerHTML = edGuides.map(function (g, i) {
+      var st = g.o === "v" ? "left:" + g.p + "px" : "top:" + g.p + "px";
+      return "<div class=\"ed-guide ed-guide-" + g.o + "\" data-gi=\"" + i + "\" style=\"" + st + "\"></div>";
+    }).join("");
+    var list = document.getElementById("edGuideList");
+    list.innerHTML = edGuides.map(function (g, i) {
+      return "<div class=\"grow\"><span>" + (g.o === "v" ? "│ верт." : "─ гориз.") + " · " + Math.round(g.p) + "px</span>" +
+        "<button data-gd=\"" + i + "\">убрать</button></div>";
+    }).join("");
+    list.querySelectorAll("[data-gd]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        edGuides.splice(parseInt(btn.dataset.gd, 10), 1);
+        edGuidesRender();
+      });
+    });
+  }
+  function edSnapAxis(v, o) {
+    var best = edSnap(v);
+    edGuides.forEach(function (g) {
+      if (g.o === o && Math.abs(g.p - v) < Math.abs(best - v)) best = g.p;
+    });
+    if (document.getElementById("edOurOn").checked) {
+      /* наша сетка: вертикали 41+66k, горизонтали 44+46k (замер со скрина владельца) */
+      var off = o === "v" ? 41 : 44, st = o === "v" ? 66 : 46;
+      var cand = off + Math.round((v - off) / st) * st;
+      if (Math.abs(cand - v) < Math.abs(best - v)) best = cand;
+    }
+    return best;
+  }
+  var ED_LETTERS = "АБВГДЕЖЗИКЛМНПРСТУФХЦЧШЭЮЯ";
+  function edOurRender() {
+    var d = edD(), w = edW(); if (!d || !d.body || !w) return;
+    var box = d.getElementById("edOur");
+    if (!box) { box = d.createElement("div"); box.id = "edOur"; d.body.appendChild(box); }
+    var on = document.getElementById("edOurOn").checked;
+    box.style.display = on ? "block" : "none";
+    if (!on) return;
+    var num = document.getElementById("edOurNum").checked;
+    var html = "", x, y, li = 0;
+    for (x = 41; x < w.innerWidth; x += 66) {
+      html += "<div class=\"ed-our-v\" style=\"left:" + x + "px\"></div>";
+      if (num) html += "<div class=\"ed-our-lab\" style=\"left:" + x + "px;top:2px\">" + ED_LETTERS[li++] + "</div>";
+    }
+    var cols = li;
+    for (y = 44; y < w.innerHeight; y += 46) {
+      html += "<div class=\"ed-our-h\" style=\"top:" + y + "px\"></div>";
+      if (num) html += "<div class=\"ed-our-lab\" style=\"left:8px;top:" + y + "px;transform:translate(0,-50%)\">" +
+        (ED_LETTERS[cols + Math.round((y - 44) / 46)] || "") + "</div>";
+    }
+    box.innerHTML = html;
+  }
+  function edTarget(e) {
+    var t = e.target;
+    if (!t || t.nodeType !== 1) return null;
+    if (t.id === "edGrid" || t.id === "edTag") return null;
+    return t;
+  }
+  function onEdDown(e) {
+    if (!edOn) return;
+    if (e.target && e.target.classList && e.target.classList.contains("ed-guide")) {
+      e.preventDefault(); e.stopPropagation();
+      var gi = parseInt(e.target.dataset.gi, 10), gd = edGuides[gi];
+      if (gd) edDrag = { mode: "guide", g: gd, sx: e.clientX, sy: e.clientY, p: gd.p, moved: true };
+      return;
+    }
+    var hd = e.target && e.target.classList && e.target.classList.contains("ed-h") ? e.target : null;
+    var t = hd ? edSelEl : edTarget(e);
+    if (!t || t === edD().documentElement || t === edD().body) { edDeselect(); return; }
+    e.preventDefault(); e.stopPropagation();
+    if (!hd) edSelect(t);
+    var r = t.getBoundingClientRect(), tx = edTx(t);
+    edDrag = { el: t, mode: hd ? "resize" : "drag", h: hd ? hd.dataset.h : "",
+      sx: e.clientX, sy: e.clientY, rect: r, tx: tx.x, ty: tx.y,
+      w: r.width, hgt: r.height, moved: false };
+  }
+  function onEdMove(e) {
+    if (!edOn) return;
+    if (!edDrag) {
+      var t = edTarget(e);
+      if (edHover && edHover !== t) edHover.removeAttribute("data-ed-hover");
+      edHover = (t && t !== edD().body && t !== edD().documentElement) ? t : null;
+      if (edHover && edHover !== edSelEl) edHover.setAttribute("data-ed-hover", "1");
+      else if (edHover) edHover.removeAttribute("data-ed-hover");
+      return;
+    }
+    var g = edDrag, dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 2) g.moved = true;
+    if (g.mode === "guide") {
+      var np = g.g.o === "v" ? g.p + dx : g.p + dy;
+      g.g.p = document.getElementById("edSnapOn").checked ? edSnap(np) : Math.round(np);
+      edGuidesRender();
+      return;
+    }
+    if (g.mode === "drag") {
+      var nx = g.tx + dx, ny = g.ty + dy;
+      if (document.getElementById("edSnapOn").checked) {
+        /* без округления самого сдвига: край элемента может жить на долях
+           пикселя, сетка ловится именно краем, а не целым translate */
+        nx = edSnapAxis(g.rect.left + dx, "v") - g.rect.left + g.tx;
+        ny = edSnapAxis(g.rect.top + dy, "h") - g.rect.top + g.ty;
+        edApplyTx(g.el, Math.round(nx * 100) / 100, Math.round(ny * 100) / 100, false);
+      } else {
+        edApplyTx(g.el, Math.round(nx), Math.round(ny), false);
+      }
+    } else {
+      var w = g.w, h = g.hgt;
+      if (g.h.indexOf("e") >= 0) w = g.w + dx;
+      if (g.h.indexOf("w") >= 0) w = g.w - dx;
+      if (g.h.indexOf("s") >= 0) h = g.hgt + dy;
+      if (g.h.indexOf("n") >= 0) h = g.hgt - dy;
+      w = Math.max(12, document.getElementById("edSnapOn").checked ? edSnap(w) : Math.round(w));
+      h = Math.max(12, document.getElementById("edSnapOn").checked ? edSnap(h) : Math.round(h));
+      if (g.h.indexOf("e") >= 0 || g.h.indexOf("w") >= 0) { g.el.style.width = w + "px"; g.newW = w; }
+      if (g.h.indexOf("n") >= 0 || g.h.indexOf("s") >= 0) { g.el.style.height = h + "px"; g.newH = h; }
+    }
+    edBoxTo();
+  }
+  function onEdUp(e) {
+    if (!edDrag) return;
+    var g = edDrag; edDrag = null;
+    if (!g.moved || g.mode === "guide") return;
+    if (g.mode === "drag") {
+      var t = edTx(g.el);
+      edRec(g.el, "transform", "translate(" + t.x + "px, " + t.y + "px)", "translate(0px, 0px)");
+    } else {
+      var cs = edW().getComputedStyle(g.el);
+      if (g.newW != null) edRec(g.el, "width", g.newW + "px", Math.round(g.w) + "px");
+      if (g.newH != null) edRec(g.el, "height", g.newH + "px", Math.round(g.hgt) + "px");
+      void cs;
+    }
+    edBoxTo();
+  }
+  function onEdSwallow(e) {
+    if (!edOn) return;
+    /* клики приложения в режиме редактора глушим: правим, а не нажимаем */
+    e.preventDefault(); e.stopPropagation();
+  }
+  function edPinToast(node) {
+    if (!node.classList || !node.classList.contains("toast")) return;
+    if (node.classList.contains("ed-pinned")) return;
+    var d = edD();
+    var old = d.querySelectorAll(".toast.ed-pinned");
+    for (var i = 0; i < old.length; i++) old[i].remove();
+    var c = node.cloneNode(true);
+    c.classList.add("ed-pinned");
+    c.style.pointerEvents = "auto";
+    /* копия живёт в теле страницы, ВНЕ перерисовываемого дерева приложения:
+       иначе первая же перерисовка (таймер оригинала) снесёт и её */
+    c.style.zIndex = "2147482999";
+    d.body.appendChild(c);
+    edSelect(c);
+    document.getElementById("edStatus").textContent = "тост закреплён";
+  }
+  function edAttach() {
+    var d = edD(); if (!d || d.__edAttached || !d.body) return;
+    d.__edAttached = true;
+    edEnsureDom();
+    d.addEventListener("mousedown", onEdDown, true);
+    d.addEventListener("mousemove", onEdMove, true);
+    d.addEventListener("mouseup", onEdUp, true);
+    d.addEventListener("click", onEdSwallow, true);
+    d.addEventListener("dblclick", onEdSwallow, true);
+    d.addEventListener("scroll", function () { edBoxTo(); }, true);
+    var mo = new (edW().MutationObserver)(function (muts) {
+      if (!edOn) return;
+      for (var i = 0; i < muts.length; i++) {
+        var added = muts[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          if (added[j].nodeType === 1) {
+            if (added[j].classList && added[j].classList.contains("toast")) edPinToast(added[j]);
+            else if (added[j].querySelector) {
+              var t = added[j].querySelector(".toast");
+              if (t) edPinToast(t);
+            }
+          }
+        }
+      }
+    });
+    mo.observe(d.documentElement, { childList: true, subtree: true });
+  }
+  setInterval(function () {
+    var d = edD();
+    if (d && d !== edLastDoc) { edLastDoc = d; edAttach(); edDeselect(); }
+    if (edOn) { edEnsureDom(); edLayoutGrid(); edGuidesRender(); edOurRender(); if (edSelEl) edBoxTo(); }
+  }, 400);
+
+  /* --- панель: привязки --- */
+  document.getElementById("edBtn").addEventListener("click", function () {
+    edOn = !edOn;
+    this.classList.toggle("on", edOn);
+    edPanel.classList.toggle("open", edOn);
+    if (edOn) { edAttach(); edEnsureDom(); } else { edDeselect(); if (edHover) edHover.removeAttribute("data-ed-hover"); }
+    edLayoutGrid();
+    document.getElementById("edStatus").textContent = edOn ? "редактор включён" : "";
+  });
+  document.getElementById("edStep").addEventListener("change", edLayoutGrid);
+  document.getElementById("edOurOn").addEventListener("change", edOurRender);
+  document.getElementById("edOurNum").addEventListener("change", edOurRender);
+  document.getElementById("edGridOn").addEventListener("change", edLayoutGrid);
+  document.getElementById("edText").addEventListener("change", function () {
+    if (edSelEl && edSelEl.children.length === 0) { edSet(edSelEl, "text", this.value); edBoxTo(); }
+  });
+  function edBindRange(rangeId, numId, prop, unit) {
+    var r = document.getElementById(rangeId), n = document.getElementById(numId);
+    r.addEventListener("input", function () {
+      n.value = r.value;
+      if (edSelEl) { edSelEl.style[prop] = r.value + unit; edBoxTo(); }
+    });
+    r.addEventListener("change", function () { if (edSelEl) edRec(edSelEl, prop, r.value + unit, ""); });
+    n.addEventListener("change", function () {
+      r.value = n.value;
+      if (edSelEl) { edSelEl.style[prop] = n.value + unit; edRec(edSelEl, prop, n.value + unit, ""); edBoxTo(); }
+    });
+  }
+  edBindRange("edFontSize", "edFontSizeN", "fontSize", "px");
+  edBindRange("edRadius", "edRadiusN", "borderRadius", "px");
+  edBindRange("edPad", "edPadN", "padding", "px");
+  document.getElementById("edFontWeight").addEventListener("change", function () {
+    if (edSelEl && this.value) edSet(edSelEl, "fontWeight", this.value);
+  });
+  document.getElementById("edColor").addEventListener("input", function () {
+    if (edSelEl) edSelEl.style.color = this.value;
+  });
+  document.getElementById("edColor").addEventListener("change", function () {
+    if (edSelEl) edRec(edSelEl, "color", this.value, "");
+  });
+  document.getElementById("edBg").addEventListener("input", function () {
+    if (edSelEl) edSelEl.style.backgroundColor = this.value;
+  });
+  document.getElementById("edBg").addEventListener("change", function () {
+    if (edSelEl) edRec(edSelEl, "backgroundColor", this.value, "");
+  });
+  document.getElementById("edBgClear").addEventListener("click", function () {
+    if (edSelEl) edSet(edSelEl, "backgroundColor", "transparent");
+  });
+  document.getElementById("edOpacity").addEventListener("input", function () {
+    document.getElementById("edOpacityV").textContent = this.value + "%";
+    if (edSelEl) edSelEl.style.opacity = this.value / 100;
+  });
+  document.getElementById("edOpacity").addEventListener("change", function () {
+    if (edSelEl) edRec(edSelEl, "opacity", String(this.value / 100), "");
+  });
+  document.getElementById("edHide").addEventListener("click", function () {
+    if (!edSelEl) return;
+    var hidden = edSelEl.style.display === "none";
+    edSet(edSelEl, "display", hidden ? "" : "none");
+    edBoxTo();
+  });
+  document.getElementById("edResetEl").addEventListener("click", function () {
+    if (!edSelEl) return;
+    var el = edSelEl, sel = edPath(el), scr = edScreen();
+    ["transform", "width", "height", "fontSize", "fontWeight", "color",
+     "backgroundColor", "borderRadius", "padding", "opacity", "display"].forEach(function (p) {
+      el.style[p] = "";
+    });
+    delete el.dataset.edTx; delete el.dataset.edTy;
+    edEdits = edEdits.filter(function (r) { return !(r.screen === scr && r.sel === sel); });
+    edLogRender(); edSelect(el);
+    document.getElementById("edStatus").textContent = "элемент сброшен";
+  });
+  function edFillNums() {
+    if (!edSelEl) return;
+    var r = edSelEl.getBoundingClientRect(), t = edTx(edSelEl);
+    var set = function (id, v) {
+      var i = document.getElementById(id);
+      if (document.activeElement !== i) i.value = v;
+    };
+    set("edX", Math.round(t.x * 100) / 100); set("edY", Math.round(t.y * 100) / 100);
+    set("edW", Math.round(r.width)); set("edH", Math.round(r.height));
+  }
+  document.getElementById("edX").addEventListener("change", function () {
+    if (edSelEl) { edApplyTx(edSelEl, parseFloat(this.value) || 0, edTx(edSelEl).y, true); edBoxTo(); }
+  });
+  document.getElementById("edY").addEventListener("change", function () {
+    if (edSelEl) { edApplyTx(edSelEl, edTx(edSelEl).x, parseFloat(this.value) || 0, true); edBoxTo(); }
+  });
+  document.getElementById("edW").addEventListener("change", function () {
+    if (!edSelEl) return;
+    var v = Math.max(1, parseFloat(this.value) || 0);
+    edSelEl.style.width = v + "px"; edRec(edSelEl, "width", v + "px", ""); edBoxTo();
+  });
+  document.getElementById("edH").addEventListener("change", function () {
+    if (!edSelEl) return;
+    var v = Math.max(1, parseFloat(this.value) || 0);
+    edSelEl.style.height = v + "px"; edRec(edSelEl, "height", v + "px", ""); edBoxTo();
+  });
+  document.getElementById("edToastShow").addEventListener("click", function () {
+    var W = edW(), A = W && W.__waterApp;
+    if (!W || !W.WT2U || !A) { document.getElementById("edStatus").textContent = "приложение ещё не готово"; return; }
+    W.WT2U.toast(A.ui, document.getElementById("edToastText").value || "Тост", A.render);
+  });
+  document.getElementById("edToastHide").addEventListener("click", function () {
+    var d = edD(); if (!d) return;
+    var n = 0;
+    d.querySelectorAll(".toast").forEach(function (t) {
+      if (edSelEl === t) edDeselect();
+      t.remove(); n++;
+    });
+    document.getElementById("edStatus").textContent = n ? "тост скрыт" : "тоста на экране нет";
+  });
+  document.getElementById("edGuidesOn").addEventListener("change", edGuidesRender);
+  document.getElementById("edGuideV").addEventListener("click", function () {
+    var w = edW();
+    edGuides.push({ o: "v", p: Math.round((w ? w.innerWidth : 412) / 2) });
+    edGuidesRender();
+  });
+  document.getElementById("edGuideH").addEventListener("click", function () {
+    var w = edW();
+    edGuides.push({ o: "h", p: Math.round((w ? w.innerHeight : 892) / 2) });
+    edGuidesRender();
+  });
+  document.getElementById("edGuideEl").addEventListener("click", function () {
+    if (!edSelEl) { document.getElementById("edStatus").textContent = "сначала выберите элемент"; return; }
+    var r = edSelEl.getBoundingClientRect();
+    edGuides.push({ o: "v", p: Math.round(r.left) }, { o: "v", p: Math.round(r.right) },
+      { o: "h", p: Math.round(r.top) }, { o: "h", p: Math.round(r.bottom) });
+    edGuidesRender();
+    document.getElementById("edStatus").textContent = "линии по краям элемента";
+  });
+  document.getElementById("edGuideClear").addEventListener("click", function () {
+    edGuides = []; edGuidesRender();
+  });
+  document.getElementById("edExport").addEventListener("click", function () {
+    var lines = ["Правки интерфейса из атласа (экран → элемент → свойство: было → стало)", ""];
+    edEdits.forEach(function (r, i) {
+      lines.push((i + 1) + ". [" + r.screen + "] " + r.sel);
+      lines.push("   " + r.prop + ": " + (r.from || "—") + " → " + r.value);
+    });
+    if (edEdits.length === 0) lines.push("пока пусто — покрутите что-нибудь в редакторе");
+    var txt = lines.join("\n");
+    var ta = document.getElementById("edReport");
+    ta.value = txt; ta.style.display = "block";
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(function () {});
+    document.getElementById("edStatus").textContent = "отчёт в поле ниже и в буфере обмена";
+  });
+  document.getElementById("edReapply").addEventListener("click", function () {
+    var d = edD(), scr = edScreen(), okN = 0, miss = 0;
+    edEdits.forEach(function (r) {
+      if (r.screen !== scr) return;
+      var el = null;
+      try { el = d.querySelector(r.sel); } catch (e) { el = null; }
+      if (!el) { miss++; return; }
+      if (r.prop === "text") el.textContent = r.value;
+      else if (r.prop === "transform") {
+        var m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(r.value);
+        if (m) { el.dataset.edTx = m[1]; el.dataset.edTy = m[2]; }
+        el.style.transform = r.value;
+      } else el.style[r.prop] = r.value;
+      okN++;
+    });
+    document.getElementById("edStatus").textContent = "применено " + okN + (miss ? ", не найдено " + miss : "");
+  });
+  document.getElementById("edWipe").addEventListener("click", function () {
+    edEdits = []; edLogRender(); edDeselect();
+    document.getElementById("edReport").style.display = "none";
+    var d = edD();
+    if (d) d.querySelectorAll(".toast.ed-pinned").forEach(function (t) { t.remove(); });
+    document.getElementById("edStatus").textContent = "журнал очищен; экран перерисуется следующей навигацией атласа";
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!edOn || !edSelEl) return;
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+    var st = e.shiftKey ? edStep() : 1, t = edTx(edSelEl), done = false;
+    if (e.key === "ArrowLeft") { t.x -= st; done = true; }
+    if (e.key === "ArrowRight") { t.x += st; done = true; }
+    if (e.key === "ArrowUp") { t.y -= st; done = true; }
+    if (e.key === "ArrowDown") { t.y += st; done = true; }
+    if (done) { e.preventDefault(); edApplyTx(edSelEl, t.x, t.y, true); edBoxTo(); }
+    if (e.key === "Escape") edDeselect();
+  });
 </script>
 </body>
 </html>
