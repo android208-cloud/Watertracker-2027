@@ -160,16 +160,17 @@ const histNums = () => {
   await pdp.waitForFunction(() => document.querySelector('.home-dock .pill .mini-cat'));
   const donorPill = await pdp.evaluate(pillProbe);
   await pdp.close();
-  /* Атлас-правка владельца 07.11 (a88cfd4): капля 24px вместо 28 и сдвиг
-     (-10,-11) от точки привязки — центр значка ушёл на (+2,+1) от донорского.
-     Короб, текст и действие сверяем с донором строго, значок — по новой норме. */
+  /* Атлас-правки владельца 07.11: капля 21px вместо 28 (сначала 24,
+     докручено до 21) и сдвиг (-10,-11) от точки привязки — центр значка
+     на (+0.5,-0.5) от донорского. Короб, текст и действие сверяем с
+     донором строго, значок — по новой норме. */
   const mcC = nextPill.mc ? [nextPill.mc[0] + nextPill.mc[2] / 2, nextPill.mc[1] + nextPill.mc[3] / 2] : null;
   const mcD = donorPill.mc ? [donorPill.mc[0] + donorPill.mc[2] / 2, donorPill.mc[1] + donorPill.mc[3] / 2] : null;
-  ok('пилюля донора: короб/текст/действие как донор; значок — норма 07.11 (24px, центр +2/+1)',
+  ok('пилюля донора: короб/текст/действие как донор; значок — норма 07.11 (21px, центр +0.5/-0.5)',
     nextPill.act === 'open-volume' && nextPill.text === donorPill.text &&
     JSON.stringify(nextPill.pill) === JSON.stringify(donorPill.pill) &&
-    nextPill.mc && nextPill.mc[2] === 24 && nextPill.mc[3] === 24 &&
-    mcC && mcD && (mcC[0] - mcD[0]) === 2 && (mcC[1] - mcD[1]) === 1,
+    nextPill.mc && nextPill.mc[2] === 21 && nextPill.mc[3] === 21 &&
+    mcC && mcD && (mcC[0] - mcD[0]) === 0.5 && (mcC[1] - mcD[1]) === -0.5,
     { donorPill, nextPill });
   const pillLight = await p.evaluate(async () => {
     document.querySelector('[data-tab="settings"]').click();

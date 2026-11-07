@@ -732,13 +732,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transform: translate(-50%, -50%);
 }
 
-/* Атлас-правка владельца 07.11: капля в пилюле объёма — 24px
+/* Атлас-правка владельца 07.11: капля в пилюле объёма — 21px
    и сдвиг, как выставлено в атласе (-10, -11 от точки привязки). */
 .home-dock > .pill-slot .pill .mini-cat {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   transform: translate(-10px, -11px);
 }
+.home-dock > .pill-slot .pill.cup-pill > span { height: 48px; }
 .home-dock > .pill-slot .pill > span {
   position: absolute;
   left: calc(var(--ico) / 2 + var(--face) / 2);
@@ -1128,7 +1129,8 @@ font-weight: 600;
   position: absolute;
   left: 50%;
   top: 4px;
-  transform: translateX(-50%);
+  /* Атлас-правка владельца 07.11: на 4px левее центра. */
+  transform: translateX(calc(-50% - 4px));
 }
 .check svg { width: var(--glyph); height: var(--glyph); }
 .time-btn {
@@ -1412,6 +1414,9 @@ button.hist-date:active .hist-cal-ico svg { color: #fff; }
   z-index: 5;
 }
 .fab {
+  /* Атлас-правка владельца 07.11: на 4px левее центра и на 4px выше. */
+  transform: translateX(calc(-50% - 4px));
+  bottom: calc(var(--nav-h) + var(--safe-b) + 20px);
   width: var(--act-round);
   height: var(--act-round);
   border-radius: var(--r-round);
@@ -2017,9 +2022,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 
 .toast {
   position: absolute;
-  left: 16px; right: 16px;
-  /* Атлас-правка владельца 07.11 (дорога 1): тост выше на 6px, шрифт 14, высота 52. */
-  top: calc(var(--safe-t) + 4px);
+  left: 15px; right: 15px;
+  /* Атлас-правки владельца 07.11: ширина 382, тост на 12px ниже прежнего. */
+  top: calc(var(--safe-t) + 16px);
   bottom: auto;
   pointer-events: none;
   background: var(--toast-bg);
@@ -2160,7 +2165,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   font-size: 16px;
 }
 .sheet.weight .sheet-actions { height: 84px; margin: 0; }
-.sheet.weight .check.center { top: 0; }
+.sheet.weight .check.center { top: 2px; }
 .sheet.weight .w-date {
   top: 32px;
   right: auto;
@@ -2206,7 +2211,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .goal-wheel .wheel-item.on { color: var(--blue-ink); font-size: 34px; font-weight: 700; }
 .goal-wheel .unit { left: calc(50% + 82px); color: var(--text); font-size: 16px; }
 .sheet.goal .sheet-actions { height: 96px; margin: auto 0 4px; }
-.sheet.goal .check.center { top: 4px; }
+.sheet.goal .check.center { top: 24px; }
 .modal-scrim.cal { z-index: 28; background: rgba(0, 0, 0, .72); }
 .cal-panel {
   position: absolute;
@@ -2215,9 +2220,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   transform: translate(-50%, -50%);
   width: min(320px, calc(100% - 36px));
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 16px;
   z-index: 30;
-  padding: 20px 8px 8px;
+  padding: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
   color: var(--text);
 }
@@ -2303,8 +2308,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .cal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
-  padding: 10px 8px 6px;
+  gap: 14px;
+  padding: 17px 8px 6px;
 }
 .cal-actions button {
   border: 0;
@@ -2754,6 +2759,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   background: var(--sel);
 }
 .sheet.volume.menu .sheet-actions { height: 84px; }
+/* Атлас-правка владельца 07.11: галки объёмных шторок ниже. */
+.sheet.volume[data-ui="sheet.hist-add"] .check.center { top: 13px; }
+.sheet.volume[data-ui="sheet.volume"] .check.center { top: 12px; }
 .sheet.weather,
 .sheet.activity { max-height: 78%; }
 .sheet.choice {
