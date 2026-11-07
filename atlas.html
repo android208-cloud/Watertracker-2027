@@ -26,6 +26,8 @@
   .sec:first-child { margin-top: 2px; }
   .scr { display: block; width: 100%; text-align: left; background: none; border: 0; color: #d5d8e0; padding: 6px 9px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13.5px; }
   .scr:hover { background: #23252c; }
+  .scr.on { background: #14506e; color: #fff; }
+  .scr.on small { color: #a8c8e0; }
   .scr small { color: #78808f; margin-left: 6px; font-size: 11px; }
   #center { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow: auto; background: #0f1013; }
   #frame { position: relative; width: 412px; height: 892px; flex: none; border-radius: 20px; overflow: hidden; box-shadow: 0 0 0 1px #33363f, 0 22px 60px rgba(0,0,0,.55); background: #000; }
@@ -331,7 +333,12 @@
       var b = document.createElement("button");
       b.className = "scr"; b.dataset.atlas = it[1];
       b.innerHTML = it[0] + "<small>" + it[1] + "</small>";
-      b.addEventListener("click", function () { go(it[2]); });
+      b.addEventListener("click", function () {
+        /* выбранный пункт остаётся подсвеченным, пока не выберут другой */
+        left.querySelectorAll(".scr.on").forEach(function (x) { x.classList.remove("on"); });
+        b.classList.add("on");
+        go(it[2]);
+      });
       left.appendChild(b);
     });
   });
@@ -799,7 +806,12 @@
   }
   function onEdSwallow(e) {
     if (!edOn) return;
-    /* клики приложения в режиме редактора глушим: правим, а не нажимаем */
+    /* Клики приложения в режиме редактора глушим: правим, а не нажимаем.
+       Но только настоящие, от руки (isTrusted): программные клики —
+       каталог атласа открывает шторки честным кликом по кнопкам («+»
+       истории и т.п.), их глушить нельзя, иначе пункт «Добавить
+       запись» с включённым редактором не открывал шторку. */
+    if (!e.isTrusted) return;
     e.preventDefault(); e.stopPropagation();
   }
   function edPinToast(node) {

@@ -75,6 +75,30 @@ const ok = (name, cond, extra) => { if (cond) { pass++; console.log('  PASS  ' +
   });
   ok('D6 бары в цвет интерфейса (шапка и навигация приложения)', bars.sb === bars.top && bars.nb === bars.nav && !!bars.top, JSON.stringify(bars));
 
+  /* редактор включён: шторка по честному клику каталога обязана открыться,
+     а выбранный пункт каталога — остаться подсвеченным (жалоба владельца) */
+  await p.click('#edBtn');
+  await p.waitForTimeout(400);
+  await p.click('#left .scr[data-atlas="sheet:hist-add"]');
+  await p.waitForTimeout(500);
+  const edSheet = await F().evaluate(() => {
+    const A = window.__waterApp;
+    return { sheet: A.ui.sheet, dom: !!document.querySelector('.sheet') };
+  }).catch(e => ({ err: String(e).slice(0, 80) }));
+  const hl = await p.evaluate(() => {
+    const on = Array.from(document.querySelectorAll('#left .scr.on')).map(b => b.dataset.atlas);
+    return on;
+  });
+  ok('E-атлас: с включённым редактором «Добавить запись» открывает шторку',
+    edSheet.sheet === 'hist-add' && edSheet.dom, JSON.stringify(edSheet));
+  ok('E-атлас: выбранный пункт каталога подсвечен', JSON.stringify(hl) === '["sheet:hist-add"]', JSON.stringify(hl));
+  await p.click('#left .scr[data-atlas="home"]');
+  await p.waitForTimeout(400);
+  const hl2 = await p.evaluate(() => Array.from(document.querySelectorAll('#left .scr.on')).map(b => b.dataset.atlas));
+  ok('E-атлас: подсветка переезжает за выбором', JSON.stringify(hl2) === '["home"]', JSON.stringify(hl2));
+  await p.click('#edBtn');
+  await p.waitForTimeout(300);
+
   /* онбординг: отдельный сид и перезагрузка */
   await p.click('#seedOnb');
   await p.waitForTimeout(1500);
