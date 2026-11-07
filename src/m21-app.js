@@ -5225,6 +5225,37 @@
       /* Календарь из заголовка истории (спека 26.10.2026): переход к дню. */
       var hd = ui.historyDate || todayStr();
       if (hd > todayStr()) hd = todayStr();
+      if (useSystemCalendar()) {
+        /* Системный календарь (слово владельца 07.11): в APK — мост
+           (MaterialDatePicker), в вебе — showPicker по скрытому input
+           (схема onb-time-sys); выбранный день — как cal-ok истории,
+           с прокруткой графика. Не вышло — наш календарь ниже. */
+        if (useNative("Date")) {
+          askNativeDate({ title: "Дата", value: hd, max: todayStr() }, function (iso) {
+            if (iso > todayStr()) iso = todayStr();
+            ui.calDate = iso;
+            applyCalToHistory();
+            render();
+          });
+          return;
+        }
+        if (webHasDatePick()) {
+          try {
+            var dinH = document.createElement("input");
+            dinH.type = "date"; dinH.value = hd; dinH.max = todayStr();
+            dinH.style.cssText = "position:fixed;left:-40px;opacity:0";
+            document.body.appendChild(dinH);
+            dinH.addEventListener("change", function () {
+              var v = dinH.value;
+              dinH.remove();
+              if (v && v <= todayStr()) { ui.calDate = v; applyCalToHistory(); render(); }
+            });
+            setTimeout(function () { if (dinH.parentNode) dinH.remove(); }, 60000);
+            dinH.showPicker();
+            return;
+          } catch (e) { /* падаем в наш календарь ниже */ }
+        }
+      }
       ui.calDate = hd;
       ui.calMonth = hd.slice(0, 7);
       ui.calTarget = "hist";
@@ -5320,6 +5351,21 @@
       else if (k === "warnExceed") state.warnExceed = !state.warnExceed;
       else if (k === "vibroDial") state.vibroDial = state.vibroDial === false;
       else if (k === "dialTime") { if (resolvedTheme() !== "oneplus") state.dialTime = !state.dialTime; }
+      else if (k === "systemDrums" || k === "systemCalendar" || k === "systemClock") {
+        /* Донор app.js:9057 (при порте ветка потерялась — тумблеры были
+           мёртвыми): без доступного системного пикера не делаем вид,
+           что включили, а говорим честно. */
+        var sysFlag = k;
+        var sysNative = k === "systemDrums" ? useNative("Number")
+          : (k === "systemCalendar" ? (webHasDatePick() || useNative("Date")) : useNative("Time"));
+        if (!state[sysFlag] && !sysNative) {
+          toast(k === "systemDrums" ? "Системные барабаны доступны в приложении для Android"
+            : k === "systemCalendar" ? "Системный календарь доступен в приложении для Android"
+            : "Системные часы доступны в приложении для Android");
+          return;
+        }
+        state[sysFlag] = !state[sysFlag];
+      }
       else if (k === "devMode") state.devMode = !state.devMode;
       else if (k === "svgEditor") state.svgEditor = !state.svgEditor;
       save(); alertsSync(); render(); return;

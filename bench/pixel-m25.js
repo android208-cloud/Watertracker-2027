@@ -18,6 +18,7 @@ function seedState(theme) {
   const s = OWNER.settings || {};
   const pr = OWNER.profile || {};
   return {
+    systemCalendar: false, systemClock: false, _sysPickV2: true, /* стенд наших виджетов: запасной путь */
     goalMl: pr.consumptionRate || 1900, useRecommended: !!pr.useRecommended,
     gender: pr.gender || 'male', weightKg: pr.weightKg || 59,
     units: pr.units || 'metric', dayStart: pr.dayStart || '02:00',

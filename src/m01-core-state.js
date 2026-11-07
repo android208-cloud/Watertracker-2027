@@ -27,8 +27,8 @@
   function initialState() {
     return {
       goalMl: 1950, gender: "male", weightKg: 59.1, animation: false, theme: "system",
-      dayStart: "02:00", systemDrums: false, devMode: false, systemCalendar: false,
-      systemClock: false, warnExceed: true, weatherSave: true, weatherDefault: "everyday",
+      dayStart: "02:00", systemDrums: false, devMode: false, systemCalendar: true,
+      systemClock: true, warnExceed: true, weatherSave: true, weatherDefault: "everyday",
       weatherToday: "everyday", activity: "none",
       notifications: {
         enabled: true, from: "06:00", to: "22:00", everyMin: 120, whenGoalMet: false,
@@ -129,9 +129,18 @@
       if (!data.paint || typeof data.paint !== "object") data.paint = {};
       if (data.systemDrums == null) data.systemDrums = false;
       if (data.devMode == null) data.devMode = false;
-      if (data.systemCalendar == null) data.systemCalendar = false;
+      if (data.systemCalendar == null) data.systemCalendar = true;
       if (data.onboarded == null) data.onboarded = 1;
-      if (data.systemClock == null) data.systemClock = false;
+      if (data.systemClock == null) data.systemClock = true;
+      /* Разово (слово владельца 07.11: системные календарь и часы должны
+         быть): у уже сохранённых состояний флаги были заполнены старым
+         дефолтом false — включаем один раз; дальше решает тумблер в
+         «Внешнем виде» (раздел «Календарь и часы»). */
+      if (!data._sysPickV2) {
+        data.systemCalendar = true;
+        data.systemClock = true;
+        data._sysPickV2 = true;
+      }
       if (data.svgEditor == null) data.svgEditor = false;
       if (data.theme !== "light" && data.theme !== "dark" && data.theme !== "system") data.theme = "system";
       if (!data._animOff) { data.animation = false; data._animOff = true; }

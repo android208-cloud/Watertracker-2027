@@ -60,6 +60,7 @@
     { id: "look:live", title: "Живые настройки" },
     { id: "look:liq", title: "Цвет жидкости" },
     { id: "look:chart", title: "Цвет графика" },
+    { id: "look:pick", title: "Календарь и часы" },
     { id: "look:sys", title: "Системный ввод", dev: true }
   ];
 
@@ -130,8 +131,8 @@
       liqBlock: { id: "liqBlock", type: "custom", custom: "liqBlock", home: "look:liq" },
       chartBlock: { id: "chartBlock", type: "custom", custom: "chartBlock", home: "look:chart" },
       systemDrums: { id: "systemDrums", type: "switch", title: "Системные барабаны", sub: ctx.labels.drumsNote, key: "systemDrums", on: ctx.flags.systemDrums, home: "look:sys" },
-      systemCalendar: { id: "systemCalendar", type: "switch", title: "Системный календарь", sub: ctx.labels.calNote, key: "systemCalendar", on: ctx.flags.systemCalendar, home: "look:sys" },
-      systemClock: { id: "systemClock", type: "switch", title: "Системные часы", sub: ctx.labels.clockNote, key: "systemClock", on: ctx.flags.systemClock, home: "look:sys" },
+      systemCalendar: { id: "systemCalendar", type: "switch", title: "Системный календарь", sub: ctx.labels.calNote, key: "systemCalendar", on: ctx.flags.systemCalendar, home: "look:pick" },
+      systemClock: { id: "systemClock", type: "switch", title: "Системные часы", sub: ctx.labels.clockNote, key: "systemClock", on: ctx.flags.systemClock, home: "look:pick" },
       /* v117/v125: каталог волны — строка внутри подпапки «Волна»;
          при удалении подпапки возвращается в кучу «Внешнего вида». */
       waveBox: { id: "waveBox", type: "custom", custom: "wave", home: "look" }
@@ -259,6 +260,12 @@
         return f && f.id && f.title;
       }).map(function (f) { return { id: String(f.id), title: String(f.title) }; })
     };
+    /* Переезд 07.11: «Системный календарь/часы» из dev-раздела в видимый
+       «Календарь и часы» — сохранённую группу правим, иначе строки
+       остались бы в скрытом разделе. */
+    ["systemCalendar", "systemClock"].forEach(function (k) {
+      if (layout.groups[k] === "look:sys") layout.groups[k] = "look:pick";
+    });
     var folderIds = {};
     layout.folders.forEach(function (f) { folderIds["@" + f.id] = true; });
 

@@ -25,6 +25,7 @@ const monthEnd = (iso) => {
 const W_DATES = [dOff(-280), dOff(-120), dOff(-20)];
 const rowsIn = (start, end) => W_DATES.filter((d) => d >= start && d <= end).length;
 const FIX = JSON.stringify({
+  systemCalendar: false, systemClock: false, _sysPickV2: true, /* стенд наших виджетов: запасной путь */
   goalMl: 1950, gender: 'male', weightKg: 59.1, theme: 'dark', dayStart: '02:00',
   onboarded: 1, historyDismissed: 1, alertPermAsked: 1, profile: { drinkId: 'water', volume: 350 },
   drinks: [{ id: 'water', name: 'Вода', hydration: 100, icon: 'drop', color: '#4aa3e8' }, { id: 'espresso', name: 'Эспрессо', hydration: 70, icon: 'takeaway', color: '#8b5a2b' }],

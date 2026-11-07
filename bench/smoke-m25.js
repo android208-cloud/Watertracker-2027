@@ -17,7 +17,7 @@ function seedState(theme) {
     goalMl: pr.consumptionRate || 1900, useRecommended: !!pr.useRecommended,
     gender: pr.gender || 'male', weightKg: pr.weightKg || 59,
     units: pr.units || 'metric', dayStart: pr.dayStart || '02:00',
-    theme: theme, animation: false,
+    theme: theme, animation: false, systemCalendar: false, systemClock: false, _sysPickV2: true, /* стенд наших виджетов: запасной путь */
     onboarded: 1, historyDismissed: 1, alertPermAsked: 1,
     profile: { drinkId: pr.drinkId || 'water', volume: pr.volume || 250 },
     drinks: OWNER.drinks || [], entries: OWNER.entries || [],
