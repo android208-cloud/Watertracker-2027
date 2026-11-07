@@ -158,12 +158,21 @@ const ok = (n, c, x) => { console.log((c ? '  PASS  ' : '  FAIL  ') + n + (x ? '
   await p.check('#edOurOn');
   await p.waitForTimeout(400);
   const our = await p.evaluate(() => {
-    const d = document.querySelector('#app').contentDocument;
+    const w = document.querySelector('#app').contentWindow;
+    const d = w.document;
     const vs = d.querySelectorAll('.ed-our-v');
-    return { n: vs.length, first: vs.length ? vs[0].style.left : '',
+    const hs = Array.from(d.querySelectorAll('.ed-our-h'), e => e.style.top);
+    /* линии ниже высоты вьюпорта честно не рисуются (стенд: 892−бары) */
+    const want = [43, 88, 361, 617, 697, 785, 863]
+      .filter(y => y < w.innerHeight).map(y => y + 'px');
+    return { n: vs.length, first: vs.length ? vs[0].style.left : '', hs, want,
       disp: getComputedStyle(d.getElementById('edOur')).display };
   });
-  ok('E25 наша сетка: 6 вертикалей, первая на 41px', our.n === 6 && our.first === '41px' && our.disp === 'block', JSON.stringify(our));
+  /* горизонтали — замер со скрина владельца: по рядам, не лесенкой 44+46k */
+  ok('E25 наша сетка: 6 вертикалей с 41px, горизонтали по рядам владельца',
+    our.n === 6 && our.first === '41px' && our.disp === 'block' &&
+    JSON.stringify(our.hs) === JSON.stringify(our.want),
+    JSON.stringify(our));
   await p.check('#edOurNum');
   await p.waitForTimeout(400);
   const labs = await fr.locator('.ed-our-lab').count();
