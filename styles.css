@@ -2769,6 +2769,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   border-radius: 0;
   padding: 18px 0 6px;
 }
+/* Атлас-правка владельца 07.11: шторки-выборы (активность, погода)
+   в тёмной теме — в цвет фона приложения, а не панели навигации. */
+[data-theme="dark"] .sheet.choice { background: var(--bg); }
 .sheet.choice h2 {
   margin: 2px 16px 14px;
   font-size: 20px;

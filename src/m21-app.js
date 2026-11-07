@@ -2597,6 +2597,18 @@
   }
 
 
+  /* Донор app.js:460: системный календарь через мост. При порте функция
+     потерялась, а вызовы остались — открытие даты падало с
+     «askNativeDate is not defined» и не показывало никакой календарь
+     (жалоба владельца 07.11). Возвращена дословно. */
+  function askNativeDate(spec, apply) {
+    WaterNative.pickDate(spec).then(function (raw) {
+      if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return;
+      if (spec.max && raw > spec.max) return;
+      apply(raw);
+    });
+  }
+
   function askNativeTime(spec, apply) {
     WaterNative.pickTime(spec).then(function (raw) {
       if (!raw) return;
