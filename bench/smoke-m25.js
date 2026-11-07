@@ -120,7 +120,7 @@ function ok(cond, name) {
   await click(p, '[data-act="open-gap"][data-kind="after"]');
   ok((await p.evaluate(() => window.__waterApp.ui.modal)) === 'alert-gap', 'диалог «После пробуждения» открыт');
   await shot(p, 'modal-gap');
-  await click(p, 'button[data-act="gap-cancel"]');
+  await p.evaluate(() => window.__waterApp.performAction({ dataset: {} }, 'gap-cancel')); /* «Отмена» скрыта (атлас) — действие живо */
   ok((await p.evaluate(() => window.__waterApp.ui.modal)) === null, 'gap-cancel закрыл');
   ok(await has(p, '[data-act="open-alert-days"]'), 'FAB «солнце/луна» на периоде (донор floaters)');
   await click(p, '[data-act="open-alert-days"]');
@@ -157,7 +157,7 @@ function ok(cond, name) {
   await click(p, '[data-act="open-alert-clock"][data-field="wake"]');
   ok((await p.evaluate(() => window.__waterApp.ui.modal)) === 'alert-clock', 'часовой редактор пробуждения открыт');
   await shot(p, 'modal-clock');
-  await click(p, 'button[data-act="clock-cancel"]');
+  await p.evaluate(() => window.__waterApp.performAction({ dataset: {} }, 'clock-cancel')); /* «Отмена» скрыта (атлас) — действие живо */
   await click(p, '[data-act="save-alert-edit"]');
   ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-days', 'save-alert-edit вернул на дни');
   const d0 = (await S(p)).notifications.days[0];
@@ -363,7 +363,7 @@ function ok(cond, name) {
   await p.waitForTimeout(200);
   const dial = await p.evaluate(() => window.__waterApp.ui.dial);
   ok(!!dial && (dial.h !== 2 || dial.m !== 0), 'drag по циферблату меняет значение', JSON.stringify(dial));
-  await click(p, 'button[data-act="gap-cancel"]');
+  await p.evaluate(() => window.__waterApp.performAction({ dataset: {} }, 'gap-cancel')); /* «Отмена» скрыта (атлас) — действие живо */
   await click(p, 'header [data-act="back"]'); /* alert-period → настройки */
   await click(p, '[data-tab="settings"]');
 

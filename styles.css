@@ -1133,6 +1133,12 @@ font-weight: 600;
   transform: translateX(calc(-50% - 4px));
 }
 .check svg { width: var(--glyph); height: var(--glyph); }
+/* Атлас-правка владельца 07.11: кнопка времени в «Добавить запись» —
+   на 24px левее и 9px ниже, текст крупнее. */
+.sheet.volume[data-ui="sheet.hist-add"] .time-btn { right: 28px; top: 31px; }
+.sheet.volume[data-ui="sheet.hist-add"] .time-btn > span {
+  font-size: 19px; display: inline-block; transform: translateY(-1px);
+}
 .time-btn {
   position: absolute;
   right: 4px;
@@ -1416,7 +1422,7 @@ button.hist-date:active .hist-cal-ico svg { color: #fff; }
 .fab {
   /* Атлас-правка владельца 07.11: на 4px левее центра и на 4px выше. */
   transform: translateX(calc(-50% - 4px));
-  bottom: calc(var(--nav-h) + var(--safe-b) + 20px);
+  bottom: calc(var(--nav-h) + var(--safe-b) + 18px);
   width: var(--act-round);
   height: var(--act-round);
   border-radius: var(--r-round);
@@ -2180,7 +2186,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .sheet.weight .w-date svg { width: 26.4px; height: 26.4px; }
 .sheet.weight.set-weight { padding-top: 18px; }
 .sheet.weight.set-weight .sheet-actions { height: 92px; }
-.sheet.weight.set-weight .check.center { top: 8px; }
+.sheet.weight.set-weight .check.center { top: 10px; }
 .sheet.goal {
   background: var(--bg);
   border-radius: 0;
@@ -2211,7 +2217,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .goal-wheel .wheel-item.on { color: var(--blue-ink); font-size: 34px; font-weight: 700; }
 .goal-wheel .unit { left: calc(50% + 82px); color: var(--text); font-size: 16px; }
 .sheet.goal .sheet-actions { height: 96px; margin: auto 0 4px; }
-.sheet.goal .check.center { top: 24px; }
+.sheet.goal .check.center { top: 26px; }
 .modal-scrim.cal { z-index: 28; background: rgba(0, 0, 0, .72); }
 .cal-panel {
   position: absolute;
@@ -2305,6 +2311,10 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .cal-day.dot-ok::after { background: var(--blue-ink); }
 .cal-day.dot-under::after { background: var(--danger); }
 .cal-day.on.dot-ok::after, .cal-day.on.dot-under::after { background: #fff; }
+.n-modal[data-ui="dialog.daystart"] .modal-actions > button:first-of-type,
+.n-modal[data-ui="dialog.clock"] .modal-actions > button:first-of-type,
+.n-modal[data-ui="dialog.gap"] .modal-actions > button:first-of-type { display: none; }
+
 .cal-actions {
   display: flex;
   justify-content: flex-end;
@@ -2760,7 +2770,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 }
 .sheet.volume.menu .sheet-actions { height: 84px; }
 /* Атлас-правка владельца 07.11: галки объёмных шторок ниже. */
-.sheet.volume[data-ui="sheet.hist-add"] .check.center { top: 13px; }
+.sheet.volume[data-ui="sheet.hist-add"] .check.center { top: 14px; }
 .sheet.volume[data-ui="sheet.volume"] .check.center { top: 12px; }
 .sheet.weather,
 .sheet.activity { max-height: 78%; }
