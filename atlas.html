@@ -630,6 +630,21 @@
     return "#" + h(m[1]) + h(m[2]) + h(m[3]);
   }
   function edTx(el) {
+    if (el.dataset.edTx == null || el.dataset.edTy == null) {
+      /* Первое касание: подхватываем СУЩЕСТВУЮЩИЙ сдвиг элемента (у
+         центрированных кнопок это translateX(-50%) из CSS), иначе при
+         первом же движении редактор затирал CSS-трансформ своим, и
+         кнопка «улетала» на полширины — владелец ловил её обратно на
+         -32 и слал в журнале лишний сдвиг (инцидент центровки 07.11).
+         Вычисленный трансформ запекаем в инлайн в пикселях кадра. */
+      var tx = 0, ty = 0, w = edW();
+      try {
+        var m = /matrix\(([^)]+)\)/.exec((w && w.getComputedStyle(el).transform) || "");
+        if (m) { var pp = m[1].split(","); tx = parseFloat(pp[4]) || 0; ty = parseFloat(pp[5]) || 0; }
+      } catch (e) { /* нет окна — нули */ }
+      el.dataset.edTx = tx; el.dataset.edTy = ty;
+      if (tx || ty) el.style.transform = "translate(" + tx + "px," + ty + "px)";
+    }
     return { x: parseFloat(el.dataset.edTx || "0"), y: parseFloat(el.dataset.edTy || "0") };
   }
   function edApplyTx(el, x, y, recordIt) {

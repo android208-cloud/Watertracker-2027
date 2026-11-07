@@ -977,7 +977,7 @@ font-weight: 600;
   bottom: calc(var(--nav-h) + var(--safe-b));
   background: var(--panel);
   /* фон перекрыт ниже для тёмной темы (атлас-правка 07.11) */
-  border-radius: var(--sheet-radius, 16px) var(--sheet-radius, 16px) 0 0;
+  border-radius: var(--sheet-radius, 16px);
   z-index: 8;
   padding: 12px 0 12px;
   max-height: var(--sheet-max-h, 70%);
@@ -1129,8 +1129,7 @@ font-weight: 600;
   position: absolute;
   left: 50%;
   top: 4px;
-  /* Атлас-правка владельца 07.11: на 4px левее центра. */
-  transform: translateX(calc(-50% - 4px));
+  transform: translateX(-50%);
 }
 .check svg { width: var(--glyph); height: var(--glyph); }
 /* Атлас-правка владельца 07.11: кнопка времени в «Добавить запись» —
@@ -1138,6 +1137,7 @@ font-weight: 600;
 .sheet.volume[data-ui="sheet.hist-add"] .time-btn { right: 28px; top: 31px; }
 .sheet.volume[data-ui="sheet.hist-add"] .time-btn > span {
   font-size: 19px; display: inline-block; transform: translateY(-1px);
+  width: 47px; text-align: center;
 }
 .time-btn {
   position: absolute;
@@ -1420,8 +1420,7 @@ button.hist-date:active .hist-cal-ico svg { color: #fff; }
   z-index: 5;
 }
 .fab {
-  /* Атлас-правка владельца 07.11: на 4px левее центра и на 4px выше. */
-  transform: translateX(calc(-50% - 4px));
+  transform: translateX(-50%);
   bottom: calc(var(--nav-h) + var(--safe-b) + 18px);
   width: var(--act-round);
   height: var(--act-round);
@@ -2182,7 +2181,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   font-size: 19.2px;
   gap: 7.2px;
 }
-.sheet.weight .w-date span { color: var(--text); }
+.sheet.weight .w-date span { color: var(--text); font-weight: 400; }
 .sheet.weight .w-date svg { width: 26.4px; height: 26.4px; }
 .sheet.weight.set-weight { padding-top: 18px; }
 .sheet.weight.set-weight .sheet-actions { height: 92px; }
@@ -2575,7 +2574,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   margin: 16px 20px 24px;
   padding: 8px 0;
   background: var(--nav);
-  border-radius: 12px;
+  border-radius: 16px;
 }
 .period-line {
   display: flex;
@@ -2774,6 +2773,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .sheet.volume[data-ui="sheet.volume"] .check.center { top: 12px; }
 .sheet.weather,
 .sheet.activity { max-height: 78%; }
+.sheet.weather { border-radius: 20px; }
+.scrim.choice { border-radius: 8px; }
 .sheet.choice {
   background: var(--nav);
   border-radius: 0;

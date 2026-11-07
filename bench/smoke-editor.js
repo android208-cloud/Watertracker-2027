@@ -207,6 +207,25 @@ const ok = (n, c, x) => { console.log((c ? '  PASS  ' : '  FAIL  ') + n + (x ? '
   const st = await p.textContent('#edStatus');
   ok('E30 статус доложил об автовозврате', /возвращены автоматически/.test(st || ''), st || '');
 
+  /* --- запекание CSS-сдвига: центрированная кнопка не улетает --- */
+  await p.click('#left .scr[data-atlas="sheet:hist-add"]');
+  await p.waitForTimeout(700);
+  const chkBox = await fr.locator('.sheet .check.center').boundingBox();
+  await fr.locator('.sheet .check.center').click({ position: { x: 32, y: 32 } });
+  await p.waitForTimeout(300);
+  const bake = await p.evaluate(() => {
+    const d = document.querySelector('#app').contentDocument;
+    const el = d.querySelector('.sheet .check.center');
+    const r = el.getBoundingClientRect();
+    const par = el.parentElement.getBoundingClientRect();
+    return { x: document.getElementById('edX').value,
+      offC: Math.round((r.left + r.width / 2) - (par.left + par.width / 2) * 1) };
+  });
+  const chkBox2 = await fr.locator('.sheet .check.center').boundingBox();
+  ok('E31 выбор центрированной кнопки: сдвиг подхвачен (-32), кнопка не прыгнула',
+    bake.x === '-32' && chkBox && chkBox2 && Math.abs(chkBox2.x - chkBox.x) < 1.5 && Math.abs(bake.offC) <= 2,
+    JSON.stringify({ bake, chkBox, chkBox2 }));
+
   await b.close();
   console.log('\nИТОГ: ' + pass + ' PASS / ' + fail + ' FAIL');
   process.exit(fail ? 1 : 0);
