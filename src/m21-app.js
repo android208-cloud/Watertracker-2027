@@ -186,13 +186,145 @@
 
   /* ---- облако-транспорт (донор 1233+, тишина C-015) ---- */
   function cloudFrom(s) {
-    cloud.signedIn = !!(s && s.signedIn);
-    cloud.picture = (s && s.picture) || "";
-    cloud.lastBackup = (s && (s.at || s.lastBackup)) || "";
+    /* Донор 640-652 целиком; next-вариант был обрезан и терял имя и почту —
+       строка профиля не могла подписаться. Оставлен запас s.at. */
+    s = s || {};
+    cloud.available = s.available !== false;
+    cloud.signedIn = !!s.signedIn;
+    cloud.clientIdSet = !!s.clientIdSet;
+    cloud.name = s.name || "";
+    cloud.email = s.email || "";
+    cloud.picture = s.picture || "";
+    cloud.lastBackup = s.at || s.lastBackup || "";
+    cloud.pkg = s.pkg || "";
+    cloud.sha1 = s.sha1 || "";
+    cloud.clientHead = s.clientHead || "";
+    cloud.accountId = s.accountId || "";
   }
   function cloudRead() {
     if (!(window.WaterGoogle && typeof window.WaterGoogle.state === "function")) return;
     try { cloudFrom(JSON.parse(window.WaterGoogle.state() || "{}")); } catch (e) {}
+  }
+  /* ---------- Портрет: только на время этого запуска ------------------------
+     Нужно так: вошёл в аккаунт при интернете — в круге фото; нет интернета
+     или приложение перезапущено без сети — иконка по умолчанию. Поэтому фото
+     держим ТОЛЬКО в памяти текущего запуска и никогда не кладём в память
+     телефона: из кэша оно больше не всплывёт.
+     Портрет приводим к квадрату сами (это самая простая операция, которая
+     одинаково работает везде), а круг рисует оформление страницы. */
+  var AVATAR_KEY = "cup-tracker-avatar";
+  var AVATAR_PX = 256;
+  /* Что показываем прямо сейчас: пусто — иконка по умолчанию. */
+  var avatarLive = "";
+  var avatarTried = "";
+  var avatarTrying = false;
+
+  /* Копии фото от прошлых сборок в телефоне больше не нужны. */
+  function avatarPurge() {
+    try {
+      if (localStorage.getItem(AVATAR_KEY) != null) localStorage.removeItem(AVATAR_KEY);
+    } catch (e) { /* не критично */ }
+  }
+
+  function avatarSrc() {
+    return avatarLive || "assets/images/profile.png";
+  }
+
+  /* Центральный квадрат картинки, уменьшенный до 256 px. */
+  function avatarSquare(src) {
+    return new Promise(function (resolve, reject) {
+      var im = new Image();
+      im.onload = function () {
+        try {
+          var w = im.naturalWidth || 0;
+          var h = im.naturalHeight || 0;
+          var side = Math.min(w, h);
+          if (!side) throw new Error("пустая картинка");
+          var c = document.createElement("canvas");
+          c.width = AVATAR_PX;
+          c.height = AVATAR_PX;
+          var g = c.getContext("2d");
+          g.drawImage(im, (w - side) / 2, (h - side) / 2, side, side, 0, 0, AVATAR_PX, AVATAR_PX);
+          resolve(c.toDataURL("image/png"));
+        } catch (e) { reject(e); }
+      };
+      im.onerror = function () { reject(new Error("фото не открылось")); };
+      im.src = src;
+    });
+  }
+
+  /* Google умеет сам отдать квадратный портрет нужного размера. */
+  function avatarBigUrl(url) {
+    if (!/^https:\/\//.test(url)) return "";
+    return url.replace(/=s\d+(-c)?$/, "") + "=s" + AVATAR_PX + "-c";
+  }
+
+  function avatarBlobUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result || "")); };
+      fr.onerror = function () { reject(new Error("фото не прочиталось")); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  /* Скачали — показываем в этом запуске. Ошибки тихие: останется иконка. */
+  function avatarFetch() {
+    var pic = /^https:\/\//.test(cloud.picture || "") ? cloud.picture : "";
+    if (!pic) { avatarLive = ""; return; }
+    if (avatarLive || avatarTrying || avatarTried === pic) return;
+    avatarTrying = true;
+    var big = avatarBigUrl(pic) || pic;
+    fetch(big, { mode: "cors", cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("фото " + r.status);
+      return r.blob();
+    }).then(avatarBlobUrl).then(avatarSquare).then(function (data) {
+      avatarLive = data;
+      avatarTrying = false;
+      avatarTried = pic;
+      render();
+    }).catch(function (e) {
+      /* Своими силами не вышло — просим оболочку (ей сеть доступнее). */
+      avatarTrying = false;
+      avatarTried = pic;
+      avatarViaShell(pic);
+    });
+  }
+
+  /* Запасной путь: картинку скачивает оболочка, страница приводит её к квадрату. */
+  var avatarAsked = "";
+  function avatarViaShell(url) {
+    if (!url || avatarAsked === url) return;
+    if (!(window.WaterGoogle && typeof window.WaterGoogle.fetchPicture === "function")) return;
+    avatarAsked = url;
+    try { window.WaterGoogle.fetchPicture(); } catch (e) { /* ничего не ломаем */ }
+  }
+
+  window.__avatarInfo = function () {
+    var img = document.querySelector(".ava-round img");
+    var src = img ? (img.getAttribute("src") || "") : "";
+    return {
+      src: src.slice(0, 24),
+      иконка: src.indexOf("assets/images/profile.png") >= 0,
+      вПамяти: !!avatarLive,
+      копияВТелефоне: localStorage.getItem(AVATAR_KEY) != null,
+      ссылка: cloud.picture || ""
+    };
+  };
+
+  /* После отрисовки: показать картинку только когда она правда загрузилась. */
+  function markAvatars() {
+    var list = document.querySelectorAll(".ava-round img");
+    Array.prototype.forEach.call(list, function (img) {
+      var box = img.parentNode;
+      if (!box || !box.classList) return;
+      if (img.complete && img.naturalWidth > 0) { box.classList.add("loaded"); return; }
+      /* Усиление 07.11: донор дожидается ближайшей перерисовки — на медленном
+         WebView портрет мог оставаться невидимым; проявляем по факту загрузки. */
+      if (!img.complete) img.addEventListener("load", function () {
+        if (img.naturalWidth > 0) box.classList.add("loaded");
+      }, { once: true });
+    });
   }
   /* Любой обмен с Диском начинается с чтения облачной копии и слияния её
      с телефоном — и только потом телефон отправляет объединённую историю
@@ -281,6 +413,8 @@
   W.__googleState = function (json) {
     try {
       cloudFrom(typeof json === "string" ? JSON.parse(json) : (json || {}));
+      /* Вошли в аккаунт — сразу берём фото (только при живом интернете, донор 1100). */
+      avatarFetch();
       /* Только что применили копию — запоминаем её настоящее время (донор 1213). */
       if (cloud.applied && cloud.lastBackup) {
         cloud.applied = false;
@@ -340,7 +474,17 @@
   };
   W.__googleRestoreDone = function () { cloudApply(); };
   /* Старая оболочка может прислать портрет — он больше не нужен (донор 1308). */
-  W.__googlePicture = function () { /* портрет не показываем */ };
+  /* Портрет пришёл из оболочки: приводим к квадрату и держим в памяти запуска. */
+  W.__googlePicture = function (json) {
+    var o = json || {};
+    if (typeof o === "string") { try { o = JSON.parse(o); } catch (e) { o = {}; } }
+    if (!o.url || !o.data) return;
+    if (cloud.picture && o.url !== cloud.picture) return;
+    avatarSquare(o.data).then(function (data) {
+      avatarLive = data;
+      render();
+    }).catch(function () { /* останется иконка по умолчанию */ });
+  };
   W.__googleToast = function (text) { if (text) toast(String(text)); };
 
   /* ---- свайп-механика ленты (донор 7650–7745 дословно) ---- */
@@ -1634,7 +1778,6 @@
       done && done();
     }).catch(function () { done && done(); });
   }
-  function avatarSrc() { return ""; }
   function cloudWhen(iso) {
     if (!iso) return "";
     var d = new Date(iso);
@@ -3658,6 +3801,7 @@
     else if (ui.page === "volumes") { main = pageVolumes(); screenClass = "screen hist-screen volumes-screen"; }
     else if (ui.page === "folder-alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
       else if (ui.page === "look") { main = SU().pageLook(settingsEnv()); screenClass = "screen settings-screen"; }
+      else if (ui.page === "register") { main = SU().pageRegister(settingsEnv()); screenClass = "screen settings-screen"; } /* донор 4569 */
       else if (ui.page === "advanced") { main = SU().pageAdvanced(settingsEnv()); screenClass = "screen settings-screen"; }
       else if (ui.page === "struct-export") { main = SU().pageStructExport(settingsEnv()); screenClass = "screen settings-screen"; }
       else if (String(ui.page || "").indexOf("folder-") === 0) { main = SU().pageFolder(settingsEnv(), ui.page.slice(7)); screenClass = "screen settings-screen"; }
@@ -3952,6 +4096,7 @@
       if (W.console) console.error("initWheels: " + W.__wheelErr);
     } /* M25: колёса донора */
     try { markSheetEntrance(); } catch (e) {} /* M25: выезд шторки донора */
+    markAvatars(); /* донор 4601 */
     try { initFields(); } catch (e) {} /* M25-mod2: поля текстов уведомлений */
     /* M23: колбэк файлового моста живёт один раз на приложение. */
     if (W.WT2F && !W.__wtFileHook) {
@@ -4184,10 +4329,6 @@
     if (act === "open-volumes") { ui.page = "volumes"; render(); return; }
     if (act === "open-theme") { ui.modal = "theme"; render(); return; }
     if (act === "theme-cancel") { ui.modal = null; render(); return; }
-    if (act === "open-set-weight") {
-      ui.weightDraft = { kg: "", date: N().wallToday() };
-      ui.sheet = "weight-add"; render(); return;
-    }
     /* M25: дверь уведомлений — донорский префикс-хендлер open-folder-* (v125). */
     if (act === "open-alert-freq") { ui.modal = "alert-freq"; render(); return; }
     if (act === "open-alert-sound") { ui.page = "alert-sound"; render(); return; }
@@ -5273,7 +5414,9 @@
         try { window.WaterAlerts.requestPermission(); } catch (e) {}
       }
     }
+    avatarPurge(); /* донор boot 10338 */
     cloudRead();
+    avatarFetch(); /* донор boot 10340 */
     if (cloud.signedIn && window.WaterGoogle) {
       setTimeout(function () { try { window.WaterGoogle.check(); } catch (e) {} }, 4000);
     }

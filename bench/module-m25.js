@@ -20,8 +20,23 @@ const pairs = [
   ['/home/user/water-tracker/settings-model.js', __dirname + '/../src/m25-settings-model.js'],
   ['/home/user/water-tracker/settings-ui.js', __dirname + '/../src/m25-settings-ui.js']
 ];
+/* Осознанное исключение 07.11 (линия «Вес и портрет»): донор сам сломан —
+   app.js:4569 зовёт pageRegister(), а settings-ui.js его не экспортирует
+   (ReferenceError в render, страница «Профиль» не открывается и в доноре).
+   В next добавлена ОДНА строка экспорта; сверяем байт-в-байт без неё. */
+const KNOWN_M25 = '    pageRegister: pageRegister, /* донор 4569: страница профиля */\n';
 for (const [d, n] of pairs) {
-  ok(sha(d) === sha(n), 'байт-в-байт с донором: ' + n.split('/').pop(), { donor: sha(d), next: sha(n) });
+  let nf = fs.readFileSync(n, 'utf8');
+  if (n.indexOf('m25-settings-ui.js') >= 0) {
+    if (nf.indexOf(KNOWN_M25) < 0) { ok(false, 'исключение pageRegister исчезло из m25-settings-ui.js — пересмотри гейт'); continue; }
+    nf = nf.replace(KNOWN_M25, '');
+    /* Исключение 2 (07.11): у донора в lead портрета потеряна кавычка
+       (alt=\"> вместо alt=\"\">) — разметка строки профиля разваливалась
+       при разборе. В next кавычка восстановлена; сверяем без неё. */
+    nf = nf.replace('alt=\\"\\"></span>', 'alt=\\"></span>');
+  }
+  const shaN = crypto.createHash('sha256').update(nf).digest('hex').slice(0, 16);
+  ok(sha(d) === shaN, 'байт-в-байт с донором: ' + n.split('/').pop(), { donor: sha(d), next: shaN });
 }
 
 /* 2. модель в node */

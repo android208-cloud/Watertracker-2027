@@ -277,7 +277,7 @@
     var profileRow = !cloudBridge()
       ? UiKit.row({ ui: "profile", cls: "profile-row", act: "cloud-needapp", lead: guest, title: "Войти через Google", sub: "доступно в приложении для Android" })
       : signed
-      ? UiKit.row({ ui: "profile", cls: "profile-row", act: "open-profile", lead: "<span class=\"ava-round ava-row\"><img class=\"profile-ava\" src=\"" + esc(cloudPic) + "\" alt=\"></span>", title: esc(name) })
+      ? UiKit.row({ ui: "profile", cls: "profile-row", act: "open-profile", lead: "<span class=\"ava-round ava-row\"><img class=\"profile-ava\" src=\"" + esc(cloudPic) + "\" alt=\"\"></span>", title: esc(name) })
       : UiKit.row({ ui: "profile", cls: "profile-row", act: "google-signin", lead: guest, title: "Войти через Google" });
     var syncRow = signed ? line("Синхронизация", "<span class=\"sync-when\">" + esc(cloudBackupLabel()) + "</span>", syncIco, "cloud-sync") : "";
     return {
@@ -1217,6 +1217,7 @@
 
   return {
     pageSettings: pageSettings,
+    pageRegister: pageRegister, /* донор 4569: страница профиля */
     pageAdvanced: pageAdvanced,
     pageLook: pageLook,
     pageAlerts: pageAlerts,
