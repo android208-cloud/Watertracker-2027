@@ -3115,6 +3115,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .onb { display: flex; flex-direction: column; gap: 12px; padding: 18px 16px 14px; height: 100%; overflow-y: auto; }
 .onb-hero { text-align: center; }
 .onb-cat { position: relative; width: 168px; aspect-ratio: 944 / 766; margin: 0 auto 2px; display: block; }
+/* Круг с жидкостью в шапке онбординга вместо кота (слово 06.11). */
+.onb-orb { position: relative; width: 132px; height: 132px; margin: 0 auto; display: block; }
 .onb-hero h1 { font-size: 21px; font-weight: 700; }
 .onb-hero p { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
 .onb-card { background: var(--panel); border-radius: 16px; padding: 14px 14px 12px; }

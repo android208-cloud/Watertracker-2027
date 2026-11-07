@@ -23,9 +23,13 @@
   var SWIPE_W = 120;
   var VOLS = [50, 100, 150, 200, 250, 300, 330, 350, 400, 500, 700, 1000];
   var B_SLEEP = [30, 60, 90, 120];
-  var KG_VALS = [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130];
-  var DAY_STARTS = ["00:00", "02:00", "03:00", "04:00", "05:00", "06:00"];
-  var CAT_PLACEHOLDER = '<svg viewBox="0 0 8 8" width="40" height="40" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="#888"/></svg>';
+  /* Слово владельца 06.11: кота нет — в шапке онбординга круг с жидкостью,
+     статичное заполнение 60% (донорский hero держал кота). */
+  function onbOrbArt() {
+    return '<div class="wt-orb onb-orb">' +
+      Wd().waterHtml({ frac: 0.6, color: Wd().liquidColor(state) }) +
+      Wd().orbRing + "</div>";
+  }
 
   /* Иконки напитков — донорская карта (173) дословно. */
   var DRINK_ICONS = {
@@ -3292,7 +3296,7 @@
 
   function onbScreen() {
     if (!ui.onb) ui.onb = O().draft(ui, state, N().wallToday());
-    return '<div class="screen onb-screen">' + O().screenHtml(ui.onb, { catArt: CAT_PLACEHOLDER }) + "</div>";
+    return '<div class="screen onb-screen">' + O().screenHtml(ui.onb, { catArt: onbOrbArt() }) + O().overHtml(ui) + "</div>";
   }
 
 
@@ -3508,21 +3512,6 @@
           '<input type="date" class="wt-dateinp" value="' + wd.date + '" max="' + todayStr() + '" tabindex="-1" aria-hidden="true">' + "</div>"
       });
     }
-    if (ui.sheet === "onb-weight") {
-      var kg = ui.onb ? ui.onb.kg : 60;
-      var grid = KG_VALS.map(function (v) {
-        return '<button type="button" class="' + (Number(v) === Number(kg) ? "on" : "") + '" data-act="onb-kg" data-v="' + v + '">' + v + "</button>";
-      }).join("");
-      out += U().sheet({ ui: "onbkg", cls: "goal", title: "Вес, кг", body: '<div class="onb-kg-grid">' + grid + "</div>" });
-    } else if (ui.sheet === "onb-time") {
-      var ds = ui.onb ? ui.onb.dayStart : "02:00";
-      var dgrid = DAY_STARTS.map(function (v) {
-        return '<button type="button" class="' + (v === ds ? "on" : "") + '" data-act="onb-daystart" data-v="' + v + '">' + v + "</button>";
-      }).join("");
-      out += U().sheet({ ui: "onbtime", cls: "goal", title: "Начало суток",
-        body: '<div class="onb-kg-grid">' + dgrid + "</div>" +
-          '<button type="button" class="time-btn" data-act="onb-time-sys">' + uiIcon("clock") + "<span>Системные часы</span></button>" });
-    }
     if (ui.sheet === "set-weight") {
       var imperial = isImperial();
       var sw = ui.weightDraft || { kg: state.weightKg };
@@ -3592,8 +3581,61 @@
   }
 
   /* ---- рендер (донор 4520, сокращённый) ---- */
+  /* ---------- Удержание прокрутки экрана (донор 2435-2494) ------------------
+     Позиция каждого экрана живёт по ключу page/tab и возвращается после
+     перестроения разметки; доводки гасят откат, пока браузер перекладывает
+     узлы. Перенесено словом владельца 07.11: в next механизм не доехал,
+     чекбоксы настроек бросали список вверх. */
+  function screenKey() {
+    return ui.page ? "page:" + ui.page : "tab:" + ui.tab;
+  }
+  function scrollTops() {
+    if (!ui._scrollTops) ui._scrollTops = {};
+    return ui._scrollTops;
+  }
+  function saveScroll() {
+    var sc = document.querySelector(".chart-scroll");
+    /* Переход из календаря: позицию задали мы сами, старую прокрутку
+       не сохраняем (иначе она перетрёт заданную). */
+    if (ui._chartLeftLocked) {
+      ui._chartLeftLocked = 0;
+      return;
+    }
+    if (sc && !sc._restoreGuard) ui.chartLeft = sc.scrollLeft;
+    var screen = document.querySelector("#app > .screen");
+    /* Ключ берём от прошлого построения: к этому моменту ui.page уже новый,
+       а на экране ещё прежний список. */
+    if (!screen || !ui._renderedKey) return;
+    scrollTops()[ui._renderedKey] = screen.scrollTop;
+  }
+  function restoreScroll() {
+    var screen = document.querySelector("#app > .screen");
+    if (!screen || !ui._renderedKey) return;
+    var top = scrollTops()[ui._renderedKey] || 0;
+    if (top > 0) screen.scrollTop = top;
+  }
+  function holdScreenScroll() {
+    var screen = document.querySelector("#app > .screen");
+    var key = ui._renderedKey;
+    if (!screen || !key) return;
+    var top = screen.scrollTop;
+    if (!(top > 0)) return;
+    function put() {
+      var s = document.querySelector("#app > .screen");
+      if (!s || ui._renderedKey !== key) return;
+      if (Math.abs(s.scrollTop - top) > 1) s.scrollTop = top;
+    }
+    requestAnimationFrame(put);
+    setTimeout(put, 0);
+    /* Усиление 07.11 (слово владельца: прыгало и в прототипе на телефоне):
+       вторая доводка по второму кадру — медленный WebView перекладывает
+       разметку позже одиночного кадра донора. */
+    requestAnimationFrame(function () { requestAnimationFrame(put); });
+  }
+
   function render() {
     animToken++;
+    saveScroll();
     try {
       W.__waterRenders = (W.__waterRenders || 0) + 1;
       W.__hb = Date.now();
@@ -3630,8 +3672,14 @@
     else if (ui.tab === "settings") { main = pageSettings(); screenClass = "screen settings-screen"; }
     else if (ui.tab === "alerts") { main = pageAlerts(); screenClass = "screen alerts-screen"; }
     else { main = pageHome(); screenClass = "screen home-screen"; }
+    ui._renderedKey = screenKey();
+    if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) {
+      try { document.activeElement.blur(); } catch (e) {}
+    }
     root.innerHTML = '<div class="' + screenClass + '">' + main + "</div>" +
       U().navHtml(ui) + overlayHtml() + U().toastHtml(ui);
+    restoreScroll();
+    holdScreenScroll();
     afterRender();
   }
   /* Слово владельца 06.11: версия в программе = реальная версия сборки.
@@ -5094,16 +5142,61 @@
   function onbAction(act, ds) {
     if (!ui.onb) ui.onb = O().draft(ui, state, N().wallToday());
     if (act === "onb-gender") { O().setGender(ui.onb, ds.v); render(); return; }
-    if (act === "onb-weight") { ui.sheet = "onb-weight"; render(); return; }
-    if (act === "onb-kg") { O().setKg(ui.onb, Number(ds.v)); ui.sheet = null; render(); return; }
-    if (act === "onb-time") { ui.sheet = "onb-time"; render(); return; }
-    if (act === "onb-daystart") { O().setDayStart(ui.onb, ds.v); ui.sheet = null; render(); return; }
+    if (act === "onb-weight") {
+      ui.weightDraft = { date: todayStr(), kg: ui.onb ? ui.onb.kg : 60 };
+      ui.modal = "onb-weight";
+      render();
+      return;
+    }
+    if (act === "onb-weight-cancel") {
+      ui.modal = null;
+      ui.weightDraft = null;
+      render();
+      return;
+    }
+    if (act === "onb-weight-ok") {
+      if (ui.weightDraft && ui.onb) ui.onb.kg = ui.weightDraft.kg;
+      ui.modal = null;
+      ui.weightDraft = null;
+      render();
+      return;
+    }
+    if (act === "onb-time") { ui.modal = "onb-day"; render(); return; }
+    if (act === "onb-day-cancel") { ui.modal = null; render(); return; }
+    if (act === "onb-day-ok") {
+      var odp = readTimePair("day", "day-h", "day-m", 2, 0);
+      O().setDayStart(ui.onb, pad2(odp.h) + ":" + pad2(odp.m));
+      ui.modal = null;
+      render();
+      return;
+    }
     if (act === "onb-time-sys") {
-      if (W.WaterNative && W.WaterNative.has && W.WaterNative.has("time")) {
-        W.WaterNative.pickTime({ value: ui.onb.dayStart }).then(function (raw) {
-          if (raw) { O().setDayStart(ui.onb, String(raw).slice(0, 5)); ui.sheet = null; render(); }
+      var d0 = ui.onb || {};
+      if (window.WaterNative && WaterNative.hasTime && WaterNative.hasTime()) {
+        askNativeTime({ title: "Начало суток", value: d0.dayStart || "02:00", is24Hour: true }, function (hm) {
+          O().setDayStart(ui.onb, hm);
+          render();
         });
-      } else toast("Системные часы доступны в приложении Android");
+      } else {
+        /* Веб и оболочки без пикера: системный пикер времени через скрытый input
+           (донор 8876-8892). */
+        var inp = document.createElement("input");
+        inp.type = "time";
+        inp.value = d0.dayStart || "02:00";
+        inp.style.position = "fixed";
+        inp.style.left = "-40px";
+        inp.style.opacity = "0";
+        document.body.appendChild(inp);
+        var picked = false;
+        inp.addEventListener("change", function () {
+          picked = true;
+          if (inp.value) O().setDayStart(ui.onb, inp.value);
+          inp.remove();
+          render();
+        });
+        setTimeout(function () { if (!picked && inp.parentNode) inp.remove(); }, 60000);
+        try { if (inp.showPicker) inp.showPicker(); else inp.focus(); } catch (e) { inp.focus(); }
+      }
       return;
     }
     if (act === "onb-done") {

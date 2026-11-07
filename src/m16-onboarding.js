@@ -54,21 +54,65 @@
     var goal = L() ? L().genderBase({ gender: d.gender, weightKg: d.kg }) : 0;
     var sp = splitKg(d.kg);
     return '<div class="onb">' +
-      '<div class="onb-hero"><span class="cat-art onb-cat" aria-hidden="true">' + (o && o.catArt ? o.catArt : "") + "</span></div>" +
+      '<div class="onb-hero"><span class="cat-art onb-cat" aria-hidden="true">' + (o && o.catArt ? o.catArt : "") + "</span>" +
+      "<h1>Привет! Я Водомер</h1><p>Три вопроса — и всё настроено под вас</p></div>" +
       '<div class="onb-card"><div class="onb-lbl">Пол</div><div class="seg">' +
         '<button type="button" class="' + (d.gender === "female" ? "on" : "") + '" data-act="onb-gender" data-v="female">Женский</button>' +
         '<button type="button" class="' + (d.gender !== "female" ? "on" : "") + '" data-act="onb-gender" data-v="male">Мужской</button>' +
       "</div></div>" +
       '<div class="onb-card"><div class="onb-lbl">Вес</div>' +
         '<div class="onb-val" role="button" data-act="onb-weight"><span class="n">' + sp.whole + (sp.frac ? "," + sp.frac : "") + "<small>кг</small></span></div>" +
-      "</div>" +
+        '<div class="hint">Нажмите на число — барабаны веса; норма — 30 мл на кг, для мужского пола ×1,1</div></div>' +
       '<div class="onb-card"><div class="onb-lbl">Начало суток</div>' +
         '<div class="onb-val" role="button" data-act="onb-time"><span class="n">' + esc(d.dayStart) + "</span>" +
         '<button type="button" class="onb-clock" data-act="onb-time-sys" aria-label="Системные часы">' + (U ? U.uiIcon("clock") : "") + "</button></div>" +
-      "</div>" +
+        '<div class="hint">Нажмите на время — барабаны часов; белые часы — системный выбор</div></div>' +
       '<div class="onb-goal">Ваша норма: ' + goal + " мл</div>" +
-      '<div class="onb-cta"><button type="button" data-act="onb-done">Начать</button></div>' +
+      '<div class="onb-cta"><button type="button" data-act="onb-done">Начать</button>' +
+      "<p>Пол, вес и начало суток можно поменять позже в настройках</p></div>" +
       "</div>";
+  }
+
+  /* Оверлей донора (4456-4483): вес и начало суток — диалоги с барабанами
+     M15 (kg-int/kg-dec и day-h/day-m), Отмена/Ок. Никаких чип-шторок. */
+  function overHtml(ui) {
+    var U = W.UiKit;
+    if (ui.modal === "onb-weight") {
+      var kg = ui.weightDraft ? ui.weightDraft.kg : (ui.onb ? ui.onb.kg : 60);
+      var parts = splitKg(kg);
+      if (!U) return "";
+      return U.dialog({ ui: "onb-time",
+        scrimAct: "onb-weight-cancel",
+        cls: "modal n-modal",
+        title: "Вес",
+        body: U.wheelBlock({ ui: "onb-time",
+          cls: "kg-pick",
+          items: [{ wheel: { name: "kg-int", value: parts.whole, min: 20, max: 300, step: 1, item: 60 } },
+                  { sep: ",", aria: true },
+                  { wheel: { name: "kg-dec", value: parts.frac, min: 0, max: 9, step: 1, item: 60 } },
+                  { unit: "кг" }]
+        }),
+        actions: [{ act: "onb-weight-cancel", label: "Отмена" }, { act: "onb-weight-ok", label: "Ок" }]
+      });
+    }
+    if (ui.modal === "onb-day") {
+      var d = ui.onb || {};
+      var mins = L() && L().minutesOf ? L().minutesOf(d.dayStart || "02:00") : 120;
+      if (!U) return "";
+      return U.dialog({ ui: "onb-weight",
+        scrimAct: "onb-day-cancel",
+        cls: "modal n-modal",
+        title: "Начало суток",
+        body: U.wheelBlock({ ui: "onb-weight",
+          cls: "kg-pick",
+          items: [{ wheel: { name: "day-h", value: Math.floor(mins / 60), min: 0, max: 23, step: 1, pad: true, item: 60 } },
+                  { sep: ":", aria: true },
+                  { wheel: { name: "day-m", value: mins % 60, min: 0, max: 59, step: 1, pad: true, item: 60 } }]
+        }),
+        actions: [{ act: "onb-day-cancel", label: "Отмена" }, { act: "onb-day-ok", label: "Ок" }]
+      });
+    }
+    return "";
   }
 
   /* Акты черновика: меняют только черновик, состояние трогает done. */
@@ -124,6 +168,7 @@
   if (W.WT2U && W.WT2U.registerBackModal) W.WT2U.registerBackModal(backModal);
   W.WT2O = {
     need: need, draft: draft, splitKg: splitKg, screenHtml: screenHtml,
+    overHtml: overHtml,
     setGender: setGender, setKg: setKg, setDayStart: setDayStart,
     done: done, markRestored: markRestored, backModal: backModal
   };
