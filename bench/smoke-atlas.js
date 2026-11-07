@@ -35,6 +35,46 @@ const ok = (name, cond, extra) => { if (cond) { pass++; console.log('  PASS  ' +
     ok(key, good, JSON.stringify(st));
   }
   ok('ошибок страницы нет', errs.length === 0, errs.slice(0, 2).join(' | '));
+  /* устройства и бары */
+  const dims = () => p.evaluate(() => {
+    const f = document.querySelector('#app');
+    return { w: f.style.width, h: f.style.height,
+      sb: document.querySelector('#statusbar').classList.contains('on'),
+      nb: document.querySelector('#navbar').className };
+  });
+  let d = await dims();
+  ok('D1 по умолчанию OnePlus 7 со статус-баром и жестовым нав-баром', d.w === '412px' && d.h === '850px' && d.sb && d.nb.indexOf('gesture') >= 0, JSON.stringify(d));
+  await p.selectOption('#devSel', '360x780'); await p.waitForTimeout(200);
+  d = await dims();
+  ok('D2 Galaxy S23: рамка 360, приложение ужалось на бары', d.w === '360px' && d.h === '738px', JSON.stringify(d));
+  await p.click('#statusBtn'); await p.waitForTimeout(150);
+  d = await dims();
+  ok('D3 статус-бар выключен — высота вернулась приложению', d.h === '762px' && !d.sb, JSON.stringify(d));
+  await p.selectOption('#navSel', 'buttons'); await p.waitForTimeout(150);
+  d = await dims();
+  ok('D4 кнопочный нав-бар: минус 48', d.h === '732px' && d.nb.indexOf('buttons') >= 0, JSON.stringify(d));
+  await p.click('#left .scr[data-atlas="home"]'); await p.waitForTimeout(300);
+  const small = await F().evaluate(() => !!document.querySelector('#app > .screen'));
+  ok('D5 на узком экране приложение живо и рисует', small);
+  await p.selectOption('#devSel', '412x892'); await p.click('#statusBtn');
+  await p.selectOption('#navSel', 'gesture'); await p.waitForTimeout(200);
+  const bars = await p.evaluate(() => {
+    const d = document.querySelector('#app').contentDocument;
+    const w = document.querySelector('#app').contentWindow;
+    let top = null;
+    for (const sel of ['#app .top', '#app .screen', '#app']) {
+      const el = d.querySelector(sel); if (!el) continue;
+      const c = w.getComputedStyle(el).backgroundColor;
+      if (c && c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') { top = el; break; }
+    }
+    const nav = d.querySelector('#app .nav');
+    return { sb: document.querySelector('#statusbar').style.background,
+      top: top ? w.getComputedStyle(top).backgroundColor : '',
+      nb: document.querySelector('#navbar').style.background,
+      nav: nav ? w.getComputedStyle(nav).backgroundColor : '' };
+  });
+  ok('D6 бары в цвет интерфейса (шапка и навигация приложения)', bars.sb === bars.top && bars.nb === bars.nav && !!bars.top, JSON.stringify(bars));
+
   /* онбординг: отдельный сид и перезагрузка */
   await p.click('#seedOnb');
   await p.waitForTimeout(1500);

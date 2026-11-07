@@ -29,7 +29,22 @@
   .scr small { color: #78808f; margin-left: 6px; font-size: 11px; }
   #center { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow: auto; background: #0f1013; }
   #frame { position: relative; width: 412px; height: 892px; flex: none; border-radius: 20px; overflow: hidden; box-shadow: 0 0 0 1px #33363f, 0 22px 60px rgba(0,0,0,.55); background: #000; }
-  #frame iframe { width: 412px; height: 892px; border: 0; display: block; }
+  #frame iframe { border: 0; display: block; }
+  #frame { display: flex; flex-direction: column; }
+  #statusbar { height: 24px; flex: none; display: none; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 11.5px; background: #101114; color: #e8e9ee; }
+  #statusbar.on { display: flex; }
+  #statusbar.light { background: #f2f3f5; color: #22252b; }
+  #statusbar .ics { display: flex; gap: 5px; align-items: center; }
+  #navbar { flex: none; display: none; align-items: center; justify-content: center; background: #101114; color: #e8e9ee; }
+  #navbar.light { background: #f2f3f5; color: #22252b; }
+  #navbar.gesture { height: 18px; }
+  #navbar.buttons { height: 48px; justify-content: space-evenly; }
+  #navbar.on { display: flex; }
+  #navbar .pill { width: 110px; height: 4px; border-radius: 2px; background: currentColor; opacity: .85; }
+  .bar2 { display: flex; align-items: center; gap: 8px; width: 100%; flex-wrap: wrap; }
+  .bar2 select, .bar2 input[type=number] { background: #121317; color: #e8e9ee; border: 1px solid #3c3f49; border-radius: 7px; padding: 5px 7px; font: inherit; }
+  .bar2 input[type=number] { width: 76px; }
+  .bar2 .lbl { color: #9aa0ad; font-size: 12.5px; }
 </style>
 </head>
 <body>
@@ -42,11 +57,48 @@
   <button class="btn" id="reloadBtn">Перезагрузить</button>
   <span id="cur">загрузка…</span>
   <span class="hint">Слева — все экраны и меню. Внутри рамки можно кликать: приложение настоящее, данные тестовые.</span>
+  <div class="bar2">
+    <span class="lbl">Устройство:</span>
+    <select id="devSel">
+      <option value="412x892" selected>OnePlus 7 (мой) — 412×892</option>
+      <option value="412x914">OnePlus 7T / 8 — 412×914</option>
+      <option value="360x780">Galaxy S23 — 360×780</option>
+      <option value="390x844">iPhone 14 — 390×844</option>
+      <option value="375x667">iPhone SE — 375×667</option>
+      <option value="360x640">Компактный Android — 360×640</option>
+      <option value="768x1024">Планшет — 768×1024</option>
+    </select>
+    <input type="number" id="custW" placeholder="своя ширина" min="280" max="1400">
+    <span class="lbl">×</span>
+    <input type="number" id="custH" placeholder="своя высота" min="480" max="1600">
+    <button class="btn" id="custGo">Свой размер</button>
+    <button class="btn on" id="statusBtn">Статус-бар</button>
+    <span class="lbl">Нав-бар:</span>
+    <select id="navSel">
+      <option value="off">нет</option>
+      <option value="gesture" selected>жестовый</option>
+      <option value="buttons">кнопки</option>
+    </select>
+    <span class="lbl">Масштаб:</span>
+    <select id="zoomSel">
+      <option value="fit" selected>по размеру окна</option>
+      <option value="100">100%</option>
+    </select>
+    <span class="hint">Размеры — в CSS-пикселях (как видит приложение). Бары уменьшают высоту приложения, как на настоящем телефоне.</span>
+  </div>
 </header>
 <main>
   <aside id="left"></aside>
   <section id="center">
-    <div id="frame"><iframe id="app" title="Водомер next"></iframe></div>
+    <div id="frame">
+      <div id="statusbar" class="on"><span id="sbClock">9:41</span><span class="ics">
+        <svg width="15" height="11" viewBox="0 0 16 12" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13" y="0" width="3" height="12" rx="1" opacity=".35"/></svg>
+        <svg width="15" height="11" viewBox="0 0 16 12" fill="currentColor"><path d="M8 10.6 1.2 3.8a12 12 0 0 1 13.6 0L8 10.6zm0 1.4-2-2a3.2 3.2 0 0 1 4 0l-2 2z"/></svg>
+        <svg width="22" height="11" viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="20" height="11" rx="3" fill="none" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="14" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4a2.2 2.2 0 0 0 0-4z" fill="currentColor" opacity=".5"/></svg>
+      </span></div>
+      <iframe id="app" title="Водомер next"></iframe>
+      <div id="navbar" class="on gesture"><span class="pill"></span></div>
+    </div>
   </section>
 </main>
 <script>
@@ -196,8 +248,49 @@
   document.getElementById("themeBtn").addEventListener("click", function () {
     dark = !dark;
     this.textContent = "Тема: " + (dark ? "тёмная" : "светлая");
-    go(function (A) { A.state.theme = dark ? "dark" : "light"; });
+    sb.classList.toggle("light", !dark); nb.classList.toggle("light", !dark);
+    /* настоящим путём приложения: pick-theme сам сохранит и применит тему */
+    go(function (A) { A.performAction({ dataset: { v: dark ? "dark" : "light" } }, "pick-theme"); });
   });
+
+  /* ---------- бары в цвет интерфейса ---------- */
+  /* Как оболочка на телефоне (WaterBars): цвет статус-бара снимаем с шапки
+     приложения, нав-бара — с его нижней навигации. Иконки — контрастом. */
+  function lum(rgb) {
+    var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb || "");
+    if (!m) return 0;
+    return (0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3]) / 255;
+  }
+  function syncBars() {
+    try {
+      var w = frame.contentWindow, d = frame.contentDocument;
+      if (!w || !d || !d.querySelector) return;
+      var navEl = d.querySelector("#app .nav");
+      /* шапка может быть прозрачной (главная) — идём вниз по слоям,
+         как замер цвета у оболочки: первый непрозрачный фон сверху */
+      var bg = "";
+      ["#app .top", "#app .screen", "#app"].forEach(function (sel) {
+        if (bg) return;
+        var el = d.querySelector(sel);
+        if (!el) return;
+        var c = w.getComputedStyle(el).backgroundColor;
+        if (c && c !== "rgba(0, 0, 0, 0)" && c !== "transparent") bg = c;
+      });
+      if (!bg && d.body) bg = w.getComputedStyle(d.body).backgroundColor;
+      if (bg) {
+        sb.style.background = bg;
+        sb.style.color = lum(bg) > 0.6 ? "#22252b" : "#e8e9ee";
+      }
+      if (navEl) {
+        var nbg = w.getComputedStyle(navEl).backgroundColor;
+        if (nbg && nbg !== "rgba(0, 0, 0, 0)" && nbg !== "transparent") {
+          nb.style.background = nbg;
+          nb.style.color = lum(nbg) > 0.6 ? "#22252b" : "#e8e9ee";
+        }
+      }
+    } catch (e) { /* рамка между навигациями — пропускаем кадр */ }
+  }
+  setInterval(syncBars, 500);
 
   /* ---------- индикатор текущего экрана ---------- */
   setInterval(function () {
@@ -207,6 +300,54 @@
     cur.textContent = "сейчас: tab=" + u.tab + (u.page ? " page=" + u.page : "") +
       (u.sheet ? " sheet=" + u.sheet : "") + (u.modal ? " modal=" + u.modal : "");
   }, 600);
+
+  /* ---------- устройства, бары, масштаб ---------- */
+  var devW = 412, devH = 892, statusOn = true, navMode = "gesture";
+  var frameBox = document.getElementById("frame");
+  var sb = document.getElementById("statusbar"), nb = document.getElementById("navbar");
+  function barsH() { return (statusOn ? 24 : 0) + (navMode === "gesture" ? 18 : navMode === "buttons" ? 48 : 0); }
+  function applySize() {
+    var vh = Math.max(320, devH - barsH());
+    frameBox.style.width = devW + "px";
+    frameBox.style.height = devH + "px";
+    frame.style.width = devW + "px";
+    frame.style.height = vh + "px";
+    sb.classList.toggle("on", statusOn);
+    nb.className = navMode === "off" ? "" : "on " + navMode + (dark ? "" : " light");
+    nb.innerHTML = navMode === "buttons"
+      ? '<svg width="18" height="14" viewBox="0 0 18 14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 2 5 7l6 5"/></svg><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="5"/></svg><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="2" width="10" height="10" rx="2"/></svg>'
+      : '<span class="pill"></span>';
+    fitZoom();
+  }
+  function fitZoom() {
+    var fit = document.getElementById("zoomSel").value === "fit";
+    var c = document.getElementById("center");
+    var s = 1;
+    if (fit) s = Math.min(1, (c.clientWidth - 28) / devW, (c.clientHeight - 28) / devH);
+    frameBox.style.transform = s < 1 ? "scale(" + s + ")" : "";
+    frameBox.style.transformOrigin = "top center";
+    frameBox.style.marginBottom = s < 1 ? (-(devH * (1 - s))) + "px" : "";
+  }
+  document.getElementById("devSel").addEventListener("change", function () {
+    var v = this.value.split("x"); devW = +v[0]; devH = +v[1]; applySize();
+  });
+  document.getElementById("custGo").addEventListener("click", function () {
+    var w = +document.getElementById("custW").value, h = +document.getElementById("custH").value;
+    if (w >= 280 && h >= 480) { devW = w; devH = h; applySize(); }
+  });
+  document.getElementById("statusBtn").addEventListener("click", function () {
+    statusOn = !statusOn; this.classList.toggle("on", statusOn); applySize();
+  });
+  document.getElementById("navSel").addEventListener("change", function () { navMode = this.value; applySize(); });
+  document.getElementById("zoomSel").addEventListener("change", fitZoom);
+  window.addEventListener("resize", fitZoom);
+  function clock() {
+    var d = new Date();
+    document.getElementById("sbClock").textContent = d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  clock(); setInterval(clock, 20000);
+
+  applySize();
 
   /* первый старт — база владельца */
   loadOwner(function (p) { boot(buildSeed(p, {})); });
