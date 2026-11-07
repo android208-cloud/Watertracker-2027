@@ -162,9 +162,11 @@ const ok = (n, c, x) => { console.log((c ? '  PASS  ' : '  FAIL  ') + n + (x ? '
     const d = w.document;
     const vs = d.querySelectorAll('.ed-our-v');
     const hs = Array.from(d.querySelectorAll('.ed-our-h'), e => e.style.top);
-    /* линии ниже высоты вьюпорта честно не рисуются (стенд: 892−бары) */
-    const want = [43, 88, 361, 617, 697, 785, 863]
-      .filter(y => y < w.innerHeight).map(y => y + 'px');
+    /* якоря линий: шапка от верха, середина от центра, нижний блок от низа */
+    const vh = w.innerHeight;
+    const want = [43, 88, 361 + Math.round((vh - 892) / 2),
+      vh - 275, vh - 195, vh - 107, vh - 29]
+      .filter(y => y >= 0 && y < vh).map(y => y + 'px');
     return { n: vs.length, first: vs.length ? vs[0].style.left : '', hs, want,
       disp: getComputedStyle(d.getElementById('edOur')).display };
   });

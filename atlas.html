@@ -656,11 +656,25 @@
   }
   /* «Наша сетка»: вертикали 41+66k, горизонтали — замер со скрина
      владельца (uploads/image-1.png): линии идут по центрам рядов, а не
-     лесенкой: пилюля 43, «Вода» 88, пустая середина 361, ряд действий
-     617, напитки 697, выбор объёма 785, нав-бар 863. Координаты — для
-     вьюпорта 412×892; на экранах ниже 892 лишние линии просто не рисуются. */
-  var ED_OUR_X0 = 41, ED_OUR_DX = 66;
-  var ED_OUR_Y = [43, 88, 361, 617, 697, 785, 863];
+     лесенкой: пилюля 43, «Вода» 88, середина 361, ряд действий 617,
+     напитки 697, выбор объёма 785, нав-бар 863.
+     Координаты замерены на высоте 892, но у каждой линии свой якорь —
+     как у самого интерфейса: шапка держится верха (t), нижний блок —
+     низа (b: в записи расстояние от низа 892), середина — центра (c).
+     Поэтому на другой высоте (бары атласа, другой телефон) линии едут
+     вместе со своими рядами, а не остаются на абсолютных цифрах. */
+  var ED_OUR_X0 = 41, ED_OUR_DX = 66, ED_OUR_H = 892;
+  var ED_OUR_Y = [
+    { y: 43, a: "t" }, { y: 88, a: "t" }, { y: 361, a: "c" },
+    { y: 617, a: "b" }, { y: 697, a: "b" }, { y: 785, a: "b" }, { y: 863, a: "b" }
+  ];
+  function edOurYs(vh) {
+    return ED_OUR_Y.map(function (r) {
+      if (r.a === "t") return r.y;
+      if (r.a === "b") return vh - (ED_OUR_H - r.y);
+      return r.y + Math.round((vh - ED_OUR_H) / 2);
+    });
+  }
   function edSnapAxis(v, o) {
     var best = edSnap(v);
     edGuides.forEach(function (g) {
@@ -671,7 +685,8 @@
         var cand = ED_OUR_X0 + Math.round((v - ED_OUR_X0) / ED_OUR_DX) * ED_OUR_DX;
         if (Math.abs(cand - v) < Math.abs(best - v)) best = cand;
       } else {
-        ED_OUR_Y.forEach(function (gy) {
+        var w2 = edW();
+        edOurYs(w2 ? w2.innerHeight : ED_OUR_H).forEach(function (gy) {
           if (Math.abs(gy - v) < Math.abs(best - v)) best = gy;
         });
       }
@@ -693,8 +708,8 @@
       if (num) html += "<div class=\"ed-our-lab\" style=\"left:" + x + "px;top:2px\">" + ED_LETTERS[li++] + "</div>";
     }
     var cols = li;
-    ED_OUR_Y.forEach(function (yy, ri) {
-      if (yy >= w.innerHeight) return;
+    edOurYs(w.innerHeight).forEach(function (yy, ri) {
+      if (yy < 0 || yy >= w.innerHeight) return;
       html += "<div class=\"ed-our-h\" style=\"top:" + yy + "px\"></div>";
       if (num) html += "<div class=\"ed-our-lab\" style=\"left:8px;top:" + yy + "px;transform:translate(0,-50%)\">" +
         (ED_LETTERS[cols + ri] || "") + "</div>";
