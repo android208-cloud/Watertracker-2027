@@ -3161,6 +3161,100 @@
     placeWheelMarker();
   }
 
+  /* Донор app.js:7467-7557 — жестовая машинка палитры: не доехала при
+     переносе (initColorWheel ссылался на colorGesture в никуда, круг
+     умирал с ReferenceError на первом касании). Возвращена дословно. */
+  var colorGesture = { active: false, x: 0, y: 0, dx: 0, dy: 0, mode: "", pointerId: null };
+
+  function classifyColorGesture() {
+    if (colorGesture.mode) return colorGesture.mode;
+    if (Math.abs(colorGesture.dx) < 8 && Math.abs(colorGesture.dy) < 8) return "";
+    colorGesture.mode = Math.abs(colorGesture.dx) > Math.abs(colorGesture.dy) * 1.15 ? "swipe" : "pick";
+    return colorGesture.mode;
+  }
+
+  function initPaletteSwipe() {
+    var screen = document.querySelector(".colors-screen");
+    var view = document.querySelector(".color-viewport");
+    var track = document.querySelector(".color-track");
+    if (!screen || !view || !track) return;
+    function width() { return view.clientWidth || 412; }
+    function pointerScale() {
+      var app = document.getElementById("app");
+      if (!app) return 1;
+      var rect = app.getBoundingClientRect();
+      var scale = rect.width / (app.offsetWidth || 412);
+      return scale > 0 ? scale : 1;
+    }
+    function place(page, extra, animate) {
+      track.style.transition = animate ? "transform .26s ease" : "none";
+      track.style.transform = "translateX(" + ((-page * width()) + (extra || 0)) + "px)";
+    }
+    function syncPager() {
+      document.querySelectorAll(".pager button").forEach(function (b) {
+        b.classList.toggle("on", Number(b.dataset.page) === ui.colorPage);
+      });
+    }
+    function onMove(e) {
+      if (!colorGesture.active || e.pointerId !== colorGesture.pointerId) return;
+      colorGesture.dx = e.clientX - colorGesture.x;
+      colorGesture.dy = e.clientY - colorGesture.y;
+      if (classifyColorGesture() !== "swipe") return;
+      var w = width();
+      var x = -ui.colorPage * w + colorGesture.dx / pointerScale();
+      if (x > 0) x *= 0.3;
+      if (x < -w) x = -w + (x + w) * 0.3;
+      track.style.transition = "none";
+      track.style.transform = "translateX(" + x + "px)";
+    }
+    function finish(e) {
+      if (!colorGesture.active || (e && e.pointerId != null && e.pointerId !== colorGesture.pointerId)) return;
+      var dx = colorGesture.dx;
+      var dy = colorGesture.dy;
+      var mode = colorGesture.mode;
+      colorGesture.active = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      if (mode === "swipe" && Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+        var next = ui.colorPage + (dx < 0 ? 1 : -1);
+        if (next >= 0 && next < COLOR_PAGES.length) {
+          suppressNextClick(300);
+          ui.colorPage = next;
+          if (next === 1) ui.wheel = null;
+          var canvas = document.querySelector(".hue-wheel");
+          if (canvas && next === 1) {
+            drawHueWheel(canvas);
+            placeWheelMarker();
+          }
+          document.querySelectorAll(".palette button").forEach(function (b) {
+            b.classList.toggle("on", sameColor(b.dataset.color, ui.colorPick));
+          });
+        }
+        place(ui.colorPage, 0, true);
+        syncPager();
+        return;
+      }
+      if (Math.abs(dx) > 8) suppressNextClick(300);
+      place(ui.colorPage, 0, true);
+    }
+    screen.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      if (e.target.closest(".icon-btn")) return;
+      colorGesture.active = true;
+      colorGesture.x = e.clientX;
+      colorGesture.y = e.clientY;
+      colorGesture.dx = 0;
+      colorGesture.dy = 0;
+      colorGesture.mode = "";
+      colorGesture.pointerId = e.pointerId;
+      place(ui.colorPage, 0, false);
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", finish);
+      window.addEventListener("pointercancel", finish);
+    });
+  }
+
   function initColorWheel() {
     var canvas = document.querySelector(".hue-wheel");
     if (!canvas) return;
@@ -4223,7 +4317,7 @@
   function afterRender() {
     initPinHold(); /* донор: bindAll() из render (4603) */
     initAvatarHold(); /* скрытые облачные инструменты за портретом */
-    initSort(); initHydSlider(); initColorWheel(); /* донор 7296-7299 */
+    initSort(); initHydSlider(); initColorWheel(); initPaletteSwipe(); /* донор 7296-7301: свайп палитры возвращён 07.11 */
     try { initWheels(); } catch (e) { /* v211: слепой catch больше не слепой */
       W.__wheelErr = (e && e.message) || String(e);
       if (W.console) console.error("initWheels: " + W.__wheelErr);

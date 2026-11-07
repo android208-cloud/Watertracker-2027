@@ -135,8 +135,15 @@ const histNums = () => {
   await pdt.waitForFunction(() => document.querySelector('.home-bar-top .progress'));
   const donorTop = await pdt.evaluate(topProbe);
   await pdt.close();
-  ok('донорский верх: home-bar-top первый, полоса/шапка/сцена донор==следующий байт-в-байт',
-    nextTop.first.indexOf('home-bar-top') >= 0 && JSON.stringify(donorTop) === JSON.stringify(nextTop),
+  /* Санкционированный отход от донора — атлас-правки владельца 07.11
+     (коммит a88cfd4, дорога 1): полоса +12, заголовок +3, сцена −2.
+     Перед сверкой вычитаем их обратно; остальное обязано совпасть байт-в-байт. */
+  const adjTop = JSON.parse(JSON.stringify(nextTop));
+  if (adjTop.bar) adjTop.bar[1] -= 12;
+  if (adjTop.h1r) adjTop.h1r[1] -= 3;
+  if (adjTop.stage) adjTop.stage[1] += 2;
+  ok('донорский верх: home-bar-top первый, полоса/шапка/сцена донор==следующий (минус атлас-правки 07.11)',
+    nextTop.first.indexOf('home-bar-top') >= 0 && JSON.stringify(donorTop) === JSON.stringify(adjTop),
     { donorTop, nextTop });
 
   /* --- пилюля донора: геометрия/текст/действие донор==следующий (капля вместо мордочки — объявленное исключение) --- */
@@ -153,8 +160,16 @@ const histNums = () => {
   await pdp.waitForFunction(() => document.querySelector('.home-dock .pill .mini-cat'));
   const donorPill = await pdp.evaluate(pillProbe);
   await pdp.close();
-  ok('пилюля донора: короб, место значка, текст «250 мл», действие open-volume — донор==следующий',
-    nextPill.act === 'open-volume' && JSON.stringify(donorPill) === JSON.stringify(nextPill),
+  /* Атлас-правка владельца 07.11 (a88cfd4): капля 24px вместо 28 и сдвиг
+     (-10,-11) от точки привязки — центр значка ушёл на (+2,+1) от донорского.
+     Короб, текст и действие сверяем с донором строго, значок — по новой норме. */
+  const mcC = nextPill.mc ? [nextPill.mc[0] + nextPill.mc[2] / 2, nextPill.mc[1] + nextPill.mc[3] / 2] : null;
+  const mcD = donorPill.mc ? [donorPill.mc[0] + donorPill.mc[2] / 2, donorPill.mc[1] + donorPill.mc[3] / 2] : null;
+  ok('пилюля донора: короб/текст/действие как донор; значок — норма 07.11 (24px, центр +2/+1)',
+    nextPill.act === 'open-volume' && nextPill.text === donorPill.text &&
+    JSON.stringify(nextPill.pill) === JSON.stringify(donorPill.pill) &&
+    nextPill.mc && nextPill.mc[2] === 24 && nextPill.mc[3] === 24 &&
+    mcC && mcD && (mcC[0] - mcD[0]) === 2 && (mcC[1] - mcD[1]) === 1,
     { donorPill, nextPill });
   const pillLight = await p.evaluate(async () => {
     document.querySelector('[data-tab="settings"]').click();
@@ -213,13 +228,18 @@ const histNums = () => {
   /* --- лента: правка и удаление --- */
   await p.click('[data-tab="history"]');
   await p.waitForSelector('.hist-list .swipe');
+  /* Поток правки записи (актуальный): edit-entry -> шторка hist-add с
+     черновиком записи (openAdd(entry)) -> commit-entry. Бенч раньше ждал
+     отдельную шторку entry-edit с edit-vol-chip/commit-edit — она давно
+     слита в hist-add, раздел протух и падал на пустом селекторе. */
   const edit = await p.evaluate(() => {
     const app = window.__waterApp;
     const id = app.state.entries[app.state.entries.length - 1].id;
     document.querySelector('[data-sid="e-' + id + '"] .swipe-actions button[data-act="edit-entry"]').click();
-    const sheetOpen = app.ui.sheet === 'entry-edit';
-    document.querySelector('[data-act="edit-vol-chip"][data-v="300"]').click();
-    document.querySelector('[data-act="commit-edit"]').click();
+    const sheetOpen = app.ui.sheet === 'hist-add' && !!(app.ui.addDraft && app.ui.addDraft.entryId === id);
+    const wEl = document.querySelector('[data-wheel="volume"]');
+    if (wEl && wEl._setValue) wEl._setValue(300); else if (wEl) wEl.dataset.value = '300';
+    document.querySelector('[data-act="commit-entry"]').click();
     const e = app.state.entries.filter(x => x.id === id)[0];
     return { sheetOpen: sheetOpen, vol: e ? e.volume : null, credited: e ? e.credited : null, touched: !!(e && e.updatedAt) };
   });
@@ -290,13 +310,23 @@ const histNums = () => {
   await p2.goto('http://127.0.0.1:8085/wt2/index.html');
   await p2.waitForFunction(() => window.__waterApp);
   await p2.screenshot({ path: __dirname + '/shots/m21-onboarding.png' });
-  const onb = await p2.evaluate(() => {
+  const onb = await p2.evaluate(async () => {
     const app = window.__waterApp;
+    const tick = () => new Promise(r => setTimeout(r, 250));
     const screen = !!document.querySelector('.onb');
-    document.querySelector('[data-act="onb-gender"][data-v="female"]').click();
+    /* Онбординг пересобран 07.11 (свой стенд smoke-onb): пол — действием,
+       вес — барабанами kg-int/kg-dec через _setValue, дальше Ок и Финиш. */
+    app.performAction({ dataset: { v: 'female' } }, 'onb-gender');
+    await tick();
     document.querySelector('[data-act="onb-weight"]').click();
-    document.querySelector('[data-act="onb-kg"][data-v="65"]').click();
+    await tick();
+    document.querySelector('[data-wheel="kg-int"]')._setValue(65);
+    document.querySelector('[data-wheel="kg-dec"]')._setValue(0);
+    await tick();
+    document.querySelector('[data-act="onb-weight-ok"]').click();
+    await tick();
     document.querySelector('[data-act="onb-done"]').click();
+    await tick();
     const st = app.state;
     return { screen: screen, onboarded: !!st.onboarded, gender: st.gender, kg: st.weightKg, goal: st.goalMl, base: window.WT2L.genderBase({ gender: 'female', weightKg: 65 }), home: !!document.querySelector('.home-screen') };
   });
