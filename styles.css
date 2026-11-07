@@ -295,6 +295,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .home-bar-top .progress {
   height: var(--ico);
   border-radius: calc(var(--ico) / 2);
+  /* Атлас-правка владельца 07.11 (дорога 1): полоса на 12px ниже. */
+  top: 12px;
 }
 .home-bar-top .progress .label { line-height: var(--ico); }
 .progress {
@@ -327,6 +329,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .home-screen > .progress {
   height: var(--band);
 }
+/* Атлас-правка владельца 07.11: заголовок напитка на 3px ниже. */
+.home-screen > header.top { position: relative; top: 3px; }
 .home-screen > .progress .label {
   line-height: var(--band);
 }
@@ -345,6 +349,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   min-height: 0;
   min-width: 0;
   position: relative;
+  /* Атлас-правка владельца 07.11: сцена круга на 2px выше. */
+  top: -2px;
   overflow: visible;
   z-index: 1;
   container-type: size; /* cqh: сцена знает свою высоту, см. .cat-btn */
@@ -725,6 +731,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   margin: 0;
   transform: translate(-50%, -50%);
 }
+
+/* Атлас-правка владельца 07.11: капля в пилюле объёма — 24px
+   и сдвиг, как выставлено в атласе (-10, -11 от точки привязки). */
+.home-dock > .pill-slot .pill .mini-cat {
+  width: 24px;
+  height: 24px;
+  transform: translate(-10px, -11px);
+}
 .home-dock > .pill-slot .pill > span {
   position: absolute;
   left: calc(var(--ico) / 2 + var(--face) / 2);
@@ -961,6 +975,7 @@ font-weight: 600;
   left: 0; right: 0;
   bottom: calc(var(--nav-h) + var(--safe-b));
   background: var(--panel);
+  /* фон перекрыт ниже для тёмной темы (атлас-правка 07.11) */
   border-radius: var(--sheet-radius, 16px) var(--sheet-radius, 16px) 0 0;
   z-index: 8;
   padding: 12px 0 12px;
@@ -974,6 +989,10 @@ font-weight: 600;
   overscroll-behavior: contain;
 }
 .sheet > * { flex: 0 0 auto; min-width: 0; max-width: 100%; }
+
+/* Атлас-правка владельца 07.11: шторки в тёмной теме — в цвет фона
+   приложения (--bg = #2c2d32), темнее панелей --panel. */
+[data-theme="dark"] .sheet { background: var(--bg); }
 .sheet h2 { margin: 2px 16px 10px; font-size: 20px; font-weight: 600; }
 .sheet .sub { margin: -6px 16px 10px; color: var(--blue-2); font-size: 14px; }
 .sheet .edit-tag, .sheet .sheet-date { padding: 0 16px; }
@@ -1975,6 +1994,10 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .time-wheels .wheel { width: 84px; }
 .colon { font-size: 28px; color: var(--blue); font-weight: 700; }
 .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+
+/* Атлас-правка владельца 07.11: в диалоге времени кнопка «Отмена»
+   скрыта; отмена остаётся по шторке (scrimAct=time-cancel) и «Назад». */
+[data-ui="dialog.time"] .modal-actions button[data-act="time-cancel"] { display: none; }
 .modal-actions button {
   background: transparent;
   border: 0;
@@ -1995,7 +2018,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .toast {
   position: absolute;
   left: 16px; right: 16px;
-  top: calc(var(--safe-t) + 10px);
+  /* Атлас-правка владельца 07.11 (дорога 1): тост выше на 6px, шрифт 14, высота 52. */
+  top: calc(var(--safe-t) + 4px);
   bottom: auto;
   pointer-events: none;
   background: var(--toast-bg);
@@ -2007,9 +2031,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 13px;
-  line-height: 16px;
-  min-height: 34px;
+  font-size: 14px;
+  line-height: 18px;
+  min-height: 52px;
   overflow: hidden;
   z-index: 40;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
