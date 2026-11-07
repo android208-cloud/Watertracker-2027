@@ -50,6 +50,7 @@ const VIEWS = [
   { id: 'sheet-activity',     theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-fitness"]'], ['wait', '[data-act="pick-activity"]']] },
   { id: 'home-cup',           theme: 'dark',  nav: [['tab', 'home'], ['wait', '.home-dock .cup-pill']] },
   { id: 'home-skin',          theme: 'dark',  nav: [['tab', 'home'], ['wait', '.home-dock .cup-pill']] },
+  { id: 'sheet-hist-add',     theme: 'dark',  nav: [['tab', 'history'], ['click', '.fab'], ['wait', '.sheet.volume .wheel-item']] },
   { id: 'sheet-weather',      theme: 'dark',  nav: [['tab', 'home'], ['click', '[data-act="open-weather"]'], ['wait', '[data-act="pick-weather"]']] },
   { id: 'alerts-period',      theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-period"]'], ['wait', '.period-line']] },
   { id: 'alerts-texts',       theme: 'dark',  nav: [['tab', 'settings'], ['click', '[data-act="open-folder-alerts"]'], ['click', '[data-act="open-alert-texts"]'], ['wait', '.nt-card']] },

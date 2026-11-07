@@ -77,7 +77,10 @@
     var d = new Date();
     return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   }
-  function nowHM() { var d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+  function nowHM() { /* донор: часы в поясе TZ (Europe/Samara), не локаль машины */
+    var p = tzParts();
+    return p.hour + ":" + p.minute;
+  }
   function fmtShort(iso) { return iso.slice(8, 10) + "." + iso.slice(5, 7); }
   function fmtLong(iso) { return iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4); }
   function fmtVol(ml) {
@@ -2150,6 +2153,99 @@
   }
 
 
+  function clockDate(water, time) {
+    if (LC.minutesOf(time) < LC.minutesOf(J().dayStartOn(state, water))) return LC.addDays(water, 1);
+    return water;
+  }
+
+  function openAdd(entry) {
+    ui.historyDate = ui.historyDate || todayStr();
+    if (entry) {
+      ui.addDraft = {
+        entryId: entry.id,
+        drinkId: entry.drinkId,
+        volume: entry.volume,
+        time: entry.time,
+        createdAt: entry.createdAt,
+        snapshot: { id: entry.drinkId, name: entry.name, icon: entry.icon, color: entry.color, hydration: entry.hydration }
+      };
+    } else {
+      var drink = currentDrink();
+      ui.addDraft = { entryId: null, drinkId: drink.id, volume: state.profile.volume, time: nowHM(), createdAt: null, snapshot: null };
+    }
+    ui.sheet = "hist-add";
+    ui.page = null;
+    render();
+  }
+
+  function alertNoteDrank() {
+    var bridge = window.WaterAlerts;
+    if (bridge && typeof bridge.noteDrank === "function") {
+      try { bridge.noteDrank(); } catch (e) { /* нет моста — не критично */ }
+    }
+  }
+
+  function writeEntry(volume) {
+    var draft = ui.addDraft;
+    if (!draft) return;
+    var drink = drinkById(draft.drinkId) || draft.snapshot;
+    if (!drink) { toast("Выберите напиток"); return; }
+    var water = ui.historyDate || waterToday();
+    var date = clockDate(water, draft.time);
+    var entry = {
+      id: draft.entryId || uid(),
+      date: date,
+      time: draft.time,
+      drinkId: drink.id,
+      name: drink.name,
+      icon: drink.icon,
+      color: drink.color,
+      hydration: drink.hydration,
+      volume: volume,
+      credited: LC.creditedMl(volume, drink.hydration),
+      createdAt: draft.createdAt || Date.now()
+    };
+    var msg;
+    var added = false;
+    if (draft.entryId) {
+      /* v84 (дубли при правке, инцидент 25.10): слияние между устройствами
+         опознаёт записи по содержимому (дата|время|напиток|объём). Правка
+         времени меняла содержимое — второе устройство принимало её как новую
+         запись и оставляло себе старую копию: дубль, который следующим
+         обменом возвращался и сюда. Теперь старая версия помечается
+         удалённой (её больше не воскресить), новая — живой, и у правки есть
+         updatedAt: при встрече версий побеждает свежайшая. */
+      var prevE = state.entries.filter(function (e) { return e.id === draft.entryId; })[0];
+      if (prevE && J().entryKey(prevE) !== J().entryKey(entry)) J().markDeleted(state, [prevE], "e");
+      entry.updatedAt = Date.now();
+      J().markAlive(state, entry, "e");
+      state.entries = state.entries.map(function (e) { return e.id === draft.entryId ? entry : e; });
+      msg = "Запись изменена";
+    } else {
+      J().markAlive(state, entry, "e");
+      state.entries.push(entry);
+      added = true;
+      msg = "В историю: " + drink.name + " " + volume + " мл";
+    }
+    ui.addDraft = null;
+    ui.openSwipe = null;
+    save();
+    if (added) alertNoteDrank();
+    closeSheetThen(function () { toast(msg); });
+  }
+
+  function maybeWarnEntry(volume) {
+    var draft = ui.addDraft;
+    var drink = drinkById(draft.drinkId) || draft.snapshot;
+    var water = ui.historyDate || waterToday();
+    var before = sumKey(dayEntries(water), "volume");
+    var old = draft.entryId ? state.entries.filter(function (e) { return e.id === draft.entryId; })[0] : null;
+    var oldVol = old && entryDay(old) === water ? Number(old.volume) || 0 : 0;
+    var goal = goalFor(water);
+    writeEntry(volume);
+  }
+
+
   function readWheel(name, fallback) {
     var el = document.querySelector('[data-wheel="' + name + '"]');
     if (!el || el.dataset.value === "" || el.dataset.value == null) return fallback;
@@ -3211,15 +3307,39 @@
           volume: ui.volumeDraft, wheel: volumeControl }),
         tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "commit-volume", role: "check", pos: "center", act: "commit-volume", aria: "Применить объём", icon: uiIcon("check") }) + "</div>"
       });
-    } else if (ui.sheet === "add-entry") {
-      var ad = ui.addDraft || { drinkId: state.profile.drinkId, volume: state.profile.volume };
-      var aitems = (state.drinks || []).slice(0, 8).map(function (d) {
-        return { id: d.id, on: d.id === ad.drinkId, color: d.color, name: esc(d.name), bubble: bubble(d) };
+    }
+    if (!ui.page && ui.sheet === "hist-add" && ui.addDraft) {
+      var draft = ui.addDraft;
+      /* Тело то же, что у домашнего меню: разница только по контракту шага 7
+         (дата сверху, время справа снизу; метка изменения — состояние правки).
+         Выбранный напиток записи мог исчезнуть из списка: snapshot из черновика. */
+      if (draft.drinkId && !drinkById(draft.drinkId) && draft.snapshot) {
+        state.drinks = [draft.snapshot].concat(state.drinks);
+      }
+      out += K().sheet({
+        ui: "hist-add", scrimCls: " menu", cls: "volume menu",
+        body: volumeSheetBody({ ui: "hist-add", pickAct: "pick-quick",
+          editTag: !!draft.entryId, date: fmtLong(ui.historyDate || todayStr()),
+          selectedId: draft.drinkId, volume: draft.volume,
+          wheel: useSystemDrums()
+            ? sysLaunch("sys-entry-volume", draft.volume + " мл")
+            : (window.UiKit ? K().wheelBlock({ ui: "volume-edit",
+                cls: "wheel-block",
+                items: [{ wheel: { name: "volume", value: draft.volume, min: 10, max: 2000, step: 10 } },
+                        { unit: "мл", unitCls: "unit" }]
+              }) : "") }),
+        tail: '<div class="sheet-actions">' + K().roundBtn({ ui: "commit-entry", role: "check", pos: "center", act: "commit-entry", icon: uiIcon("check") }) +
+          K().roundBtn({ ui: "time-open", role: "time", act: "open-time", icon: uiIcon("clock"), text: esc(draft.time) }) + "</div>"
       });
-      out += U().sheet({ ui: "addentry", cls: "volume", title: "Добавить запись",
-        body: K().drinkPickRow({ ui: "addsheet", items: aitems, act: "add-drink" }) +
-          U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ad.volume, act: "add-vol-chip" }),
-        tail: '<button type="button" class="check center" data-act="add-entry-save" aria-label="Записать">' + uiIcon("check") + "</button>" });
+    }
+    if (ui.modal === "time" && ui.timeDraft) {
+      out += window.UiKit ? K().dialog({ ui: "time",
+        scrimAct: "time-cancel",
+        cls: "modal",
+        title: "Время приема напитка",
+        body: timeEditorHtml("time", "hour", "minute", ui.timeDraft.hour, ui.timeDraft.minute, "time-wheels"),
+        actions: [{ act: "time-cancel", label: "Отмена" }, { act: "time-ok", label: "Ок" }]
+      }) : "";
     }
     if (ui.sheet === "weight") {
       var wd = ui.weightDraft || { date: todayStr(), kg: state.weightKg };
@@ -3244,11 +3364,7 @@
           '<input type="date" class="wt-dateinp" value="' + wd.date + '" max="' + todayStr() + '" tabindex="-1" aria-hidden="true">' + "</div>"
       });
     }
-    if (ui.sheet === "entry-edit") {
-      out += U().sheet({ ui: "entryedit", cls: "goal", title: "Объём записи",
-        body: U().chipRow({ baseCls: "presets xscroll vol-pick", values: VOLS, selected: ui.editDraft ? ui.editDraft.volume : 0, act: "edit-vol-chip" }),
-        tail: '<button type="button" class="check center" data-act="commit-edit" aria-label="Сохранить">' + uiIcon("check") + "</button>" });
-    } else if (ui.sheet === "onb-weight") {
+    if (ui.sheet === "onb-weight") {
       var kg = ui.onb ? ui.onb.kg : 60;
       var grid = KG_VALS.map(function (v) {
         return '<button type="button" class="' + (Number(v) === Number(kg) ? "on" : "") + '" data-act="onb-kg" data-v="' + v + '">' + v + "</button>";
@@ -3868,17 +3984,8 @@
     if (act === "edit-entry") {
       var entry = (state.entries || []).filter(function (en) { return en.id === ds.id; })[0];
       ui.openSwipe = null;
-      if (entry) { ui.editId = entry.id; ui.editDraft = { volume: entry.volume }; ui.sheet = "entry-edit"; render(); }
+      if (entry) openAdd(entry);
       return;
-    }
-    if (act === "edit-vol-chip") { if (ui.editDraft) ui.editDraft.volume = Number(ds.v); render(); return; }
-    if (act === "commit-edit") {
-      if (ui.editId && ui.editDraft) {
-        J().editEntry(state, ui.editId, { volume: Number(ui.editDraft.volume) || 0 });
-        save();
-        toast("Запись изменена");
-      }
-      ui.editId = null; ui.editDraft = null; ui.sheet = null; render(); return;
     }
     if (act === "del-entry") {
       var victim = (state.entries || []).filter(function (en) { return en.id === ds.id; });
@@ -4715,21 +4822,69 @@
       return;
     }
     if (act === "cloud-save") { cloudUpload("manual"); return; }
-    if (act === "open-add") {
-      ui.addDraft = { drinkId: state.profile.drinkId, volume: state.profile.volume };
-      ui.sheet = "add-entry"; render(); return;
+    if (act === "open-add") { openAdd(null); return; }
+    if (act === "more-drinks") {
+      ui.page = "drinks";
+      /* «Ещё» теперь есть в обоих меню: возврат туда, откуда открылись. */
+      ui.drinkReturn = ui.sheet === "volume" ? "volume" : "history";
+      ui.sorting = false;
+      render();
+      return;
     }
-    if (act === "add-drink") { ui.addDraft = ui.addDraft || {}; ui.addDraft.drinkId = t.dataset.v; render(); return; }
-    if (act === "add-vol-chip") { ui.addDraft = ui.addDraft || {}; ui.addDraft.volume = Number(t.dataset.v); render(); return; }
-    if (act === "add-entry-save") {
-      var ad = ui.addDraft || { drinkId: state.profile.drinkId, volume: state.profile.volume };
-      var dObj = (state.drinks || []).filter(function (d) { return d.id === ad.drinkId; })[0];
-      if (!dObj) return;
-      var now = new Date();
-      J().addEntry(state, { date: N().wallToday(), time: ("0" + now.getHours()).slice(-2) + ":" + ("0" + now.getMinutes()).slice(-2),
-        drink: dObj, volume: Number(ad.volume) || state.profile.volume });
-      C().save(state); ui.sheet = null; render();
-      toast("Записано: " + dObj.name + " " + (Number(ad.volume) || state.profile.volume) + " мл");
+    if (act === "pick-quick") {
+      if (ui.addDraft) {
+        ui.addDraft.drinkId = t.dataset.id;
+        ui.addDraft.snapshot = null;
+      }
+      render();
+      return;
+    }
+    if (act === "commit-entry") {
+      if (!ui.addDraft) return;
+      maybeWarnEntry(readWheel("volume", ui.addDraft.volume));
+      return;
+    }
+    if (act === "open-time") {
+      var timeNow = (ui.addDraft && ui.addDraft.time) || nowHM();
+      if (useSystemClock()) {
+        askNativeTime({ title: "Время приема напитка", value: timeNow, is24Hour: true }, function (hm) {
+          if (ui.addDraft) ui.addDraft.time = hm;
+          render();
+        });
+        return;
+      }
+      var parts = timeNow.split(":");
+      ui.timeDraft = { hour: Number(parts[0]), minute: Number(parts[1]) };
+      /* v97: цвет напитка правки — для акцента циферблата. «Исчезнувший»
+         напиток берём из snapshot черновика (та же политика, что у карточки). */
+      var tdr = ui.addDraft && (drinkById(ui.addDraft.drinkId) || ui.addDraft.snapshot);
+      ui.timeDrinkColor = (tdr && tdr.color) || null;
+      /* Ошибка v88–v89 (жалоба владельца 26.10: «редактирую одно, а меняется
+         другое»): циферблат жил между открытиями редактора (ключ один), и
+         второе открытие показывало время ПРЕДЫДУЩЕЙ правки, да ещё на экране
+         минут. Сбрасываем состояние при каждом открытии. */
+      ui.dial = null;
+      ui.dialKey = null;
+      ui.modal = "time";
+      render();
+      return;
+    }
+    if (act === "time-ok") {
+      var tp = readTimePair("time", "hour", "minute", ui.timeDraft ? ui.timeDraft.hour : 0, ui.timeDraft ? ui.timeDraft.minute : 0);
+      var h = tp.h, m = tp.m;
+      if (ui.addDraft) ui.addDraft.time = pad(h) + ":" + pad(m);
+      ui.modal = null;
+      ui.timeDraft = null;
+      ui.timeDrinkColor = null; /* v97 */
+      render();
+      return;
+    }
+    if (act === "time-cancel" || act === "close-modal" || act === "dialog-cancel") {
+      ui.modal = null;
+      ui.dialogSpec = null;
+      ui.timeDraft = null;
+      ui.timeDrinkColor = null; /* v97 */
+      render();
       return;
     }
     if (act === "open-weight-add") {

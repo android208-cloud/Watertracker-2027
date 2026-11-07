@@ -463,3 +463,23 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   меняет обе стороны одинаково (nav 56→72), diff = сид-места 13.89%
   (кот/круг), своего не привносит; регрессия m01..m25 GREEN (кроме
   протухшего m07 волны).
+
+### Фиксы по снимкам владельца 07.11 (после модуля 10, слово «меню в сравнении с прототипом»)
+
+- v211: ITEM донора (app.js:6) — колёса без data-item (объём/цель/время)
+  молча умирали в пустом catch initWheels; SSR-цифры барабанов в разметке
+  uikit.wheel как страховка; catch логирует (window.__wheelErr + console).
+- v212: шит добавления/правки записи заменён донорским hist-add (app.js
+  4149-4172): дата в шапке, барабан объёма, хвост commit-entry + кнопка
+  времени; модалка времени донора (4173-4181); акты open-add/openAdd/
+  pick-quick/commit-entry/open-time/time-ok/time-cancel/edit-entry
+  (openAdd(entry)); дорога записи донора: maybeWarnEntry/writeEntry
+  (v84-дубли, markAlive/markDeleted, clockDate, черновиковое время и
+  водный день вместо «сейчас/сегодня»); alertNoteDrank — мост noteDrank.
+  Удалены next-legacy: шит add-entry, шит entry-edit + акты add-vol-chip/
+  add-entry-save/edit-vol-chip/commit-edit.
+- nowHM по донору: часы в поясе TZ (Europe/Samara) через tzParts, не
+  локаль машины (снос 47 px в bench и расхождение на чужих TZ).
+- Проверки: smoke 151/151 (8 гейтов hist-add: шапка-дата, барабан, галка,
+  время, запись, правка тем же шитом); pixel sheet-hist-add 0 px;
+  регресс m03/m06/m14/m20/m22/m23/m25 GREEN.

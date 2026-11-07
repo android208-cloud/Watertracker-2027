@@ -413,6 +413,55 @@ function ok(cond, name) {
   ok(vw.items > 10 && vw.on === 1, 'барабан объёма жив: список и текущее значение', vw);
   await click(p, '.scrim[data-act="close-sheet"]');
 
+  console.log('Шит добавления записи (hist-add) по донору:');
+  await click(p, '[data-tab="history"]');
+  await click(p, '.fab');
+  await p.waitForSelector('.sheet.volume .wheel-item');
+  const ha = await p.evaluate(() => ({
+    sheet: window.__waterApp.ui.sheet,
+    head: document.querySelector('.sheet.volume').textContent.slice(0, 16),
+    wheel: document.querySelectorAll('.sheet.volume .wheel-item').length,
+    check: document.querySelectorAll('[data-act="commit-entry"]').length,
+    timeBtn: !!document.querySelector('[data-act="open-time"]')
+  }));
+  ok(ha.sheet === 'hist-add' && /^Дата \d\d\.\d\d\.\d\d\d\d/.test(ha.head) && ha.wheel > 10 && ha.check === 1 && ha.timeBtn,
+    'шит hist-add: дата в шапке, барабан, галка и кнопка времени', ha);
+  await click(p, '[data-act="open-time"]');
+  await p.waitForSelector('[data-act="time-ok"]', { timeout: 5000 }).catch(() => {});
+  ok(await p.evaluate(() => window.__waterApp.ui.modal) === 'time', 'open-time открыл модалку времени');
+  await click(p, '[data-act="time-ok"]');
+  ok(await p.evaluate(() => window.__waterApp.ui.modal) == null, 'time-ok закрыл модалку и вернул время в черновик');
+  const entBefore = (await S(p)).entries.length;
+  await click(p, '[data-act="commit-entry"]');
+  await p.waitForTimeout(400);
+  const st1 = await S(p);
+  ok(st1.entries.length === entBefore + 1 && st1.sheet == null,
+    'commit-entry записал черновик и закрыл шит', { n: st1.entries.length, entBefore });
+  /* правка записи — тот же шит с меткой (свайп физическим drag) */
+  const eid = (await S(p)).entries.slice(-1)[0].id;
+  await p.waitForTimeout(700); /* шит закрылся с анимацией — список перерисован */
+  const dragSwipe = async () => {
+    const fr = await p.$('.swipe[data-sid="e-' + eid + '"] .swipe-front');
+    await fr.scrollIntoViewIfNeeded();
+    const bb = await fr.boundingBox();
+    await p.mouse.move(bb.x + bb.width - 30, bb.y + bb.height / 2);
+    await p.mouse.down();
+    await p.mouse.move(bb.x + bb.width - 170, bb.y + bb.height / 2, { steps: 10 });
+    await p.mouse.up();
+    await p.waitForTimeout(350);
+  };
+  await dragSwipe();
+  if ((await S(p)).openSwipe !== 'e-' + eid) await dragSwipe();
+  await click(p, '.swipe[data-sid="e-' + eid + '"] [data-act="edit-entry"]');
+  await p.waitForSelector('.sheet.volume .wheel-item');
+  const he = await p.evaluate(() => ({
+    sheet: window.__waterApp.ui.sheet,
+    entryId: (window.__waterApp.ui.addDraft || {}).entryId
+  }));
+  ok(he.sheet === 'hist-add' && he.entryId === eid, 'edit-entry открыл тот же шит с черновиком правки', he);
+  await p.evaluate(() => window.__waterApp.performAction({ dataset: { act: 'close-sheet' } }, 'close-sheet'));
+  await p.waitForTimeout(300);
+
   console.log('Модуль 10: скины:');
   /* текстовая дорога: диалог вставки */
   await p.evaluate(() => window.__waterApp.performAction({dataset:{}}, 'skin-paste'));

@@ -119,16 +119,18 @@ const longDate = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.s
   /* 4. FAB истории: донорская шторка добавления */
   const before = await p.evaluate(() => window.__waterApp.state.entries.length);
   await p.click('.fab');
-  await p.waitForSelector('[data-act="add-entry-save"]');
-  await p.click('[data-act="add-vol-chip"][data-v="250"]');
-  await p.click('[data-act="add-entry-save"]');
+  await p.waitForSelector('[data-act="commit-entry"]');
+  await p.evaluate(() => document.querySelector('[data-wheel="volume"]')._setValue(250));
+  await p.waitForTimeout(250); /* двойной rAF инициализации колеса уже прошёл */
+  await p.click('[data-act="commit-entry"]');
   await p.waitForFunction(n => window.__waterApp.state.entries.length === n, before + 1);
+  await p.waitForTimeout(500); /* тост приходит после анимации закрытия шита */
   const added = await p.evaluate(() => {
     const e = window.__waterApp.state.entries[window.__waterApp.state.entries.length - 1];
     return { vol: e.volume, toast: (document.querySelector('.toast') || {}).textContent };
   });
-  ok('история: FAB добавляет запись донорской шторкой, тост «Записано»',
-    added.vol === 250 && /Записано/.test(added.toast || ''), added);
+  ok('история: FAB добавляет запись донорской шторкой, тост «В историю»',
+    added.vol === 250 && /В историю/.test(added.toast || ''), added);
   await p.waitForTimeout(300);
 
   /* 5. выбор дня столбцом (донор pick-day) */
