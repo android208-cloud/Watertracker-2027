@@ -803,6 +803,9 @@
     d.addEventListener("scroll", function () { edBoxTo(); }, true);
     var mo = new (edW().MutationObserver)(function (muts) {
       if (!edOn) return;
+      /* любая перерисовка приложения могла снести инлайн-правки:
+         журнал вернёт их сам (дебаунс в edScheduleApply) */
+      edScheduleApply();
       for (var i = 0; i < muts.length; i++) {
         var added = muts[i].addedNodes;
         for (var j = 0; j < added.length; j++) {
@@ -818,9 +821,16 @@
     });
     mo.observe(d.documentElement, { childList: true, subtree: true });
   }
+  var edLastScreen = "";
   setInterval(function () {
     var d = edD();
-    if (d && d !== edLastDoc) { edLastDoc = d; edAttach(); edDeselect(); }
+    if (d && d !== edLastDoc) { edLastDoc = d; edAttach(); edDeselect(); edScheduleApply(); }
+    var scrNow = edScreen();
+    if (scrNow !== edLastScreen) {
+      var had = edLastScreen;
+      edLastScreen = scrNow;
+      if (had) edScheduleApply(); /* смена экрана: вернуть его правки */
+    }
     if (edOn) { edEnsureDom(); edLayoutGrid(); edGuidesRender(); edOurRender(); if (edSelEl) edBoxTo(); }
   }, 400);
 
@@ -829,7 +839,7 @@
     edOn = !edOn;
     this.classList.toggle("on", edOn);
     edPanel.classList.toggle("open", edOn);
-    if (edOn) { edAttach(); edEnsureDom(); } else { edDeselect(); if (edHover) edHover.removeAttribute("data-ed-hover"); }
+    if (edOn) { edAttach(); edEnsureDom(); edScheduleApply(); } else { edDeselect(); if (edHover) edHover.removeAttribute("data-ed-hover"); }
     edLayoutGrid();
     document.getElementById("edStatus").textContent = edOn ? "редактор включён" : "";
   });
@@ -973,22 +983,53 @@
     if (navigator.clipboard) navigator.clipboard.writeText(txt).catch(function () {});
     document.getElementById("edStatus").textContent = "отчёт в поле ниже и в буфере обмена";
   });
-  document.getElementById("edReapply").addEventListener("click", function () {
+  /* Применение журнала к текущему экрану. Возвращает {ok, miss}.
+     Уже совпадающие значения не трогаем — функция идемпотентна и
+     годится для автоматического возврата правок после перерисовок. */
+  function edApplyRecords() {
     var d = edD(), scr = edScreen(), okN = 0, miss = 0;
+    if (!d) return { ok: 0, miss: 0 };
     edEdits.forEach(function (r) {
       if (r.screen !== scr) return;
       var el = null;
       try { el = d.querySelector(r.sel); } catch (e) { el = null; }
       if (!el) { miss++; return; }
-      if (r.prop === "text") el.textContent = r.value;
-      else if (r.prop === "transform") {
-        var m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(r.value);
-        if (m) { el.dataset.edTx = m[1]; el.dataset.edTy = m[2]; }
-        el.style.transform = r.value;
-      } else el.style[r.prop] = r.value;
-      okN++;
+      if (r.prop === "text") {
+        if (el.textContent !== r.value) { el.textContent = r.value; okN++; }
+      } else if (r.prop === "transform") {
+        if (el.style.transform.replace(/\s/g, "") !== r.value.replace(/\s/g, "")) {
+          var m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(r.value);
+          if (m) { el.dataset.edTx = m[1]; el.dataset.edTy = m[2]; }
+          el.style.transform = r.value;
+          okN++;
+        }
+      } else if (el.style[r.prop] !== r.value) { el.style[r.prop] = r.value; okN++; }
     });
-    document.getElementById("edStatus").textContent = "применено " + okN + (miss ? ", не найдено " + miss : "");
+    return { ok: okN, miss: miss };
+  }
+  var edApplyTimer = null;
+  function edScheduleApply() {
+    if (!edOn || !edEdits.length) return;
+    if (edApplyTimer) clearTimeout(edApplyTimer);
+    edApplyTimer = setTimeout(function () {
+      edApplyTimer = null;
+      var r = edApplyRecords();
+      if (r.ok > 0) {
+        document.getElementById("edStatus").textContent = "правки экрана возвращены автоматически (" + r.ok + ")";
+      }
+    }, 350);
+  }
+  document.getElementById("edReapply").addEventListener("click", function () {
+    var r = edApplyRecords();
+    /* кнопка докладывает и про пропуски, авто-режим молчит о них */
+    var scr = edScreen(), miss = 0, d = edD();
+    edEdits.forEach(function (rec) {
+      if (rec.screen !== scr) return;
+      var el = null;
+      try { el = d.querySelector(rec.sel); } catch (e) { el = null; }
+      if (!el) miss++;
+    });
+    document.getElementById("edStatus").textContent = "применено " + r.ok + (miss ? ", не найдено " + miss : "");
   });
   document.getElementById("edWipe").addEventListener("click", function () {
     edEdits = []; edLogRender(); edDeselect();

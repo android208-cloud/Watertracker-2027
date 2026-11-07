@@ -98,11 +98,15 @@ const ok = (n, c, x) => { console.log((c ? '  PASS  ' : '  FAIL  ') + n + (x ? '
 
   /* переприменение после перерисовки экрана */
   await p.click('#left .scr[data-atlas="home"]');
-  await p.waitForTimeout(600);
-  await p.click('#edReapply');
-  await p.waitForTimeout(200);
-  const status = await p.textContent('#edStatus');
-  ok('E16 правки переприменились после перерисовки', /применено [1-9]/.test(status || ''), status || '');
+  await p.waitForTimeout(1400); /* автовозврат сам переприменяет журнал */
+  const auto = await p.evaluate(() => {
+    const d = document.querySelector('#app').contentDocument;
+    const el = d.querySelector('.nav [style*="translate"]');
+    return { found: !!el, tf: el ? el.style.transform : '',
+      st: document.querySelector('#edStatus').textContent };
+  });
+  ok('E16 после перерисовки правки вернулись сами (кнопка не нужна)',
+    auto.found && /translate/.test(auto.tf), JSON.stringify(auto));
 
   /* --- линии, цифры, скрытие тоста --- */
   await p.click('#edToastHide');
@@ -171,6 +175,26 @@ const ok = (n, c, x) => { console.log((c ? '  PASS  ' : '  FAIL  ') + n + (x ? '
     return getComputedStyle(d.getElementById('edOur')).display;
   });
   ok('E27 наша сетка прячется', ourOff === 'none', ourOff);
+
+  /* --- автовозврат правок после смены экрана --- */
+  await fr.locator('#app .nav').click({ position: { x: 200, y: 20 } });
+  await p.waitForTimeout(250);
+  await p.fill('#edFontSizeN', '21'); await p.dispatchEvent('#edFontSizeN', 'change');
+  await p.waitForTimeout(150);
+  const selPath = await p.textContent('#edPath');
+  const valOf = () => p.evaluate(sel => {
+    const d = document.querySelector('#app').contentDocument;
+    const el = sel ? d.querySelector(sel) : null;
+    return el ? el.style.fontSize : null;
+  }, selPath);
+  ok('E28 правка на месте до ухода', (await valOf()) === '21px', selPath);
+  await p.click('#left .scr[data-atlas="settings"]');
+  await p.waitForTimeout(700);
+  await p.click('#left .scr[data-atlas="home"]');
+  await p.waitForTimeout(1600); /* автовозврат: дебаунс + сторож */
+  ok('E29 после возврата на экран правка вернулась сама', (await valOf()) === '21px', await valOf());
+  const st = await p.textContent('#edStatus');
+  ok('E30 статус доложил об автовозврате', /возвращены автоматически/.test(st || ''), st || '');
 
   await b.close();
   console.log('\nИТОГ: ' + pass + ' PASS / ' + fail + ' FAIL');
