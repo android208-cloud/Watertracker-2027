@@ -108,9 +108,14 @@
   function apply() {
     var lifts = document.querySelectorAll(".cat-art .cat-waterlift, .wt-orb .cat-waterlift");
     for (var i = 0; i < lifts.length; i++) lifts[i].style.transform = "translateY(" + vis + "%)";
-    /* M08: пролёт пояса следует за видимой ватерлинией (донор applyWaterVis). */
+    /* M08: пролёт пояса следует за видимой ватерлинией (донор applyWaterVis).
+       07.11: водитель правил только .cat-beltstack (волновой режим), а
+       релизный поясной слой .cat-belt оставался на высоте из разметки —
+       при подъёме тело воды уезжало вверх, снизу росла пустота, пока
+       чужая перерисовка не ставила высоту рывком (глаз владельца).
+       Донор правит .cat-belt каждый кадр — возвращено. */
     if (W.WT2B && W.WT2B.beltSpanPct) {
-      var stacks = document.querySelectorAll(".cat-art .cat-beltstack, .wt-orb .cat-beltstack");
+      var stacks = document.querySelectorAll(".cat-art .cat-beltstack, .wt-orb .cat-beltstack, .cat-art .cat-belt, .wt-orb .cat-belt");
       var hPct = Math.round(W.WT2B.beltSpanPct(vis) * 100) / 100;
       for (var bi = 0; bi < stacks.length; bi++) stacks[bi].style.height = hPct + "%";
     }
