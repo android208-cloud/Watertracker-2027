@@ -1134,11 +1134,13 @@ font-weight: 600;
 .check svg { width: var(--glyph); height: var(--glyph); }
 /* Атлас-правка владельца 07.11: кнопка времени в «Добавить запись» —
    на 24px левее и 9px ниже, текст крупнее. */
-.sheet.volume[data-ui="sheet.hist-add"] .time-btn { right: 28px; top: 31px; }
+.sheet.volume[data-ui="sheet.hist-add"] .time-btn { right: 28px; top: 31px; width: 104px; height: 40px; transform: translate(-3px, -4px); }
 .sheet.volume[data-ui="sheet.hist-add"] .time-btn > span {
-  font-size: 19px; display: inline-block; transform: translateY(-1px);
-  width: 47px; text-align: center;
+  font-size: 25px; display: inline-block; transform: translate(-2px, 0);
+  width: 72px; text-align: center;
 }
+/* Атлас-правка владельца (порция 5): полоса действий «Добавить запись» шире на 4px. */
+.sheet.volume[data-ui="sheet.hist-add"] .sheet-actions { margin: 0 14px; }
 .time-btn {
   position: absolute;
   right: 4px;
@@ -2181,8 +2183,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   font-size: 19.2px;
   gap: 7.2px;
 }
-.sheet.weight .w-date span { color: var(--text); font-weight: 400; }
-.sheet.weight .w-date svg { width: 26.4px; height: 26.4px; }
+.sheet.weight .w-date span { color: var(--text); font-weight: 400; font-size: 25px; }
+.sheet.weight .w-date svg { width: 35px; height: 35px; }
 .sheet.weight.set-weight { padding-top: 18px; }
 .sheet.weight.set-weight .sheet-actions { height: 92px; }
 .sheet.weight.set-weight .check.center { top: 10px; }
@@ -2716,7 +2718,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .sheet.volume { max-height: 64%; }
 .sheet.volume.menu {
   background: var(--bg);
-  border-radius: 0;
+  /* Атлас-правки владельца (порция 5): и объёмное меню — 16px, как все шторки. */
+  border-radius: 16px;
   padding-top: 6px;
   max-height: var(--sheet-menu-max-h, 68%);
   overflow: hidden;
@@ -2784,7 +2787,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .sheet.volume[data-ui="sheet.volume"] .check.center { top: 12px; }
 .sheet.weather,
 .sheet.activity { max-height: 78%; }
-.sheet.weather { border-radius: 20px; }
+.sheet.weather { border-radius: 16px; }
 .scrim.choice { border-radius: 8px; }
 .sheet.choice {
   background: var(--nav);
@@ -2794,6 +2797,10 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 /* Атлас-правка владельца 07.11: шторки-выборы (активность, погода)
    в тёмной теме — в цвет фона приложения, а не панели навигации. */
 [data-theme="dark"] .sheet.choice { background: var(--bg); }
+/* Атлас-правки владельца (порция 5): скругления 16px у всех шторок из
+   журнала. Правило стоит после .sheet.choice и перекрывает её 0 у погоды
+   и активности; у остальных шторок подтверждает базовые 16px. */
+.sheet.volume, .sheet.weight, .sheet.goal, .sheet.weather, .sheet.activity { border-radius: 16px; }
 .sheet.choice h2 {
   margin: 2px 16px 14px;
   font-size: 20px;
