@@ -65,6 +65,14 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   ok('пояса: canvas в режиме поясов, 2 пояса из данных', belt.mode === 'belts' && belt.belts === 2 && belt.layers === 3, belt);
   ok('пиксели поясов: внизу тёмный эспрессо, выше вода',
     pxBelt.low[0] > pxBelt.low[2] && pxBelt.mid[2] > pxBelt.mid[0], pxBelt);
+  const seamPx = await p2.evaluate(() => {
+    const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+    const st = window.WT2V.canvasState();
+    const fy = 0.03 + 0.667 * (st.span / 100) * (100 / 106);
+    return { fy: Math.round(fy * 1000) / 1000, px: window.__px(0.5, fy) };
+  });
+  ok('стык поясов мягкий: пиксель на шве — смесь цветов соседних поясов',
+    seamPx.px[0] > 80 && seamPx.px[0] < 135 && seamPx.px[2] > 60 && seamPx.px[2] < 200, seamPx);
   await c2.close();
 
   /* папка правит волну: один слой по карточке */
@@ -98,11 +106,11 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   await p5.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
   const fresh = await p5.evaluate(() => {
     const q = window.LiquidColor.waveParams(), s = window.WT2V.canvasState();
-    return { n: q.n, layers: s.layers, gd: q.waves.map(w => w.gd), op: q.waves.map(w => w.op) };
+    return { n: q.n, layers: s.layers, a: q.a, w: q.w, g: q.g, w1: q.waves[0] };
   });
-  ok('дефолт папки: три гребня 100/80/45, градиент 0',
-    fresh.n === 3 && fresh.layers === 3 && fresh.gd.every(x => x === 0) &&
-    JSON.stringify(fresh.op) === JSON.stringify([100, 80, 45]), fresh);
+  ok('дефолт папки = настройки владельца 08.11: 1 волна 12/300/238, 180%, градиент 60, прозрачность 45, интенсивность 75',
+    fresh.n === 1 && fresh.layers === 1 && fresh.a === 12 && fresh.w === 300 && fresh.g === 238 &&
+    fresh.w1.s === 180 && fresh.w1.d === 0 && fresh.w1.gd === 60 && fresh.w1.op === 45 && fresh.w1.intensity === 75, fresh);
   await c5.close();
 
   /* градиент карточки: фейд не глубже кромки (<= 2a), гребень не съеден */

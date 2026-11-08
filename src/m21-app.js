@@ -4416,8 +4416,30 @@
   }
 
   /* ---- действия ---- */
+  function copyLiquidSettings() {
+    var txt = window.LiquidColor && LiquidColor.exportJson ? LiquidColor.exportJson() : "";
+    if (!txt) { toast("Настройки недоступны"); return; }
+    var done = function () { toast("Настройки скопированы — вставьте в чат с разработчиком"); };
+    var fallback = function () {
+      var ta = document.createElement("textarea");
+      ta.value = txt;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var okCopy = false;
+      try { okCopy = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      if (okCopy) done(); else toast("Скопировать не вышло");
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(done, fallback);
+    } else fallback();
+  }
+
   function performAction(t, act) {
     var ds = t.dataset || {};
+    if (act === "lc-export") { copyLiquidSettings(); return; }
     if (window.LiquidColor && LiquidColor.act(act, t)) { render(); return; }
     if (window.ChartColor && ChartColor.act(act, t)) { render(); return; }
     if (act === "goto") {

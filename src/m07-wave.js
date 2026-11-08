@@ -62,8 +62,8 @@
      waves[i] — карточка слоя i+1: s скорость %, d направление, o смещение %,
      gd градиент %, op прозрачность %, intensity подмес белого %. */
   function params() {
-    var fallback = { a: A, w: WV, g: GV, n: 3, waves: [
-      { s: 100, d: 0, o: 0, gd: 0, op: 100, intensity: 100 },
+    var fallback = { a: 12, w: 300, g: 238, n: 1, waves: [
+      { s: 180, d: 0, o: 0, gd: 60, op: 45, intensity: 75 },
       { s: 100, d: 1, o: 0, gd: 0, op: 80, intensity: 100 },
       { s: 100, d: 0, o: 0, gd: 0, op: 45, intensity: 100 } ] };
     try {
@@ -342,6 +342,29 @@
         c.closePath();
         c.fillStyle = bcol; c.fill();
         depthShade(topY, aEdge, lam, 1, Math.PI * 2 / 9, k * 1.3, botY + aEdge);
+      }
+      /* мягкий переход между поясами: градиентная полоса вдоль волнистого
+         стыка (слово владельца 08.11) вместо жёсткой границы */
+      var blend = Math.max(6, Math.min(30, spanH * 0.12));
+      for (var sk = 1; sk < belts.length; sk++) {
+        var sTop = topOff + belts[sk].from * spanH;
+        var cUp = (liveBelts && liveBelts[sk - 1]) || belts[sk - 1].c;
+        var cDn = (liveBelts && liveBelts[sk]) || belts[sk].c;
+        c.save();
+        c.beginPath();
+        var sb = Math.max(2, cw / 160);
+        for (var sx2 = 0; sx2 <= cw; sx2 += sb) {
+          var sy2 = seamY(sx2, sTop, sk) - blend / 2;
+          if (sx2 === 0) c.moveTo(sx2, sy2); else c.lineTo(sx2, sy2);
+        }
+        for (var sr = cw; sr >= 0; sr -= sb) c.lineTo(sr, seamY(sr, sTop, sk) + blend / 2);
+        c.closePath();
+        c.clip();
+        var sg = c.createLinearGradient(0, sTop - blend / 2, 0, sTop + blend / 2);
+        sg.addColorStop(0, cUp); sg.addColorStop(1, cDn);
+        c.fillStyle = sg;
+        c.fillRect(0, sTop - blend, cw, blend * 2);
+        c.restore();
       }
       /* гребни ватерлинии — полоски цвета верхнего пояса */
       if (on) {

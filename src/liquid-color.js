@@ -21,16 +21,17 @@
   function defs() {
     return { mode: "vessel", smooth: true, dilute: false, anchor: null, wave: true,
       /* v99: геометрия волны; дефолт = волна выпуска v98. */
-      waveA: 14, waveW: 150, waveG: 150, waveSA: 100, waveSB: 100,
+      waveA: 12, waveW: 300, waveG: 238, waveSA: 100, waveSB: 100,
       /* v117: каталог волны: число волн и карточка каждой волны.
          Направления по базе ключкадров: 1 влево, 2 вправо, далее чередуясь.
-         Дефолт — картина выпуска M07, одобренная владельцем 08.11: три гребня,
-         задние прозрачнее, градиент кромки выключен. */
-      waveN: 3,
-      waveGD1: 0, waveGD2: 0, waveGD3: 0, waveGD4: 0, waveGD5: 0,
-      waveOP1: 100, waveOP2: 80, waveOP3: 45, waveOP4: 30, waveOP5: 20,
-      waveINT1: 100, waveINT2: 100, waveINT3: 100, waveINT4: 100, waveINT5: 100,
-      waveS1: 100, waveS2: 100, waveS3: 100, waveS4: 100, waveS5: 100,
+         Дефолт — настройки владельца 08.11 (скриншот папки): одна передняя
+         волна 12/300/238, скорость 180, влево, градиент 60, прозрачность 45,
+         интенсивность 75. Остальные карточки — прежние. */
+      waveN: 1,
+      waveGD1: 60, waveGD2: 0, waveGD3: 0, waveGD4: 0, waveGD5: 0,
+      waveOP1: 45, waveOP2: 80, waveOP3: 45, waveOP4: 30, waveOP5: 20,
+      waveINT1: 75, waveINT2: 100, waveINT3: 100, waveINT4: 100, waveINT5: 100,
+      waveS1: 180, waveS2: 100, waveS3: 100, waveS4: 100, waveS5: 100,
       waveD1: 0, waveD2: 1, waveD3: 0, waveD4: 1, waveD5: 0,
       waveO1: 0, waveO2: 0, waveO3: 0, waveO4: 0, waveO5: 0,
       bubN: 5, bubS: 8, bubV: 100, bubST: 85, bubX: 50, bubT: 25, bubCol: true };
@@ -340,12 +341,12 @@
       '" value="' + val + '" data-liq-p="' + key + '" aria-label="' + title + '"><b class="liq-sl-val">' + val + '</b></span></div>';
   }
   function clampP(key) {
-    var lim = { waveA: [4, 24, 10], waveW: [60, 300, 118], waveG: [60, 300, 118], waveSA: [20, 300, 100], waveSB: [20, 300, 100],
-    waveN: [1, 5, 2],
+    var lim = { waveA: [4, 24, 12], waveW: [60, 300, 300], waveG: [60, 300, 238], waveSA: [20, 300, 100], waveSB: [20, 300, 100],
+    waveN: [1, 5, 1],
     waveGD1: [0, 100, 60], waveGD2: [0, 100, 60], waveGD3: [0, 100, 60], waveGD4: [0, 100, 60], waveGD5: [0, 100, 60],
-    waveOP1: [0, 100, 100], waveOP2: [0, 100, 100], waveOP3: [0, 100, 100], waveOP4: [0, 100, 100], waveOP5: [0, 100, 100],
-    waveINT1: [0, 100, 100], waveINT2: [0, 100, 100], waveINT3: [0, 100, 100], waveINT4: [0, 100, 100], waveINT5: [0, 100, 100],
-    waveS1: [20, 300, 100], waveS2: [20, 300, 100], waveS3: [20, 300, 100], waveS4: [20, 300, 100], waveS5: [20, 300, 100],
+    waveOP1: [0, 100, 45], waveOP2: [0, 100, 100], waveOP3: [0, 100, 100], waveOP4: [0, 100, 100], waveOP5: [0, 100, 100],
+    waveINT1: [0, 100, 75], waveINT2: [0, 100, 100], waveINT3: [0, 100, 100], waveINT4: [0, 100, 100], waveINT5: [0, 100, 100],
+    waveS1: [20, 300, 180], waveS2: [20, 300, 100], waveS3: [20, 300, 100], waveS4: [20, 300, 100], waveS5: [20, 300, 100],
     waveO1: [-20, 20, 0], waveO2: [-20, 20, 0], waveO3: [-20, 20, 0], waveO4: [-20, 20, 0], waveO5: [-20, 20, 0],
       bubN: [0, 14, 5], bubS: [4, 70, 8], bubV: [50, 200, 100], bubST: [10, 100, 85], bubX: [0, 100, 50], bubT: [0, 100, 25] }[key] || [0, 1, 0];
     var v = Math.round(Number(store[key]));
