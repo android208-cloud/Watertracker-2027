@@ -12,7 +12,9 @@
    Папка настроек «Волна» подключена (слово владельца 08.11): мастер-тумблер,
    число слоёв, геометрия и карточки слоёв читаются из LiquidColor.waveParams();
    без модуля цвета — прежние дефолты M07.
-   Вектор: только inline-SVG path; ноль растра (дух C-025). */
+   ТЕЛО ВОДЫ с 08.11 — Canvas 2D (слово владельца; WebGL — стендовый эталон
+   в /home/user/wavelab): canvasHtml/drawCanvas ниже; SVG-рисовальщик
+   (waveLayer/waterInner) сохранён аварийным запасом при недоступном canvas. */
 (function (W) {
   "use strict";
   var BOX = 1000;                 /* квадратный холст круга M06 */
@@ -207,12 +209,248 @@
     catch (e) { return false; }
   }
 
+
+  /* ===== Canvas 2D — тело воды (слово владельца 08.11: начинаем с Canvas,
+     WebGL остаётся стендовым эталоном). Canvas рисует всё внутри слоя
+     подъёма M06: монотон слоями, пояса полосами, плоскую воду при
+     выключенном мастере папки. Поверхность — сумма трёх гармоник с
+     заострением гребня (полигон wavelab), амплитуда дышит, качка — от
+     скорости лифта M06 и явного kick(). Параметры — папка «Волна»
+     (params() выше): a/w/g — геометрия, карточки — скорость/направление/
+     смещение/градиент/прозрачность/интенсивность слоя. Цвета и пояса
+     читаются у водителей M08 каждый кадр (их плавные переходы сохраняются). */
+  var splash = 0, lastVis = null;
+  function kick() { splash = 1; }
+  function toRgba(fill, alpha) {
+    var c = rgbOf(fill);
+    if (!c) return fill;
+    return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + Math.max(0, Math.min(1, alpha)) + ")";
+  }
+  /* Поверхность: сумма гармоник, вершина острее впадины (wavelab). */
+  function surfY(x, base, amp, lam, t, dirSign, omega, phase) {
+    var v = (Math.sin(x / lam * Math.PI * 2 + dirSign * omega * t + phase)
+      + 0.38 * Math.sin(x / (lam * 0.45) * Math.PI * 2 - dirSign * omega * 1.7 * t + phase * 2.1)
+      + 0.16 * Math.sin(x / (lam * 0.19) * Math.PI * 2 + dirSign * omega * 2.9 * t + phase * 4.7)) / 1.54;
+    v = 0.62 * v + 0.38 * v * v * v;
+    return base + v * amp;
+  }
+  var cState = { mode: "none", layers: 0, flat: true, belts: 0, topVar: 0, gdDepth: 0, frame: 0 };
+  function canvasState() { return cState; }
+
+  function drawCanvas(cv2, t) {
+    var c = cv2.getContext("2d");
+    if (!c) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var cw = cv2.clientWidth, ch = cv2.clientHeight;
+    if (!cw || !ch) return;
+    if (cv2.width !== Math.round(cw * dpr) || cv2.height !== Math.round(ch * dpr)) {
+      cv2.width = Math.round(cw * dpr); cv2.height = Math.round(ch * dpr);
+    }
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, cw, ch);
+    var q = params();
+    var on = enabled();
+    var cards = q.waves && q.waves.length ? q.waves : [];
+    var n = Math.max(1, Math.min(5, Math.round(Number(q.n) || cards.length || 1)));
+    var orbH = ch * 100 / 106;              /* canvas: top -3%, height 106% */
+    var topOff = ch * 0.03;
+    var ampPx = Math.max(0, Number(q.a) || A) / BOX * orbH;
+    var lam = Math.max(24, ((Number(q.w) || WV) + (Number(q.g) || GV)) / BOX * cw);
+    var monoCol = (W.WT2B && W.WT2B.visibleColor && W.WT2B.visibleColor()) || cv2.getAttribute("data-color") || "#2ddaf9";
+    var belts = null;
+    try { belts = JSON.parse(cv2.getAttribute("data-belts") || "null"); } catch (e) { belts = null; }
+    var liveBelts = (W.WT2B && W.WT2B.visibleBelts && W.WT2B.visibleBelts()) || null;
+    var span = Number(cv2.getAttribute("data-span"));
+    if (W.WT2W && W.WT2W.visible && W.WT2W.visible() != null && W.WT2B && W.WT2B.beltSpanPct)
+      span = W.WT2B.beltSpanPct(W.WT2W.visible());
+    if (!isFinite(span)) span = 100;
+
+    function layerAmp(idx) { return ampPx * [1, 0.82, 0.66, 0.55, 0.45][Math.min(4, idx)] * (1 + 0.16 * Math.sin(t * 0.45 + idx * 1.7)) * (1 + 2.1 * splash); }
+    function layerBase(idx) {
+      var wv = cards[idx] || {};
+      return topOff + (Number(wv.o) || 0) / 100 * orbH + layerAmp(idx) * 0 ;
+    }
+    /* след поверхности переднего слоя для стража и блика */
+    function frontSurf(x) {
+      var wv = cards[0] || {};
+      var dur = WDUR[0] * 100 / Math.max(20, Number(wv.s) || 100);
+      var sign = ((Number(wv.d) || 0) !== WDIR[0]) ? 1 : -1;
+      return surfY(x, layerBase(0) + layerAmp(0), layerAmp(0), lam, t, sign, Math.PI * 2 / (dur / 1000), 0);
+    }
+    var samples = [];
+    for (var sx = 0; sx <= cw; sx += Math.max(8, cw / 24)) samples.push(frontSurf(sx));
+    var mean = samples.reduce(function (a2, b2) { return a2 + b2; }, 0) / samples.length;
+    cState.topVar = Math.round(samples.reduce(function (a2, b2) { return a2 + (b2 - mean) * (b2 - mean); }, 0) / samples.length * 100) / 100;
+
+    function bodyPath(base, amp, lamL, dirSign, omega, phase, bottom) {
+      c.beginPath();
+      var step = Math.max(2, cw / 160);
+      for (var x = 0; x <= cw; x += step) {
+        var y = surfY(x, base, amp, lamL, t, dirSign, omega, phase);
+        if (x === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      c.lineTo(cw, bottom); c.lineTo(0, bottom); c.closePath();
+    }
+    function depthShade(base, amp, lamL, dirSign, omega, phase, bottom) {
+      c.save();
+      bodyPath(base, amp, lamL, dirSign, omega, phase, bottom);
+      c.clip();
+      var g2 = c.createLinearGradient(0, base, 0, bottom);
+      g2.addColorStop(0, "rgba(255,255,255,0.10)");
+      g2.addColorStop(0.22, "rgba(255,255,255,0)");
+      g2.addColorStop(1, "rgba(5,18,32,0.30)");
+      c.fillStyle = g2; c.fillRect(0, Math.max(0, base - amp), cw, bottom);
+      c.restore();
+    }
+    function crestLight(base, amp, lamL, dirSign, omega, phase) {
+      c.save();
+      c.beginPath();
+      var step = Math.max(2, cw / 160);
+      for (var x = 0; x <= cw; x += step) {
+        var y = surfY(x, base, amp, lamL, t, dirSign, omega, phase);
+        if (x === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      var hg = c.createLinearGradient(0, 0, cw, 0);
+      hg.addColorStop(0, "rgba(255,255,255,0)");
+      hg.addColorStop(0.35, "rgba(255,255,255,0.50)");
+      hg.addColorStop(0.7, "rgba(255,255,255,0.25)");
+      hg.addColorStop(1, "rgba(255,255,255,0)");
+      c.lineWidth = Math.max(1.2, orbH / 220); c.strokeStyle = hg; c.stroke();
+      c.restore();
+    }
+
+    cState.gdDepth = 0;
+    if (belts && belts.length) {
+      cState.mode = "belts"; cState.belts = belts.length; cState.layers = on ? n : 0; cState.flat = !on; cState.span = Math.round(span * 100) / 100;
+      var spanH = span / 100 * orbH;
+      var aEdge = ampPx * 0.6;
+      function seamY(x, topY, bIdx) {
+        if (!on) return topY;
+        return surfY(x, topY, aEdge * (1 + splash), lam, t, bIdx % 2 ? 1 : -1, Math.PI * 2 / 9, bIdx * 1.3);
+      }
+      for (var k = 0; k < belts.length; k++) {
+        var topY = topOff + belts[k].from * spanH;
+        var botY = (k + 1 < belts.length) ? topOff + belts[k + 1].from * spanH : topOff + spanH;
+        var bcol = (liveBelts && liveBelts[k]) || belts[k].c;
+        c.beginPath();
+        var stp = Math.max(2, cw / 160);
+        for (var bx = 0; bx <= cw; bx += stp) {
+          var by = seamY(bx, topY, k);
+          if (bx === 0) c.moveTo(bx, by); else c.lineTo(bx, by);
+        }
+        for (var rx = cw; rx >= 0; rx -= stp) c.lineTo(rx, seamY(rx, botY, k + 1) + (k + 1 < belts.length ? aEdge : 0));
+        c.closePath();
+        c.fillStyle = bcol; c.fill();
+        depthShade(topY, aEdge, lam, 1, Math.PI * 2 / 9, k * 1.3, botY + aEdge);
+      }
+      /* гребни ватерлинии — полоски цвета верхнего пояса */
+      if (on) {
+        for (var li = n - 1; li >= 0; li--) {
+          var wv2 = cards[li] || {};
+          var dur2 = WDUR[li % 5] * 100 / Math.max(20, Number(wv2.s) || 100);
+          var sign2 = ((Number(wv2.d) || 0) !== WDIR[li % 5]) ? 1 : -1;
+          var fc2 = fillOf(belts[0].c, wv2.intensity);
+          var op2 = wv2.op == null ? 1 : Math.max(0, Math.min(100, Number(wv2.op))) / 100;
+          var base2 = layerBase(li) + layerAmp(li), amp2 = layerAmp(li);
+          c.beginPath();
+          var st2 = Math.max(2, cw / 160);
+          for (var lx = 0; lx <= cw; lx += st2) {
+            var ly = surfY(lx, base2, amp2, lam, t, sign2, Math.PI * 2 / (dur2 / 1000), li * 2.2);
+            if (lx === 0) c.moveTo(lx, ly); else c.lineTo(lx, ly);
+          }
+          for (var r2 = cw; r2 >= 0; r2 -= st2)
+            c.lineTo(r2, surfY(r2, base2, amp2, lam, t, sign2, Math.PI * 2 / (dur2 / 1000), li * 2.2) + amp2 * 1.7);
+          c.closePath();
+          c.fillStyle = toRgba(fc2.fill, op2);
+          c.fill();
+        }
+        crestLight(layerBase(0) + layerAmp(0), layerAmp(0), lam, ((Number((cards[0] || {}).d) || 0) !== WDIR[0]) ? 1 : -1, Math.PI * 2 / (WDUR[0] * 100 / Math.max(20, Number((cards[0] || {}).s) || 100) / 1000), 0);
+      }
+      return;
+    }
+
+    /* однотон */
+    cState.mode = "mono"; cState.belts = 0;
+    if (!on) {
+      cState.flat = true; cState.layers = 0;
+      var fbase = topOff;
+      c.beginPath(); c.moveTo(0, fbase); c.lineTo(cw, fbase); c.lineTo(cw, ch); c.lineTo(0, ch); c.closePath();
+      c.fillStyle = monoCol; c.fill();
+      depthShade(fbase, 0, lam, 1, 1, 0, ch);
+      cState.topVar = 0;
+      return;
+    }
+    cState.flat = false; cState.layers = n;
+    for (var idx = n - 1; idx >= 0; idx--) {
+      var wv = cards[idx] || {};
+      var dur = WDUR[idx % 5] * 100 / Math.max(20, Number(wv.s) || 100);
+      var sign = ((Number(wv.d) || 0) !== WDIR[idx % 5]) ? 1 : -1;
+      var amp = layerAmp(idx), base = layerBase(idx) + amp;
+      var fc = fillOf(monoCol, wv.intensity);
+      var op = wv.op == null ? 1 : Math.max(0, Math.min(100, Number(wv.op))) / 100;
+      var gd = Math.max(0, Math.min(100, Number(wv.gd) || 0));
+      if (gd > 0) cState.gdDepth = Math.max(cState.gdDepth, Math.round(2 * gd / 100 * 100) / 100);
+      bodyPath(base, amp, lam, sign, Math.PI * 2 / (dur / 1000), idx * 2.2, ch);
+      if (gd > 0 && amp > 0) {
+        var gr = c.createLinearGradient(0, base - amp, 0, base - amp + 2 * amp * gd / 100);
+        gr.addColorStop(0, toRgba(fc.fill, 0));
+        gr.addColorStop(1, toRgba(fc.fill, op));
+        c.fillStyle = gr;
+      } else c.fillStyle = toRgba(fc.fill, op);
+      c.fill();
+      if (idx === 0) {
+        depthShade(base, amp, lam, sign, Math.PI * 2 / (dur / 1000), 0, ch);
+        crestLight(base, amp, lam, sign, Math.PI * 2 / (dur / 1000), 0);
+      }
+    }
+  }
+
+  var loopStarted = false;
+  function startLoop() {
+    if (loopStarted) return;
+    loopStarted = true;
+    function tick(now) {
+      requestAnimationFrame(tick);
+      if (document.hidden) return;
+      var list = document.querySelectorAll("canvas.wt-wave-c");
+      if (!list.length) return;
+      var vis = (W.WT2W && W.WT2W.visible) ? W.WT2W.visible() : null;
+      if (vis != null && lastVis != null) {
+        var vel = Math.abs(vis - lastVis);
+        if (vel > 0.02) splash = Math.min(1, splash + vel * 0.06);
+      }
+      if (vis != null) lastVis = vis;
+      if (splash > 0.001) splash *= 0.985; else splash = 0;
+      var t = now / 1000;
+      for (var i = 0; i < list.length; i++) drawCanvas(list[i], t);
+      cState.frame++;
+    }
+    requestAnimationFrame(tick);
+  }
+  function canvasHtml(o) {
+    startLoop();
+    var beltsJson = "";
+    if (o.belts && o.belts.length) {
+      beltsJson = ' data-belts="' + JSON.stringify(o.belts).replace(/"/g, "&quot;") + '"';
+    }
+    return '<canvas class="wt-wave-c" data-color="' + (o.color || "#2ddaf9") + '"' + beltsJson +
+      ' data-span="' + (o.spanPct != null ? Math.round(Number(o.spanPct) * 100) / 100 : 100) + '"></canvas>';
+  }
+  function canvasOk() {
+    try { var cv2 = document.createElement("canvas"); return !!(cv2.getContext && cv2.getContext("2d")); }
+    catch (e) { return false; }
+  }
+
   W.WT2V = {
     enabled: enabled,
     crestPath: crestPath,
     ensureWaveKeys: ensureWaveKeys,
     waveLayer: waveLayer,
     waterInner: waterInner,
+    canvasHtml: canvasHtml,
+    canvasOk: canvasOk,
+    canvasState: canvasState,
+    kick: kick,
     params: params,
     DEF: { A: A, WV: WV, GV: GV, A_EDGE: A_EDGE, WDUR: WDUR, WDIR: WDIR, HEAD: HEAD, BOX: BOX }
   };

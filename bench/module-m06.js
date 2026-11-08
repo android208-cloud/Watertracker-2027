@@ -86,11 +86,15 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
   const col = await p.evaluate(() => {
     const st = window.__waterApp.state;
     const want = window.WT2W.liquidColor(st);
-    const got = getComputedStyle(document.querySelector('.cat-flat')).backgroundColor;
-    const rgbOf = h => { const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h); return 'rgb(' + parseInt(m[1], 16) + ', ' + parseInt(m[2], 16) + ', ' + parseInt(m[3], 16) + ')'; };
-    return { want, got, match: got === rgbOf(want) };
+    const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+    const c = cv.getContext('2d');
+    const d = c.getImageData(Math.round(cv.width / 2), Math.round(cv.height * 0.8), 1, 1).data;
+    const wrgb = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(want).slice(1).map(h => parseInt(h, 16));
+    /* пиксель тела: краска дня, книзу затемнена глубиной (допуск на шейдинг) */
+    const near = Math.abs(d[0] - wrgb[0]) <= 55 && Math.abs(d[1] - wrgb[1]) <= 55 && Math.abs(d[2] - wrgb[2]) <= 55;
+    return { want, got: [d[0], d[1], d[2]], wrgb, match: near && d[2] >= d[0] };
   });
-  ok('однотон: заливка воды = смесь цветов дня (фикстура: чистая вода)', col.match, col);
+  ok('однотон: пиксель холста = смесь цветов дня (фикстура: чистая вода)', col.match, col);
 
   /* 4. вектор: в сцене нет растра */
   const vec = await p.evaluate(() => document.querySelectorAll('.cat-art img').length);

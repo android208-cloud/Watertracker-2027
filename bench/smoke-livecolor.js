@@ -73,10 +73,8 @@ function ok(cond, name) {
     await p.click('[data-tab="home"]');
     await p.waitForTimeout(450);
     return p.evaluate(() => {
-      const f = document.querySelector('.cat-flat');
-      if (f) return f.style.background || getComputedStyle(f).backgroundColor;
-      const w = document.querySelector('.wt-orb-water');
-      return w ? 'belt:' + w.innerHTML.length : 'none';
+      const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+      return cv ? cv.getAttribute('data-color') : (window.WT2B.visibleColor() || 'none');
     });
   };
   const c1 = await orbColor();
@@ -155,12 +153,8 @@ function ok(cond, name) {
   await p.click('.wt-orb');
   await p.waitForTimeout(700);
   const beltOn = await p.evaluate(() => {
-    const bs = document.querySelector('.wt-orb-water .cat-beltstack');
-    if (bs) return bs.children.length;
-    const bd = document.querySelector('.wt-orb-water .cat-belt');
-    if (!bd) return 0;
-    const g = bd.style.background || bd.style.backgroundImage || '';
-    return (g.match(/rgb|#/g) || []).length >= 4 ? 2 : 1; /* стоп-цвета градиента поясов */
+    const st = window.WT2V.canvasState();
+    return st.mode === 'belts' ? st.belts : 0;
   });
   ok(beltOn >= 2, 'L6 орб красится поясами после пака (слоёв: ' + beltOn + ')');
 

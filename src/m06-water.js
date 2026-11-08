@@ -76,7 +76,11 @@
     /* M07/M08: внутренность слоя подъёма строит волновой модуль: однотон с
        гребнями ватерлинии или пояса с волнистыми стыками (слово 05.11). */
     var inner;
-    if (W.WT2V && W.WT2V.enabled()) {
+    if (W.WT2V && W.WT2V.canvasHtml && W.WT2V.canvasOk()) {
+      /* Canvas 2D — тело воды (слово владельца 08.11): рисовальщик M07,
+         SVG-путь ниже остаётся аварийным запасом без canvas. */
+      inner = W.WT2V.canvasHtml(o);
+    } else if (W.WT2V && W.WT2V.enabled()) {
       inner = W.WT2V.waterInner({ belts: o.belts, color: o.color, spanPct: o.spanPct != null ? o.spanPct : 100 - y0 });
     } else if (o.rampColors && o.rampColors.length > 1 && o.rampColors.some(function (c) { return c !== o.rampColors[0]; })) {
       inner = W.WT2B.beltDiv(o.rampColors, o.spanPct != null ? o.spanPct : 100 - y0);
@@ -136,6 +140,7 @@
     if (vis == null) { vis = target; apply(); return; }
     if (Math.abs(vis - target) < 0.01) { vis = target; tw = null; apply(); return; }
     tw = { from: vis, to: target, t0: nowMs() };
+    if (W.WT2V && W.WT2V.kick) W.WT2V.kick();   /* вода качнулась вместе с лифтом */
     if (!raf) step();
   }
   function visible() { return vis; }

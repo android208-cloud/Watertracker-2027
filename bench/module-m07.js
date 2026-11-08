@@ -1,5 +1,6 @@
-/* Стенд M07 — wave: гребни ватерлинии и волнистые стыки поясов (C-028).
-   Слово владельца 05.11: волниться должны и промежуточные слои. */
+/* Стенд M07 — wave: Canvas 2D тело воды (слово владельца 08.11: начинаем
+   с Canvas, WebGL — стендовый эталон). Страж меряет состояние рисовальщика
+   WT2V.canvasState() и живые пиксели холста, а не SVG-узлы. */
 const { chromium } = require('/home/user/pw/node_modules/playwright');
 
 let pass = 0, fail = 0;
@@ -20,143 +21,99 @@ const LC3 = JSON.stringify({ wave: true, waveN: 3, waveA: 14, waveW: 150, waveG:
   waveS1: 100, waveS2: 100, waveS3: 100, waveD1: 0, waveD2: 1, waveD3: 0,
   waveOP1: 100, waveOP2: 80, waveOP3: 45, waveGD1: 0, waveGD2: 0, waveGD3: 0 });
 
+const WAIT = `window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5`;
+const STATE = `window.WT2V.canvasState()`;
+const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c'); const c = cv.getContext('2d');
+  window.__px = (fx, fy) => { const d = c.getImageData(Math.round(cv.width * fx), Math.round(cv.height * fy), 1, 1).data; return [d[0], d[1], d[2]]; }; })()`;
+
 (async () => {
   const b = await chromium.launch();
-  const ctx = await b.newContext({ viewport: { width: 412, height: 892 } });
   const errs = [];
 
-  /* однотон: три гребня ватерлинии, средний полупрозрачный */
+  /* однотон: canvas, три слоя, поверхность живая (не плоская и не статичная) */
   const c1 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c1.addInitScript(`localStorage.setItem('cup-liquid-color-v1', '${LC3}');localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
   const p1 = await c1.newPage();
   p1.on('pageerror', e => errs.push(e.message));
   await p1.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p1.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-wave'));
-  const mono = await p1.evaluate(() => {
-    const ws = Array.from(document.querySelectorAll('.wt-orb .cat-wave'));
-    return {
-      n: ws.length,
-      anims: ws.map(w => getComputedStyle(w).animationName + '|' + getComputedStyle(w).animationDuration + '|' + getComputedStyle(w).animationDelay),
-      opac: ws.map(w => getComputedStyle(w).opacity),
-      playing: document.getAnimations().filter(a => a.playState === 'running').length
-    };
-  });
-  ok('однотон: три гребня ватерлинии, дрейф идёт, средний полупрозрачный',
-    mono.n === 3 && mono.playing >= 3 && mono.opac.includes('0.45') &&
-    new Set(mono.anims.map(a => a.split('|')[0])).size === 3 && new Set(mono.anims.map(a => a.split('|')[1])).size === 3, mono);
+  await p1.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  const mono = await p1.evaluate(s => eval(s), STATE);
+  ok('однотон: canvas рисует 3 слоя, поверхность волнистая', mono.mode === 'mono' && mono.layers === 3 && !mono.flat && mono.topVar > 0.3, mono);
+  const el1 = await p1.$('.wt-orb canvas.wt-wave-c');
+  const shot1 = await el1.screenshot();
+  await p1.waitForTimeout(700);
+  const shot2 = await el1.screenshot();
+  ok('поверхность движется: кадры холста различаются', Buffer.compare(shot1, shot2) !== 0);
+  await p1.evaluate(PX);
+  const deep = await p1.evaluate(() => window.__px(0.5, 0.92));
+  ok('тело воды на холсте — цвет напитка (синяя доминанта)', deep[2] > deep[0] + 30 && deep[1] > deep[0], deep);
   await c1.close();
 
-  /* пояса: бэнды + волнистые стыки цвета нижнего пояса */
+  /* пояса: canvas, бэнды из данных, стыки внутри пролёта */
   const c2 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c2.addInitScript(`localStorage.setItem('cup-liquid-color-v1', '${LC3}');localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')])}));`);
   const p2 = await c2.newPage();
   p2.on('pageerror', e => errs.push(e.message));
   await p2.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p2.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-beltband'));
-  const belt = await p2.evaluate(() => {
-    const bands = Array.from(document.querySelectorAll('.wt-orb .cat-beltband'));
-    const borders = Array.from(document.querySelectorAll('.wt-orb path[data-bi]'));
-    const wl = Array.from(document.querySelectorAll('.wt-orb path[data-wl]:not([data-bi])'));
-    const d = borders[0] ? borders[0].getAttribute('d') : '';
-    var pairs = d.match(/-?\d+(\.\d+)?/g) || [];
-    var ys = [];
-    for (var pi = 1; pi < pairs.length; pi += 2) ys.push(Number(pairs[pi]));
-    const HEAD = window.WT2V.DEF.HEAD, A = window.WT2V.DEF.A_EDGE;
-    const crestTop = Math.min.apply(null, ys);
-    return {
-      bands: bands.length, borders: borders.length, wl: wl.length,
-      borderFill: borders[0] && borders[0].getAttribute('fill'),
-      wavy: d.indexOf('Q') >= 0, amp: Math.round(HEAD - crestTop),
-      wlClosed: wl.every(pth => { const vb = pth.ownerSVGElement.viewBox.baseVal; return vb.height < 100; })
-    };
+  await p2.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  const belt = await p2.evaluate(s => eval(s), STATE);
+  await p2.evaluate(PX);
+  const pxBelt = await p2.evaluate(() => {
+    /* холст: top -3%..103%; жидкость 900/1950~46% высоты круга; нижний пояс — эспрессо */
+    return { low: window.__px(0.5, 0.44), mid: window.__px(0.5, 0.30) };
   });
-  ok('пояса: бэнды по цветам, стык волнистый амплитудой 60%, ватерлиния замкнута полосой',
-    belt.bands === 2 && belt.borders === 1 && belt.wl === 3 &&
-    belt.wavy && belt.amp === 8 && belt.wlClosed && /8b5a2b|139,\s*90,\s*43/i.test(belt.borderFill || ''), belt);
+  ok('пояса: canvas в режиме поясов, 2 пояса из данных', belt.mode === 'belts' && belt.belts === 2 && belt.layers === 3, belt);
+  ok('пиксели поясов: внизу тёмный эспрессо, выше вода',
+    pxBelt.low[0] > pxBelt.low[2] && pxBelt.mid[2] > pxBelt.mid[0], pxBelt);
+  await c2.close();
 
-  /* промежуточные слои волнуются: свои фазы и скорости у стыка и гребней */
-  const phases = await p2.evaluate(() => {
-    const ws = Array.from(document.querySelectorAll('.wt-orb .cat-wave'));
-    return ws.map(w => {
-      const cs = getComputedStyle(w);
-      return cs.animationName + '|' + cs.animationDuration + '|' + cs.animationDelay;
-    });
-  });
-  ok('промежуточные слои волнуются: у каждого свои кейфреймы/фаза/скорость',
-    phases.length === 4 && new Set(phases.map(x => x.split('|')[0])).size === 4 && new Set(phases.map(x => x.split('|')[1])).size === 4, phases);
-
-  /* дрейф живой: transform гребня меняется со временем без перекрасок */
-  const t1 = await p2.evaluate(() => Array.from(document.querySelectorAll('.wt-orb .cat-wave')).map(w => getComputedStyle(w).transform));
-  await p2.waitForTimeout(700);
-  const t2 = await p2.evaluate(() => Array.from(document.querySelectorAll('.wt-orb .cat-wave')).map(w => getComputedStyle(w).transform));
-  ok('дрейф: трансформы гребней плывут (композитор)', JSON.stringify(t1) !== JSON.stringify(t2));
-
-  /* папка правит волну: один слой, скорость/направление/смещение/прозрачность/градиент/интенсивность */
+  /* папка правит волну: один слой по карточке */
   const c3 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c3.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ wave: true, waveN: 1, waveA: 24, waveW: 90, waveG: 90, waveS1: 50, waveD1: 1, waveO1: 5, waveOP1: 25, waveGD1: 50, waveINT1: 50 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
   const p3 = await c3.newPage();
   p3.on('pageerror', e => errs.push(e.message));
   await p3.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p3.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-wave'));
-  const tuned = await p3.evaluate(() => {
-    const ws = Array.from(document.querySelectorAll('.wt-orb .cat-wave'));
-    const w = ws[0], cs = getComputedStyle(w);
-    const path = w.querySelector('path');
-    const grad = path.ownerSVGElement.querySelector('linearGradient');
-    return { n: ws.length, dur: cs.animationDuration, dir: cs.animationDirection, op: cs.opacity,
-      top: w.style.top, fill: path.getAttribute('fill'), wtint: path.getAttribute('data-wtint'),
-      stops: grad ? Array.from(grad.querySelectorAll('stop')).map(x => x.getAttribute('stop-opacity')) : null };
-  });
-  ok('папка «Волна»: слой один, скорость 50% (14 с), реверс, смещение +5%, прозрачность .25, градиент и интенсивность .5',
-    tuned.n === 1 && tuned.dur === '14s' && tuned.dir === 'reverse' && tuned.op === '0.25' &&
-    tuned.top === '2.6%' && /^url\(/.test(tuned.fill) && tuned.wtint === '0.5' &&
-    JSON.stringify(tuned.stops) === JSON.stringify(['0', '1']), tuned);
+  await p3.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  const tuned = await p3.evaluate(s => eval(s), STATE);
+  ok('папка «Волна»: canvas рисует один слой по карточке, гребень жив', tuned.layers === 1 && tuned.topVar > 0.3, tuned);
   await c3.close();
 
-  /* мастер-тумблер папки гасит волну: остаётся плоская вода */
+  /* мастер-тумблер папки гасит волну: плоская вода на том же canvas */
   const c4 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c4.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ wave: false }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
   const p4 = await c4.newPage();
   p4.on('pageerror', e => errs.push(e.message));
   await p4.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p4.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-flat'));
-  const off = await p4.evaluate(() => ({ waves: document.querySelectorAll('.wt-orb .cat-wave').length, flat: !!document.querySelector('.wt-orb .cat-flat') }));
-  ok('папка «Волна»: мастер выключен — гребней нет, вода плоская', off.waves === 0 && off.flat, off);
+  await p4.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  const off = await p4.evaluate(s => eval(s), STATE);
+  ok('папка «Волна»: мастер выключен — canvas плоский, слоёв нет', off.flat && off.layers === 0 && off.topVar === 0, off);
   await c4.close();
 
-  /* свежий профиль папки = одобренная картина: 3 гребня, градиент выключен;
-     а включённый градиент не выходит за кромку (±a) и гребень не съедает */
+  /* свежий профиль папки = одобренная картина */
   const c5 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c5.addInitScript(`localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
   const p5 = await c5.newPage();
   p5.on('pageerror', e => errs.push(e.message));
   await p5.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p5.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-wave'));
+  await p5.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
   const fresh = await p5.evaluate(() => {
-    const q = window.LiquidColor.waveParams();
-    return { n: q.n, waves: document.querySelectorAll('.wt-orb .cat-wave').length,
-      gd: q.waves.map(w => w.gd), op: q.waves.map(w => w.op) };
+    const q = window.LiquidColor.waveParams(), s = window.WT2V.canvasState();
+    return { n: q.n, layers: s.layers, gd: q.waves.map(w => w.gd), op: q.waves.map(w => w.op) };
   });
   ok('дефолт папки: три гребня 100/80/45, градиент 0',
-    fresh.n === 3 && fresh.waves === 3 && fresh.gd.every(x => x === 0) &&
+    fresh.n === 3 && fresh.layers === 3 && fresh.gd.every(x => x === 0) &&
     JSON.stringify(fresh.op) === JSON.stringify([100, 80, 45]), fresh);
-  await p5.evaluate(() => { window.LiquidColor.act('liq-wave', null); });
   await c5.close();
 
+  /* градиент карточки: фейд не глубже кромки (<= 2a), гребень не съеден */
   const c6 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c6.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveGD1: 100 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
   const p6 = await c6.newPage();
   p6.on('pageerror', e => errs.push(e.message));
   await p6.goto('http://127.0.0.1:8085/wt2/index.html');
-  await p6.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-wave path'));
-  const gd = await p6.evaluate(() => {
-    const path = Array.from(document.querySelectorAll('.wt-orb .cat-wave path')).filter(x => /^url\(/.test(x.getAttribute('fill') || ''))[0] || document.querySelector('.wt-orb .cat-wave path');
-    const grad = path.ownerSVGElement.querySelector('linearGradient');
-    const q = window.LiquidColor.waveParams();
-    return { fill: path.getAttribute('fill'), depth: grad ? Number(grad.getAttribute('y2')) - Number(grad.getAttribute('y1')) : null, a: q.a };
-  });
-  ok('градиент 100: фейд внутри кромки (глубина <= 2a), гребень жив',
-    /^url\(/.test(gd.fill) && gd.depth != null && gd.depth <= 2 * gd.a + 0.01, gd);
+  await p6.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  const gd = await p6.evaluate(s => eval(s), STATE);
+  ok('градиент 100: фейд внутри кромки (глубина <= 2a), поверхность живая', gd.gdDepth > 0 && gd.gdDepth <= 2 && gd.topVar > 0.1, gd);
   await c6.close();
 
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
