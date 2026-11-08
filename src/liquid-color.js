@@ -21,12 +21,14 @@
   function defs() {
     return { mode: "vessel", smooth: true, dilute: false, anchor: null, wave: true,
       /* v99: геометрия волны; дефолт = волна выпуска v98. */
-      waveA: 10, waveW: 118, waveG: 118, waveSA: 100, waveSB: 100,
+      waveA: 14, waveW: 150, waveG: 150, waveSA: 100, waveSB: 100,
       /* v117: каталог волны: число волн и карточка каждой волны.
-         Направления по базе ключкадров: 1 влево, 2 вправо, далее чередуясь. */
-      waveN: 2,
-      waveGD1: 60, waveGD2: 60, waveGD3: 60, waveGD4: 60, waveGD5: 60,
-      waveOP1: 100, waveOP2: 100, waveOP3: 100, waveOP4: 100, waveOP5: 100,
+         Направления по базе ключкадров: 1 влево, 2 вправо, далее чередуясь.
+         Дефолт — картина выпуска M07, одобренная владельцем 08.11: три гребня,
+         задние прозрачнее, градиент кромки выключен. */
+      waveN: 3,
+      waveGD1: 0, waveGD2: 0, waveGD3: 0, waveGD4: 0, waveGD5: 0,
+      waveOP1: 100, waveOP2: 80, waveOP3: 45, waveOP4: 30, waveOP5: 20,
       waveINT1: 100, waveINT2: 100, waveINT3: 100, waveINT4: 100, waveINT5: 100,
       waveS1: 100, waveS2: 100, waveS3: 100, waveS4: 100, waveS5: 100,
       waveD1: 0, waveD2: 1, waveD3: 0, waveD4: 1, waveD5: 0,

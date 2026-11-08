@@ -124,16 +124,18 @@
     var H = line ? HEAD + 2 * a : BOX + HEAD;
     var Hc = line ? HEAD : BOX + HEAD;
     var hPct = line ? Math.round(H / BOX * 1000) / 10 : 102.4;
-    /* Градиент гребня (карточка слоя): верх кромки растворяется в прозрачность;
-       в поясном режиме фейд не уходит ниже ватерлинии (урок донора v137). */
+    /* Градиент гребня (карточка слоя): верх кромки растворяется в прозрачность.
+       Фейд живёт СТРОГО внутри кромки (±a от ватерлинии) в обоих режимах:
+       глубокий фейд донора (x20) в круге съедал гребень до плоской линии,
+       а на WebView давал висящую полоску над водой (глаз владельца 08.11). */
     var fc = fillOf(o.fill || "#2ddaf9", o.intensity);
     var fillAttr = fc.fill, defs = "";
     var gd = Math.max(0, Math.min(100, Number(o.gd) || 0));
     if (gd > 0) {
       var gid = "wtg" + (++gradSeq);
       var gy1 = HEAD - a;
-      var depth = Math.max(1, (line ? 2 : 20) * a * gd / 100);
-      var gy2 = line ? Math.min(Hc, gy1 + depth) : gy1 + depth;
+      var depth = Math.max(1, 2 * a * gd / 100);
+      var gy2 = Math.min(Hc, gy1 + depth);
       defs = '<defs><linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + gy1 +
         '" x2="0" y2="' + gy2 + '"><stop offset="0" stop-color="' + fc.fill + '" stop-opacity="0"/>' +
         '<stop offset="1" stop-color="' + fc.fill + '" stop-opacity="1"/></linearGradient></defs>';

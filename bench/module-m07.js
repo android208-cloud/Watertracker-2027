@@ -124,6 +124,41 @@ const LC3 = JSON.stringify({ wave: true, waveN: 3, waveA: 14, waveW: 150, waveG:
   ok('папка «Волна»: мастер выключен — гребней нет, вода плоская', off.waves === 0 && off.flat, off);
   await c4.close();
 
+  /* свежий профиль папки = одобренная картина: 3 гребня, градиент выключен;
+     а включённый градиент не выходит за кромку (±a) и гребень не съедает */
+  const c5 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c5.addInitScript(`localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p5 = await c5.newPage();
+  p5.on('pageerror', e => errs.push(e.message));
+  await p5.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p5.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-wave'));
+  const fresh = await p5.evaluate(() => {
+    const q = window.LiquidColor.waveParams();
+    return { n: q.n, waves: document.querySelectorAll('.wt-orb .cat-wave').length,
+      gd: q.waves.map(w => w.gd), op: q.waves.map(w => w.op) };
+  });
+  ok('дефолт папки: три гребня 100/80/45, градиент 0',
+    fresh.n === 3 && fresh.waves === 3 && fresh.gd.every(x => x === 0) &&
+    JSON.stringify(fresh.op) === JSON.stringify([100, 80, 45]), fresh);
+  await p5.evaluate(() => { window.LiquidColor.act('liq-wave', null); });
+  await c5.close();
+
+  const c6 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c6.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveGD1: 100 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p6 = await c6.newPage();
+  p6.on('pageerror', e => errs.push(e.message));
+  await p6.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p6.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb .cat-wave path'));
+  const gd = await p6.evaluate(() => {
+    const path = Array.from(document.querySelectorAll('.wt-orb .cat-wave path')).filter(x => /^url\(/.test(x.getAttribute('fill') || ''))[0] || document.querySelector('.wt-orb .cat-wave path');
+    const grad = path.ownerSVGElement.querySelector('linearGradient');
+    const q = window.LiquidColor.waveParams();
+    return { fill: path.getAttribute('fill'), depth: grad ? Number(grad.getAttribute('y2')) - Number(grad.getAttribute('y1')) : null, a: q.a };
+  });
+  ok('градиент 100: фейд внутри кромки (глубина <= 2a), гребень жив',
+    /^url\(/.test(gd.fill) && gd.depth != null && gd.depth <= 2 * gd.a + 0.01, gd);
+  await c6.close();
+
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
   await b.close();
   console.log('BENCH M07: ' + (fail ? 'FAILS=' + fail : 'ALL GREEN') + ' (' + pass + '/' + (pass + fail) + ')');
