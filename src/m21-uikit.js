@@ -707,6 +707,7 @@
     if (kind === "switch") {
       attrs += ' role="switch" aria-checked="' + (o.on ? "true" : "false") + '" tabindex="0"';
     }
+    if (o.radio) attrs += ' role="radio" aria-checked="' + (o.on ? "true" : "false") + '"';
     if (kind === "switch") attrs += ' data-act="toggle" data-key="' + o.key + '"';
     else if (o.act) attrs += ' data-act="' + o.act + '"';
     Object.keys(o.data || {}).forEach(function (k) {
@@ -717,11 +718,12 @@
       '<span class="' + (o.nameClass || "ttl") + '">' + (o.title || "") +
       (o.sub ? "<small>" + o.sub + "</small>" : "") + "</span>" +
       (o.right || "") +
-      ((o.check || kind === "switch") ? '<span class="switch' + (o.on ? " on" : "") + '" aria-hidden="true"><i></i></span>' : "");
+      (o.radio ? '<span class="radio' + (o.on ? " on" : "") + '" aria-hidden="true"></span>'
+        : (o.check || kind === "switch") ? '<span class="switch' + (o.on ? " on" : "") + '" aria-hidden="true"><i></i></span>' : "");
     return "<" + tag + attrs + ">" + inner + "</" + tag + ">";
   }
 
-  /* Квадратик-кнопка настроек (не метка): нажимается отдельно от строки. */
+  /* Тумблер-кнопка настроек: нажимается отдельно от строки. */
   function checkBox(on, key, tick, ui) {
     return '<button type="button" class="switch' + (on ? " on" : "") +
       '" data-act="toggle" data-key="' + key + '"' + uiAttr("check", { ui: ui }) +

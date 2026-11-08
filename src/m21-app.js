@@ -1125,7 +1125,7 @@
         tag: "div", cls: "sound-row" + (on ? " on" : ""), act: "pick-sound", data: { file: snd.file },
         title: esc(snd.title), sub: on ? "выбран" : "нажмите, чтобы выбрать",
         right: '<button type="button" class="sound-play" data-act="play-sound" data-file="' + snd.file + '" aria-label="Прослушать">' + play + "</button>",
-        check: true, on: on, tick: uiIcon("tick")
+        radio: true, on: on
       });
     }).join("");
     return K().header({ ui: "alert-sound", cls: "top plain sub", back: uiIcon("back"), title: "Звук уведомления" }) +

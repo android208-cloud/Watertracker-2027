@@ -1744,6 +1744,16 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   padding: 0;
 }
 .checksq.on { background: var(--blue-fill); color: #fff; }
+/* Радиокнопка: выбор одного из списка (экран «Звук уведомления»). */
+.radio {
+  width: 22px; height: 22px; flex: 0 0 22px; box-sizing: border-box;
+  border-radius: 50%; border: 2px solid var(--muted); position: relative;
+}
+.radio.on { border-color: var(--blue); }
+.radio.on::after {
+  content: ""; position: absolute; left: 3px; top: 3px; right: 3px; bottom: 3px;
+  border-radius: 50%; background: var(--blue);
+}
 /* Строка-переключатель: вся строка — цель нажатия, без «мёртвых» мест. */
 .switch-row { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .switch-row:active .ttl { opacity: .82; }

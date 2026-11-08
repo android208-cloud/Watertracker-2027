@@ -125,6 +125,28 @@ function ok(cond, name) {
     ok(await has(p, '[data-act="' + a + '"]'), 'строка ожила (модуль 2): ' + a);
   await shot(p, 'alerts-folder');
 
+  console.log('Звук уведомления: радиокнопки:');
+  await click(p, '[data-act="open-alert-sound"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-sound', 'ui.page === alert-sound');
+  const snd0 = await p.evaluate(() => ({
+    radios: document.querySelectorAll('.sound-row .radio').length,
+    on: document.querySelectorAll('.sound-row .radio.on').length,
+    switches: document.querySelectorAll('.sound-row .switch, .sound-row .checksq').length,
+    cur: window.__waterApp.state.notifications.sound
+  }));
+  ok(snd0.radios >= 2 && snd0.on === 1 && snd0.switches === 0, 'радиокнопки: одна выбрана, тумблеров нет', JSON.stringify(snd0));
+  await click(p, '[data-act="pick-sound"][data-file="water_sound.mp3"]');
+  const snd1 = await p.evaluate(() => ({
+    on: document.querySelectorAll('.sound-row .radio.on').length,
+    cur: window.__waterApp.state.notifications.sound,
+    page: window.__waterApp.ui.page
+  }));
+  ok(snd1.cur === 'water_sound.mp3' && snd1.on === 1 && snd1.page === 'alert-sound',
+    'выбор переехал на «Воду», страница на месте', JSON.stringify(snd1));
+  await shot(p, 'alert-sound');
+  await click(p, 'header [data-act="back"]');
+  ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'folder-alerts', 'back из звука → уведомления');
+
   console.log('Модуль 2: период уведомлений:');
   await click(p, '[data-act="open-alert-period"]');
   ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'alert-period', 'ui.page === alert-period');
