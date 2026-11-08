@@ -334,23 +334,26 @@
         if (!on) return topY;
         return surfY(x, topY, aEdge * (1 + splash), lam, t, bIdx % 2 ? 1 : -1, Math.PI * 2 / 9, bIdx * 1.3);
       }
-      /* непрерывный переход цветов по всей высоте жидкости (слово владельца
-         08.11 «избавиться от чёткого деления»): цвет в точке — смесь цветов
-         соседних поясов, растушёвка от центра одного пояса к центру другого;
-         отдельных полос и швов внутри жидкости больше нет. */
+      /* перехода без чёткого деления, но с чистым ядром пояса (слово
+         владельца 08.11 + его же глаз на розовом поясе): внутри пояса —
+         свой цвет целиком; растушёвка живёт только у границы и не шире
+         45% меньшего из соседних поясов, иначе малый пояс растворяется
+         в соседях и «не появляется». */
       function beltRgbAt(f) {
         function colOf(k2) { return rgbOf((liveBelts && liveBelts[k2]) || belts[k2].c) || [128, 128, 128]; }
-        if (f <= belts[0].to) return colOf(0);
-        for (var k2 = 1; k2 < belts.length; k2++) {
-          if (f <= belts[k2].to || k2 === belts.length - 1) {
-            var cPrev = colOf(k2 - 1), cNext = colOf(k2);
-            var midPrev = (belts[k2 - 1].from + belts[k2 - 1].to) / 2;
-            var midNext = (belts[k2].from + belts[k2].to) / 2;
-            var u = Math.max(0, Math.min(1, (f - midPrev) / Math.max(0.001, midNext - midPrev)));
+        for (var b2 = 1; b2 < belts.length; b2++) {
+          var pos = belts[b2].from;
+          var half = Math.min(0.12,
+            0.45 * (belts[b2 - 1].to - belts[b2 - 1].from),
+            0.45 * (belts[b2].to - belts[b2].from));
+          if (half > 0.002 && Math.abs(f - pos) < half) {
+            var u = (f - (pos - half)) / (2 * half);
             u = u * u * (3 - 2 * u);
-            return [0, 1, 2].map(function (ch2) { return Math.round(cPrev[ch2] + (cNext[ch2] - cPrev[ch2]) * u); });
+            var cA = colOf(b2 - 1), cB = colOf(b2);
+            return [0, 1, 2].map(function (ch2) { return Math.round(cA[ch2] + (cB[ch2] - cA[ch2]) * u); });
           }
         }
+        for (var k3 = 0; k3 < belts.length; k3++) if (f <= belts[k3].to || k3 === belts.length - 1) return colOf(k3);
         return colOf(belts.length - 1);
       }
       c.save();
@@ -364,7 +367,7 @@
       c.lineTo(cw, topOff + spanH); c.lineTo(0, topOff + spanH); c.closePath();
       c.clip();
       var grad = c.createLinearGradient(0, topOff, 0, topOff + spanH);
-      var SAMPLES = 28;
+      var SAMPLES = 64;
       for (var si2 = 0; si2 <= SAMPLES; si2++) {
         var fc3 = beltRgbAt(si2 / SAMPLES);
         grad.addColorStop(si2 / SAMPLES, "rgb(" + fc3[0] + "," + fc3[1] + "," + fc3[2] + ")");

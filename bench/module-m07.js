@@ -71,6 +71,33 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
     const fy = 0.03 + 0.667 * (st.span / 100) * (100 / 106);
     return { fy: Math.round(fy * 1000) / 1000, px: window.__px(0.5, fy) };
   });
+  /* малый пояс не растворяется: розовые 100 мл поверх 1300 мл видны чистым ядром */
+  const c2b = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c2b.addInitScript(`localStorage.setItem('cup-liquid-color-v1', '${LC3}');localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 800, '#4aa3e8'), E('e2', '11', '00', 'espresso', 500, '#f39c2d')])}));`);
+  const p2b = await c2b.newPage();
+  p2b.on('pageerror', e => errs.push(e.message));
+  await p2b.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p2b.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  await p2b.evaluate((TD) => {
+    const st = window.__waterApp.state;
+    st.drinks.push({ id: 'mors', name: 'Морс', hydration: 90, icon: 'cup', color: '#e2607a' });
+    st.entries.push({ id: 'e9', date: TD, time: '13:00', drinkId: 'mors', name: 'Морс', icon: 'cup', color: '#e2607a', hydration: 90, volume: 100, credited: 90, createdAt: 9 });
+    window.__waterApp.render();
+  }, TODAY);
+  await p2b.waitForTimeout(600);
+  const pink = await p2b.evaluate(() => {
+    const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+    const c = cv.getContext('2d');
+    const st = window.WT2V.canvasState();
+    /* ядро последнего пояса: f=0.98 пролёта от верха слоя подъёма */
+    const fy = 0.03 + 0.98 * (st.span / 100) * (100 / 106);
+    const d = c.getImageData(Math.round(cv.width / 2), Math.round(cv.height * fy), 1, 1).data;
+    return { belts: st.belts, fy: Math.round(fy * 100) / 100, px: [d[0], d[1], d[2]] };
+  });
+  ok('малый розовый пояс виден чистым ядром (не растворён градиентом)',
+    pink.belts === 3 && pink.px[0] > 150 && pink.px[2] > 70 && pink.px[2] < 170 && pink.px[0] > pink.px[1] + 40, pink);
+  await c2b.close();
+
   ok('стык поясов мягкий: пиксель на шве — смесь цветов соседних поясов',
     seamPx.px[0] > 80 && seamPx.px[0] < 135 && seamPx.px[2] > 60 && seamPx.px[2] < 200, seamPx);
   await c2.close();
