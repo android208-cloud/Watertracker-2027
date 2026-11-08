@@ -327,7 +327,7 @@
     return '<div class="n-row switch-row" role="switch" aria-checked="' + (on ? "true" : "false") +
       '" tabindex="0" data-act="' + act + '"' + (val ? ' data-v="' + val + '"' : "") + ">" +
       '<span class="ttl">' + title + (sub ? "<small>" + sub + "</small>" : "") + "</span>" +
-      '<span class="checksq' + (on ? " on" : "") + '" aria-hidden="true">' + (on ? TICK : "") + "</span></div>";
+      '<span class="switch' + (on ? " on" : "") + '" aria-hidden="true"><i></i></span></div>';
   }
   /* v99: ползунок параметра волны: значение применяем на отпускании пальца
      (change), подпись обновляем на каждом движении (input, без перерисовки). */

@@ -547,6 +547,16 @@
     return parts.join(" > ");
   }
   function edScreen() { return document.getElementById("cur").textContent || "?"; }
+  /* Радиус шторки живёт только в верхних углах: одиночное значение
+     редактор сам раскладывает в border-radius «N N 0 0». Журнал при этом
+     хранит прежнее одиночное значение — отчёты не меняются. */
+  function edRadiusVal(el, value) {
+    if (!el || !el.classList || !el.classList.contains("sheet")) return value;
+    var m = /^(-?[\d.]+)(px|%)?$/.exec(String(value).trim());
+    if (!m) return value;
+    var v = m[1] + (m[2] || "px");
+    return v + " " + v + " 0 0";
+  }
   function edRec(el, prop, value, from) {
     if (from && String(from) === String(value)) return; /* было = стало: не пишем */
     var scr = edScreen(), sel = edPath(el);
@@ -565,7 +575,7 @@
     else {
       var w = edW();
       from = w ? w.getComputedStyle(el)[prop] : "";
-      el.style[prop] = value;
+      el.style[prop] = prop === "borderRadius" ? edRadiusVal(el, value) : value;
     }
     edRec(el, prop, value, from);
   }
@@ -908,12 +918,12 @@
     var r = document.getElementById(rangeId), n = document.getElementById(numId);
     r.addEventListener("input", function () {
       n.value = r.value;
-      if (edSelEl) { edSelEl.style[prop] = r.value + unit; edBoxTo(); }
+      if (edSelEl) { edSelEl.style[prop] = prop === "borderRadius" ? edRadiusVal(edSelEl, r.value + unit) : r.value + unit; edBoxTo(); }
     });
     r.addEventListener("change", function () { if (edSelEl) edRec(edSelEl, prop, r.value + unit, ""); });
     n.addEventListener("change", function () {
       r.value = n.value;
-      if (edSelEl) { edSelEl.style[prop] = n.value + unit; edRec(edSelEl, prop, n.value + unit, ""); edBoxTo(); }
+      if (edSelEl) { edSelEl.style[prop] = prop === "borderRadius" ? edRadiusVal(edSelEl, n.value + unit) : n.value + unit; edRec(edSelEl, prop, n.value + unit, ""); edBoxTo(); }
     });
   }
   edBindRange("edFontSize", "edFontSizeN", "fontSize", "px");
@@ -1057,7 +1067,10 @@
           el.style.transform = r.value;
           okN++;
         }
-      } else if (el.style[r.prop] !== r.value) { el.style[r.prop] = r.value; okN++; }
+      } else {
+        var rv = r.prop === "borderRadius" ? edRadiusVal(el, r.value) : r.value;
+        if (el.style[r.prop] !== rv) { el.style[r.prop] = rv; okN++; }
+      }
     });
     return { ok: okN, miss: miss };
   }

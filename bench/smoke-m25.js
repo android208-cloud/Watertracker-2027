@@ -118,7 +118,9 @@ function ok(cond, name) {
   ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'folder-alerts', 'ui.page === folder-alerts');
   for (const a of ['open-alert-sound', 'alert-test', 'sys-note', 'open-alert-freq'])
     ok(await has(p, '[data-act="' + a + '"]'), 'строка ' + a);
-  ok(await has(p, '[data-key="alertOn"]'), 'тумблер «Включить уведомления»');
+  ok(!(await has(p, '[data-key="alertOn"]')), 'дубля «Включить уведомления» внутри раздела нет');
+  ok(await has(p, '.n-row .switch'), 'в разделе стоят тумблеры, не галочки');
+  ok((await p.evaluate(() => document.querySelectorAll('.checksq').length)) === 0, 'галочек-checksq в настройках не осталось');
   for (const a of ['open-alert-texts', 'open-alert-period', 'open-alert-habit'])
     ok(await has(p, '[data-act="' + a + '"]'), 'строка ожила (модуль 2): ' + a);
   await shot(p, 'alerts-folder');

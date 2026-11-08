@@ -226,6 +226,16 @@ const ok = (n, c, x) => { console.log((c ? '  PASS  ' : '  FAIL  ') + n + (x ? '
     bake.x === '-32' && chkBox && chkBox2 && Math.abs(chkBox2.x - chkBox.x) < 1.5 && Math.abs(bake.offC) <= 2,
     JSON.stringify({ bake, chkBox, chkBox2 }));
 
+  /* --- радиус шторки: редактор пишет только верхние углы --- */
+  await fr.locator('.sheet').first().click({ position: { x: 200, y: 2 } });
+  await p.waitForTimeout(250);
+  await p.fill('#edRadiusN', '20'); await p.dispatchEvent('#edRadiusN', 'change');
+  await p.waitForTimeout(150);
+  const sheetRad = await sel('return { cls: el.className, br: el.style.borderRadius };');
+  ok('E32 радиус шторки лёг только сверху (20px 20px 0 0)',
+    !!sheetRad && /sheet/.test(sheetRad.cls) && sheetRad.br === '20px 20px 0px 0px',
+    JSON.stringify(sheetRad));
+
   await b.close();
   console.log('\nИТОГ: ' + pass + ' PASS / ' + fail + ' FAIL');
   process.exit(fail ? 1 : 0);

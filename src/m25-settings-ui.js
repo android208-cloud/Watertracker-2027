@@ -725,7 +725,6 @@
       habitSched: function () { return UiKit.row({ ui: "alert-habit", title: "Расписание по привычке", sub: hab ? window.HabitSchedule.subLabel(hab, esc) : "", act: "open-alert-habit" }); },
       /* v133: живая подпись темпа («следующее через …») — через env app. */
       alertFreq: function () { return UiKit.row({ ui: "alert-freq", title: "Частота", sub: esc(E.freqSubLabel ? E.freqSubLabel() : freqLabel(n.everyMin)), act: "open-alert-freq" }); },
-      alertOn: function () { return alertSwitch("Включить уведомления", n.enabled, "alertOn"); }
     };
     if (!window.SettingsModel) {
       /* Без модели — прежний фиксированный порядок (страховка). */

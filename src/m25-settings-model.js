@@ -183,7 +183,6 @@
       alertPeriod: { id: "alertPeriod", type: "row", title: "Период уведомлений", sub: l.alertPeriodSub || "", act: "open-alert-period", home: "alr:set" },
       habitSched: { id: "habitSched", type: "row", title: "Расписание по привычке", sub: l.habitSchedSub || "", act: "open-alert-habit", home: "alr:set", anchor: "alertPeriod" },
       alertFreq: { id: "alertFreq", type: "row", title: "Частота", sub: l.alertFreqSub || "", act: "open-alert-freq", home: "alr:set" },
-      alertOn: { id: "alertOn", type: "switch", title: "Включить уведомления", key: "alertOn", on: !!f.alertOn, home: "alr:set" },
       structExport: { id: "structExport", type: "row", title: "Структура настроек", sub: l.structExportSub || "", act: "open-struct", home: "adv:transfer", anchor: "shareDb" }
     };
   }
@@ -229,7 +228,7 @@
       /* «Уведомления» */
       "whenGoalMet", "evenIfRecent", "holdUntilDrink", "alertSound",
       "alertVibrate", "alertTest", "alertTexts", "sysNote", "alertPeriod", "habitSched",
-      "alertFreq", "alertOn"
+      "alertFreq"
     ];
     var cat = fullCatalog({ flags: {}, labels: {} });
     order = order.filter(function (k) { return k === "@wave" || !!cat[k]; });

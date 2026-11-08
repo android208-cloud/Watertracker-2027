@@ -136,7 +136,7 @@
 [data-theme="light"] .checksq.on { background: #78ceff; }
 [data-theme="light"] .switch { background: #d6f0ff; }
 [data-theme="light"] .switch i { background: #a5a9ac; }
-[data-theme="light"] .switch.on { background: #58d766; }
+[data-theme="light"] .switch.on { background: var(--blue); }
 [data-theme="light"] .switch.on i { background: #fff; }
 
 /* Всплывающие уведомления: фон как у нижней панели, текст белый. */
@@ -977,7 +977,7 @@ font-weight: 600;
   bottom: calc(var(--nav-h) + var(--safe-b));
   background: var(--panel);
   /* фон перекрыт ниже для тёмной темы (атлас-правка 07.11) */
-  border-radius: var(--sheet-radius, 16px);
+  border-radius: var(--sheet-radius, 16px) var(--sheet-radius, 16px) 0 0;
   z-index: 8;
   padding: 12px 0 12px;
   max-height: var(--sheet-max-h, 70%);
@@ -1027,7 +1027,8 @@ font-weight: 600;
   background: #fff;
   display: block;
 }
-.switch.on { background: var(--green); }
+/* Тумблеры во включённом виде — синие (слово владельца 08.11). */
+.switch.on { background: var(--blue); }
 .switch.on i { left: 23px; }
 .app.anim .switch i { transition: left .15s ease; }
 
@@ -1747,6 +1748,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .switch-row { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .switch-row:active .ttl { opacity: .82; }
 .switch-row .checksq { pointer-events: none; }
+.switch-row .switch { pointer-events: none; }
 .checksq svg, .checksq .ui-ico { width: 16px; height: 16px; }
 
 .form { padding: 8px 16px 140px; }
@@ -2718,8 +2720,9 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .sheet.volume { max-height: 64%; }
 .sheet.volume.menu {
   background: var(--bg);
-  /* Атлас-правки владельца (порция 5): и объёмное меню — 16px, как все шторки. */
-  border-radius: 16px;
+  /* Атлас-правки владельца (порция 5): и объёмное меню — 16px, как все шторки.
+     Скругления шторок — только сверху (слово владельца 08.11). */
+  border-radius: 16px 16px 0 0;
   padding-top: 6px;
   max-height: var(--sheet-menu-max-h, 68%);
   overflow: hidden;
@@ -2787,7 +2790,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 .sheet.volume[data-ui="sheet.volume"] .check.center { top: 12px; }
 .sheet.weather,
 .sheet.activity { max-height: 78%; }
-.sheet.weather { border-radius: 16px; }
+.sheet.weather { border-radius: 16px 16px 0 0; }
 .scrim.choice { border-radius: 8px; }
 .sheet.choice {
   background: var(--nav);
@@ -2800,7 +2803,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
 /* Атлас-правки владельца (порция 5): скругления 16px у всех шторок из
    журнала. Правило стоит после .sheet.choice и перекрывает её 0 у погоды
    и активности; у остальных шторок подтверждает базовые 16px. */
-.sheet.volume, .sheet.weight, .sheet.goal, .sheet.weather, .sheet.activity { border-radius: 16px; }
+.sheet.volume, .sheet.weight, .sheet.goal, .sheet.weather, .sheet.activity { border-radius: 16px 16px 0 0; }
 .sheet.choice h2 {
   margin: 2px 16px 14px;
   font-size: 20px;
@@ -2849,7 +2852,7 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
 }
-.sheet.choice .switch.on { background: #59d567; }
+.sheet.choice .switch.on { background: var(--blue); }
 .sheet.choice .switch.on i { left: 23px; }
 .sheet .note-sheet, .note-sheet { padding: 0 16px 8px; }
 .xscroll > * { flex: 0 0 auto; }

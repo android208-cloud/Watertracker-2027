@@ -62,7 +62,7 @@
     return '<div class="n-row switch-row" role="switch" aria-checked="' + (onv ? "true" : "false") +
       '" tabindex="0" data-act="' + act + '"' + (val ? ' data-v="' + val + '"' : "") + ">" +
       '<span class="ttl">' + title + (sub ? "<small>" + sub + "</small>" : "") + "</span>" +
-      '<span class="checksq' + (onv ? " on" : "") + '" aria-hidden="true">' + (onv ? TICK : "") + "</span></div>";
+      '<span class="switch' + (onv ? " on" : "") + '" aria-hidden="true"><i></i></span></div>';
   }
   /* v127: заголовок «Цвет графика» даёт раздел модели (chartBlock), тут только строки. */
   function colorHtml() {

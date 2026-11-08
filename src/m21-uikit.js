@@ -717,16 +717,15 @@
       '<span class="' + (o.nameClass || "ttl") + '">' + (o.title || "") +
       (o.sub ? "<small>" + o.sub + "</small>" : "") + "</span>" +
       (o.right || "") +
-      ((o.check || kind === "switch") ? '<span class="checksq' + (o.on ? " on" : "") + '" aria-hidden="true">' +
-        (o.on ? (o.tick || "") : "") + "</span>" : "");
+      ((o.check || kind === "switch") ? '<span class="switch' + (o.on ? " on" : "") + '" aria-hidden="true"><i></i></span>' : "");
     return "<" + tag + attrs + ">" + inner + "</" + tag + ">";
   }
 
   /* Квадратик-кнопка настроек (не метка): нажимается отдельно от строки. */
   function checkBox(on, key, tick, ui) {
-    return '<button type="button" class="checksq' + (on ? " on" : "") +
-      '" data-act="toggle" data-key="' + key + '"' + uiAttr("check", { ui: ui }) + '>' +
-      (on ? (tick || "") : "") + "</button>";
+    return '<button type="button" class="switch' + (on ? " on" : "") +
+      '" data-act="toggle" data-key="' + key + '"' + uiAttr("check", { ui: ui }) +
+      ' role="switch" aria-checked="' + (on ? "true" : "false") + '"><i></i></button>';
   }
 
   /* Ряд миллилитровых чипов (быстрый объём): одна деталь для ряда недавних
