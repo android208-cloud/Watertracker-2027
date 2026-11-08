@@ -4594,7 +4594,7 @@
       save(); render(); return;
     }
 
-    if (act === "do-delete-all") { ui.modal = null; ui.dialogSpec = null; resetAll(); return; }
+    if (act === "do-delete-all") { ui.modal = null; ui.dialogSpec = null; resetAll(); render(); return; }
     if (act === "do-restore-history") { ui.modal = null; ui.dialogSpec = null; restoreHistoryBackup(); return; }
 
     if (act === "open-gender") { ui.modal = "gender"; render(); return; }
@@ -5037,6 +5037,7 @@
       state.drinks = order.map(function (id) { return map[id]; }).filter(Boolean);
       ui.sorting = false;
       save();
+      render();
       toast("Порядок сохранён");
       return;
     }
@@ -5094,6 +5095,7 @@
       ui.page = "drinks";
       ui.nameError = false;
       save();
+      render();
       toast(savedMsg);
       return;
     }

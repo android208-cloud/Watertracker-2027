@@ -65,14 +65,32 @@
     }).join("") + "</nav>";
   }
 
-  /* Тост донора: 2400 мс и тишина (2334–2342, C-015). */
+  /* Тост донора: 2400 мс и тишина (2334–2342, C-015).
+     Появление/исчезновение НЕ зовёт render(): полный рендер пересоздаёт
+     экран и холст воды — анимация лифта дёргалась ровно на тосте
+     (глаз владельца 08.11). Тост — отдельный узел поверх #app,
+     обновляется точечно; состояние shell.toast по-прежнему источник
+     правды для рендеров, случившихся по другим причинам. */
+  function paintToast(shell) {
+    if (typeof document === "undefined" || !document.querySelector) return;
+    var app = document.getElementById("app");
+    if (!app) return;
+    var el = app.querySelector(".toast");
+    if (!shell.toast) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "toast";
+      app.appendChild(el);
+    }
+    if (el.textContent !== shell.toast) el.textContent = shell.toast;
+  }
   function toast(shell, text, render) {
     shell.toast = text;
-    if (render) render();
+    paintToast(shell);
     clearTimeout(shell.toastTimer);
     shell.toastTimer = setTimeout(function () {
       shell.toast = null;
-      if (render) render();
+      paintToast(shell);
     }, 2400);
     if (W.WT2R) W.WT2R.emit("ui:toast", { text: text });
   }

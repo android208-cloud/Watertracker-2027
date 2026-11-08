@@ -117,6 +117,22 @@ const ok = (n, c, x) => { console.log((c ? 'PASS ' : 'FAIL ') + n + (x !== undef
   const t1 = await p.evaluate(() => { document.querySelectorAll('.toast').forEach(e => e.remove()); return window.__tsh.toast; });
   ok('C-015 тост: жил и умер сам (2400 мс)', t0 === true && t1 === null, [t0, t1]);
 
+  // тост не зовёт render: ни появление, ни исчезновение (иначе лифт дёргается)
+  const nr = await p.evaluate(() => {
+    document.querySelectorAll('.toast').forEach(e => e.remove());
+    const sh = window.WT2U.shellState();
+    window.__tsh2 = sh;
+    window.__renders = 0;
+    window.WT2U.toast(sh, 'Без рендера', () => { window.__renders++; });
+    const shown = document.querySelectorAll('.toast').length;
+    const txt = document.querySelector('.toast') ? document.querySelector('.toast').textContent : '';
+    return { shown, txt, renders: window.__renders };
+  });
+  await p.waitForTimeout(2600);
+  const nr2 = await p.evaluate(() => ({ gone: !document.querySelector('.toast'), renders: window.__renders, state: window.__tsh2.toast }));
+  ok('тост без render(): узел сам, рендеров 0 и при показе, и при уходе',
+    nr.shown === 1 && nr.txt === 'Без рендера' && nr.renders === 0 && nr2.gone && nr2.renders === 0 && nr2.state === null, { nr, nr2 });
+
   await b.close();
   console.log(fails ? 'BENCH M20: FAILS=' + fails : 'BENCH M20: ALL GREEN');
   process.exit(fails ? 1 : 0);
