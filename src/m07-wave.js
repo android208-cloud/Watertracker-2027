@@ -219,8 +219,8 @@
      (params() выше): a/w/g — геометрия, карточки — скорость/направление/
      смещение/градиент/прозрачность/интенсивность слоя. Цвета и пояса
      читаются у водителей M08 каждый кадр (их плавные переходы сохраняются). */
-  var splash = 0, lastVis = null;
-  function kick() { splash = 1; }
+  var splash = 0, splashTarget = 0, lastVis = null;
+  function kick() { splashTarget = 1; }
   function toRgba(fill, alpha) {
     var c = rgbOf(fill);
     if (!c) return fill;
@@ -238,10 +238,13 @@
   function canvasState() { return cState; }
 
   function drawCanvas(cv2, t) {
-    var c = cv2.getContext("2d");
+    var c = cv2._wtc || (cv2._wtc = cv2.getContext("2d"));
     if (!c) return;
     var dpr = Math.min(2, window.devicePixelRatio || 1);
-    var cw = cv2.clientWidth, ch = cv2.clientHeight;
+    if (!cv2._cw || (cState.frame + (cv2._ph = (cv2._ph || 0) + 1)) % 30 === 0) {
+      cv2._cw = cv2.clientWidth; cv2._ch = cv2.clientHeight; cv2._shade = null;
+    }
+    var cw = cv2._cw, ch = cv2._ch;
     if (!cw || !ch) return;
     if (cv2.width !== Math.round(cw * dpr) || cv2.height !== Math.round(ch * dpr)) {
       cv2.width = Math.round(cw * dpr); cv2.height = Math.round(ch * dpr);
@@ -295,11 +298,14 @@
       c.save();
       bodyPath(base, amp, lamL, dirSign, omega, phase, bottom);
       c.clip();
-      var g2 = c.createLinearGradient(0, base, 0, bottom);
-      g2.addColorStop(0, "rgba(255,255,255,0.10)");
-      g2.addColorStop(0.22, "rgba(255,255,255,0)");
-      g2.addColorStop(1, "rgba(5,18,32,0.30)");
-      c.fillStyle = g2; c.fillRect(0, Math.max(0, base - amp), cw, bottom);
+      if (!cv2._shade) {
+        var g2 = c.createLinearGradient(0, 0, 0, ch);
+        g2.addColorStop(0, "rgba(255,255,255,0.10)");
+        g2.addColorStop(0.22, "rgba(255,255,255,0)");
+        g2.addColorStop(1, "rgba(5,18,32,0.30)");
+        cv2._shade = g2;
+      }
+      c.fillStyle = cv2._shade; c.fillRect(0, Math.max(0, base - amp), cw, bottom);
       c.restore();
     }
     function crestLight(base, amp, lamL, dirSign, omega, phase) {
@@ -328,44 +334,45 @@
         if (!on) return topY;
         return surfY(x, topY, aEdge * (1 + splash), lam, t, bIdx % 2 ? 1 : -1, Math.PI * 2 / 9, bIdx * 1.3);
       }
-      for (var k = 0; k < belts.length; k++) {
-        var topY = topOff + belts[k].from * spanH;
-        var botY = (k + 1 < belts.length) ? topOff + belts[k + 1].from * spanH : topOff + spanH;
-        var bcol = (liveBelts && liveBelts[k]) || belts[k].c;
-        c.beginPath();
-        var stp = Math.max(2, cw / 160);
-        for (var bx = 0; bx <= cw; bx += stp) {
-          var by = seamY(bx, topY, k);
-          if (bx === 0) c.moveTo(bx, by); else c.lineTo(bx, by);
+      /* непрерывный переход цветов по всей высоте жидкости (слово владельца
+         08.11 «избавиться от чёткого деления»): цвет в точке — смесь цветов
+         соседних поясов, растушёвка от центра одного пояса к центру другого;
+         отдельных полос и швов внутри жидкости больше нет. */
+      function beltRgbAt(f) {
+        function colOf(k2) { return rgbOf((liveBelts && liveBelts[k2]) || belts[k2].c) || [128, 128, 128]; }
+        if (f <= belts[0].to) return colOf(0);
+        for (var k2 = 1; k2 < belts.length; k2++) {
+          if (f <= belts[k2].to || k2 === belts.length - 1) {
+            var cPrev = colOf(k2 - 1), cNext = colOf(k2);
+            var midPrev = (belts[k2 - 1].from + belts[k2 - 1].to) / 2;
+            var midNext = (belts[k2].from + belts[k2].to) / 2;
+            var u = Math.max(0, Math.min(1, (f - midPrev) / Math.max(0.001, midNext - midPrev)));
+            u = u * u * (3 - 2 * u);
+            return [0, 1, 2].map(function (ch2) { return Math.round(cPrev[ch2] + (cNext[ch2] - cPrev[ch2]) * u); });
+          }
         }
-        for (var rx = cw; rx >= 0; rx -= stp) c.lineTo(rx, seamY(rx, botY, k + 1) + (k + 1 < belts.length ? aEdge : 0));
-        c.closePath();
-        c.fillStyle = bcol; c.fill();
-        depthShade(topY, aEdge, lam, 1, Math.PI * 2 / 9, k * 1.3, botY + aEdge);
+        return colOf(belts.length - 1);
       }
-      /* мягкий переход между поясами: градиентная полоса вдоль волнистого
-         стыка (слово владельца 08.11) вместо жёсткой границы */
-      var blend = Math.max(6, Math.min(30, spanH * 0.12));
-      for (var sk = 1; sk < belts.length; sk++) {
-        var sTop = topOff + belts[sk].from * spanH;
-        var cUp = (liveBelts && liveBelts[sk - 1]) || belts[sk - 1].c;
-        var cDn = (liveBelts && liveBelts[sk]) || belts[sk].c;
-        c.save();
-        c.beginPath();
-        var sb = Math.max(2, cw / 160);
-        for (var sx2 = 0; sx2 <= cw; sx2 += sb) {
-          var sy2 = seamY(sx2, sTop, sk) - blend / 2;
-          if (sx2 === 0) c.moveTo(sx2, sy2); else c.lineTo(sx2, sy2);
-        }
-        for (var sr = cw; sr >= 0; sr -= sb) c.lineTo(sr, seamY(sr, sTop, sk) + blend / 2);
-        c.closePath();
-        c.clip();
-        var sg = c.createLinearGradient(0, sTop - blend / 2, 0, sTop + blend / 2);
-        sg.addColorStop(0, cUp); sg.addColorStop(1, cDn);
-        c.fillStyle = sg;
-        c.fillRect(0, sTop - blend, cw, blend * 2);
-        c.restore();
+      c.save();
+      c.beginPath();
+      var stp2 = Math.max(2, cw / 160);
+      var baseSurf = layerBase(0) + layerAmp(0);
+      for (var gx = 0; gx <= cw; gx += stp2) {
+        var gy = surfY(gx, baseSurf, layerAmp(0), lam, t, 1, Math.PI * 2 / 7, 0);
+        if (gx === 0) c.moveTo(gx, gy); else c.lineTo(gx, gy);
       }
+      c.lineTo(cw, topOff + spanH); c.lineTo(0, topOff + spanH); c.closePath();
+      c.clip();
+      var grad = c.createLinearGradient(0, topOff, 0, topOff + spanH);
+      var SAMPLES = 28;
+      for (var si2 = 0; si2 <= SAMPLES; si2++) {
+        var fc3 = beltRgbAt(si2 / SAMPLES);
+        grad.addColorStop(si2 / SAMPLES, "rgb(" + fc3[0] + "," + fc3[1] + "," + fc3[2] + ")");
+      }
+      c.fillStyle = grad;
+      c.fillRect(0, topOff - ampPx * 2, cw, spanH + ampPx * 2);
+      c.restore();
+      depthShade(baseSurf, layerAmp(0), lam, 1, Math.PI * 2 / 7, 0, topOff + spanH);
       /* гребни ватерлинии — полоски цвета верхнего пояса */
       if (on) {
         for (var li = n - 1; li >= 0; li--) {
@@ -440,10 +447,14 @@
       var vis = (W.WT2W && W.WT2W.visible) ? W.WT2W.visible() : null;
       if (vis != null && lastVis != null) {
         var vel = Math.abs(vis - lastVis);
-        if (vel > 0.02) splash = Math.min(1, splash + vel * 0.06);
+        if (vel > 0.02) splashTarget = Math.min(1, splashTarget + vel * 0.06);
       }
       if (vis != null) lastVis = vis;
-      if (splash > 0.001) splash *= 0.985; else splash = 0;
+      var dt = Math.min(0.05, (now - (tick._p || now)) / 1000); tick._p = now;
+      splashTarget *= Math.exp(-dt / 0.85);
+      if (splashTarget < 0.001) splashTarget = 0;
+      splash += (splashTarget - splash) * Math.min(1, dt * 9);
+      if (splash < 0.001 && !splashTarget) splash = 0;
       var t = now / 1000;
       for (var i = 0; i < list.length; i++) drawCanvas(list[i], t);
       cState.frame++;
