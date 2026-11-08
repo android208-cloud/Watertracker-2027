@@ -9,7 +9,9 @@
    2) границы между поясами вместо плоских смешанных стыков — волнистые:
       каждый стык живёт своим гребнем цвета нижнего пояса, амплитуда 60%
       от ватерлинии, фаза со сдвигом 1300 мс на стык, скорости чередуются.
-   Папка настроек «Волна» — хвост M15; сейчас дефолты донора (a/w/g/sa/sb).
+   Папка настроек «Волна» подключена (слово владельца 08.11): мастер-тумблер,
+   число слоёв, геометрия и карточки слоёв читаются из LiquidColor.waveParams();
+   без модуля цвета — прежние дефолты M07.
    Вектор: только inline-SVG path; ноль растра (дух C-025). */
 (function (W) {
   "use strict";
@@ -54,6 +56,51 @@
   }
   function nowMs() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
 
+  /* Параметры папки «Волна» (LiquidColor — единый источник, как в доноре).
+     waves[i] — карточка слоя i+1: s скорость %, d направление, o смещение %,
+     gd градиент %, op прозрачность %, intensity подмес белого %. */
+  function params() {
+    var fallback = { a: A, w: WV, g: GV, n: 3, waves: [
+      { s: 100, d: 0, o: 0, gd: 0, op: 100, intensity: 100 },
+      { s: 100, d: 1, o: 0, gd: 0, op: 80, intensity: 100 },
+      { s: 100, d: 0, o: 0, gd: 0, op: 45, intensity: 100 } ] };
+    try {
+      var q = W.LiquidColor && W.LiquidColor.waveParams ? W.LiquidColor.waveParams() : null;
+      if (q && isFinite(Number(q.a)) && isFinite(Number(q.w)) && isFinite(Number(q.g))) return q;
+    } catch (e) {}
+    return fallback;
+  }
+  function rgbOf(fill) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(fill || "");
+    if (m) { var n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+    m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(fill || "");
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+  }
+  /* Интенсивность цвета слоя: 100 — полный цвет, 0 — белый (донор v120). */
+  function fillOf(fill, intensity) {
+    var k = Number(intensity);
+    if (!isFinite(k)) k = 100;
+    k = Math.max(0, Math.min(100, k)) / 100;
+    if (k >= 1) return { fill: fill, k: 1 };
+    var c = rgbOf(fill);
+    if (!c) return { fill: fill, k: k };
+    var m = c.map(function (v) { return Math.round(255 + (v - 255) * k); });
+    return { fill: "rgb(" + m.join(",") + ")", k: k };
+  }
+  /* Фазы слоёв: смена скорости не телепортирует гребень — доля цикла слоя
+     сохраняется, эпоха слоя пересчитывается под новый период. */
+  var layerClock = {};
+  function phaseDelay(key, dur, phaseOff) {
+    var now = nowMs(), off = phaseOff || 0;
+    var c = layerClock[key];
+    if (!c) { c = layerClock[key] = { epoch: EPOCH, dur: dur, f: 0 }; }
+    if (c.dur !== dur) { c.epoch = now - c.f * dur - off; c.dur = dur; }
+    var dd = ((now - c.epoch + off) % dur + dur) % dur;
+    c.f = dd / dur;
+    return dd;
+  }
+  var gradSeq = 0;
+
   /* Слой-гребень: div.cat-wave (дрейф) + inline-SVG path (форма и цвет).
      i — номер слоя (кейфреймы/направление донора), dur — период, fill — цвет,
      topPct — верх слоя в % родительского бокса, opac — прозрачность,
@@ -65,8 +112,7 @@
     ensureWaveKeys("-" + loopPct + "%");
     var dur = o.dur != null ? o.dur : WDUR[o.i % 5];
     var rev = (o.rev != null ? o.rev : WDIR[o.i % 5] !== (o.i % 2 === 0 ? 0 : 1));
-    var phase = (nowMs() - EPOCH) + (o.phaseOff || 0);
-    var dd = dur > 0 ? phase % dur : 0;
+    var dd = phaseDelay(o.phaseKey || ("w" + o.i), dur, o.phaseOff || 0);
     var f = dur > 0 ? dd / dur : 0;
     var F = (((o.i % 2 === 0) !== !!rev) ? f : 1 - f);
     var a = o.a != null ? o.a : A;
@@ -78,53 +124,85 @@
     var H = line ? HEAD + 2 * a : BOX + HEAD;
     var Hc = line ? HEAD : BOX + HEAD;
     var hPct = line ? Math.round(H / BOX * 1000) / 10 : 102.4;
+    /* Градиент гребня (карточка слоя): верх кромки растворяется в прозрачность;
+       в поясном режиме фейд не уходит ниже ватерлинии (урок донора v137). */
+    var fc = fillOf(o.fill || "#2ddaf9", o.intensity);
+    var fillAttr = fc.fill, defs = "";
+    var gd = Math.max(0, Math.min(100, Number(o.gd) || 0));
+    if (gd > 0) {
+      var gid = "wtg" + (++gradSeq);
+      var gy1 = HEAD - a;
+      var depth = Math.max(1, (line ? 2 : 20) * a * gd / 100);
+      var gy2 = line ? Math.min(Hc, gy1 + depth) : gy1 + depth;
+      defs = '<defs><linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + gy1 +
+        '" x2="0" y2="' + gy2 + '"><stop offset="0" stop-color="' + fc.fill + '" stop-opacity="0"/>' +
+        '<stop offset="1" stop-color="' + fc.fill + '" stop-opacity="1"/></linearGradient></defs>';
+      fillAttr = "url(#" + gid + ")";
+    }
     return '<div class="cat-wave wt-w' + o.i + '" style="top:' + (Math.round((o.topPct != null ? o.topPct : -HEAD / BOX * 100) * 100) / 100) +
       "%;height:" + hPct + "%;--wt-loop:-" + loopPct + "%;animation:wt-wd-" + (o.i % 5) + " " + Math.round(dur) + "ms linear infinite;animation-delay:-" + Math.round(dd) + "ms" +
       (rev ? ";animation-direction:reverse" : "") +
       ";transform:translateX(calc(var(--wt-loop, -50%) * " + F.toFixed(4) + "))" +
       (o.opac != null ? ";opacity:" + o.opac : "") + '">' +
-      '<svg class="cat-wave-in" viewBox="0 0 ' + WW + " " + H + '" preserveAspectRatio="none" aria-hidden="true">' +
-      '<path d="' + crest + " L" + WW + " " + Hc + " L0 " + Hc + ' Z" fill="' + (o.fill || "#2ddaf9") + '"' +
+      '<svg class="cat-wave-in" viewBox="0 0 ' + WW + " " + H + '" preserveAspectRatio="none" aria-hidden="true">' + defs +
+      '<path d="' + crest + " L" + WW + " " + Hc + " L0 " + Hc + ' Z" fill="' + fillAttr + '"' +
+      (fc.k < 1 ? ' data-wtint="' + fc.k + '"' : '') +
       (o.bi != null ? ' data-bi="' + o.bi + '"' : '') + ' data-wl="1"/></svg></div>';
   }
 
   /* Внутренность слоя подъёма: однотон с гребнями или пояса с волнистыми
      стыками. belts: [{c, from, to}] (доли объёмов, порядок M08). */
   function waterInner(o) {
+    var q = params();
+    var cards = q.waves && q.waves.length ? q.waves : [];
+    var n = Math.max(1, Math.min(5, Math.round(Number(q.n) || cards.length || 1)));
+    function layerFor(idx, fill, close) {
+      var wv = cards[idx] || {};
+      var speed = Math.max(20, Number(wv.s) || 100);
+      return waveLayer({ i: idx, fill: fill, close: close, phaseKey: "wl" + idx,
+        a: q.a, w: q.w, g: q.g,
+        dur: WDUR[idx % 5] * 100 / speed,
+        rev: (Number(wv.d) || 0) !== WDIR[idx % 5],
+        topPct: -HEAD / BOX * 100 + (Number(wv.o) || 0),
+        opac: wv.op == null ? 1 : Math.max(0, Math.min(100, Number(wv.op))) / 100,
+        gd: wv.gd, intensity: wv.intensity });
+    }
+    function waterline(fill, close) {
+      var out = "";
+      for (var idx = n - 1; idx >= 0; idx--) out += layerFor(idx, fill, close);
+      return out;
+    }
     var belts = o.belts && o.belts.length ? o.belts : null;
     if (!belts) {
       var col = o.color || "#2ddaf9";
-      return '<div class="cat-flat" style="background:' + col + '"></div>' +
-        waveLayer({ i: 1, fill: col, opac: 0.8, close: 'box' }) +
-        waveLayer({ i: 2, fill: col, opac: 0.45, close: 'box' }) +
-        waveLayer({ i: 0, fill: col, close: 'box' });
+      return '<div class="cat-flat" style="background:' + col + '"></div>' + waterline(col, 'box');
     }
     var out = '<div class="cat-beltstack" style="height:' + (Math.round(Math.max(0, Number(o.spanPct) || 0) * 100) / 100) + '%">';
-    var aPct = A_EDGE / BOX * 100;
+    var aEdge = Math.max(1, (Number(q.a) || A) * 0.6);
+    var aPct = aEdge / BOX * 100;
     for (var k = 0; k < belts.length; k++) {
       var top = belts[k].from * 100;
       var bottom = (k + 1 < belts.length ? belts[k + 1].from * 100 : 100) + (k + 1 < belts.length ? aPct : 0);
       out += '<div class="cat-beltband" data-bi="' + k + '" style="top:' + (Math.round(top * 100) / 100) + "%;height:" +
         (Math.round((bottom - top) * 100) / 100) + "%;background:" + belts[k].c + '"></div>';
     }
-    /* волнистые стыки: гребень цвета нижнего пояса на границе (слово 05.11) */
+    /* волнистые стыки: гребень цвета нижнего пояса на границе (слово 05.11);
+       геометрия общая с ватерлинией, амплитуда — 60% от неё. */
     for (var b = 0; b < belts.length - 1; b++) {
-      out += waveLayer({ i: 3 + b, dur: WDUR[(3 + b) % 5], fill: belts[b + 1].c, bi: b + 1,
-        topPct: belts[b + 1].from * 100 - HEAD / BOX * 100, a: A_EDGE, phaseOff: b * 1300, opac: 1, close: 'line' });
+      out += waveLayer({ i: 3 + b, dur: WDUR[(3 + b) % 5], fill: belts[b + 1].c, bi: b + 1, phaseKey: "seam" + b,
+        topPct: belts[b + 1].from * 100 - HEAD / BOX * 100, a: aEdge, w: q.w, g: q.g, phaseOff: b * 1300, opac: 1, close: 'line' });
     }
     out += "</div>";
-    /* гребни ватерлинии: задний, средний полупрозрачный, передний */
-    out += waveLayer({ i: 1, fill: belts[0].c, opac: 0.8, close: 'line' }) +
-      waveLayer({ i: 2, fill: belts[0].c, opac: 0.45, close: 'line' }) +
-      waveLayer({ i: 0, fill: belts[0].c, close: 'line' });
+    /* гребни ватерлинии из карточек папки (задние — первыми в разметке) */
+    out += waterline(belts[0].c, 'line');
     return out;
   }
 
-  /* Релизный флаг (слово владельца 05.11): волна не включена в релиз до
-     разбора граблей, увиданных глазом; флаг wt2-waves=1 будит модуль
-     (стенды m07/m08 ставят его сами). */
+  /* Включение — мастер-тумблер папки «Волна» (слово владельца 08.11:
+     папка подключена, технический флаг wt2-waves retired). */
   function enabled() {
-    try { return window.localStorage.getItem("wt2-waves") === "1"; } catch (e) { return false; }
+    try { return !!(W.LiquidColor && W.LiquidColor.waveOn && W.LiquidColor.waveOn()); }
+    catch (e) { return false; }
   }
 
   W.WT2V = {
@@ -133,6 +211,7 @@
     ensureWaveKeys: ensureWaveKeys,
     waveLayer: waveLayer,
     waterInner: waterInner,
+    params: params,
     DEF: { A: A, WV: WV, GV: GV, A_EDGE: A_EDGE, WDUR: WDUR, WDIR: WDIR, HEAD: HEAD, BOX: BOX }
   };
 })(window);

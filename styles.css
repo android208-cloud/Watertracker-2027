@@ -1135,9 +1135,9 @@ font-weight: 600;
 .check svg { width: var(--glyph); height: var(--glyph); }
 /* Атлас-правка владельца 07.11: кнопка времени в «Добавить запись» —
    на 24px левее и 9px ниже, текст крупнее. */
-.sheet.volume[data-ui="sheet.hist-add"] .time-btn { right: 28px; top: 31px; width: 104px; height: 40px; transform: translate(-3px, -4px); }
+.sheet.volume[data-ui="sheet.hist-add"] .time-btn { right: 28px; top: 31px; width: 96px; height: 32px; transform: translate(0, -2px); }
 .sheet.volume[data-ui="sheet.hist-add"] .time-btn > span {
-  font-size: 25px; display: inline-block; transform: translate(-2px, 0);
+  font-size: 20px; display: inline-block; transform: translate(-2px, 0);
   width: 72px; text-align: center;
 }
 /* Атлас-правка владельца (порция 5): полоса действий «Добавить запись» шире на 4px. */
@@ -1355,14 +1355,14 @@ font-weight: 600;
 }
 .hist-ico .ui-mask { width: 22px; height: 22px; }
 .hist-head .grow { flex: 1; }
-.hist-date { color: var(--text); font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.hist-date { color: var(--text); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
 /* v91: дата в заголовке истории — кнопка входа в календарь (спека 26.10.2026). */
 button.hist-date { background: transparent; border: 0; padding: 2px 6px; margin: -2px -6px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
 button.hist-date:active { background: var(--blue-fill); color: #fff; }
 /* v93 (слово владельца 26.10.2026): значок календаря в заголовке истории
    белый, как соседние значки; в светлой теме повторяет цвет текста даты —
    чисто белый на светлом фоне невидим. */
-.hist-cal-ico svg { width: 15px; height: 15px; display: block; color: #fff; }
+.hist-cal-ico svg { width: 22px; height: 22px; display: block; color: #fff; }
 [data-theme="light"] .hist-cal-ico svg { color: #202225; }
 button.hist-date:active .hist-cal-ico svg { color: #fff; }
 .hist-list {
@@ -2195,8 +2195,8 @@ input[type="number"], input[type="time"], input[type="date"], select, .textin {
   font-size: 19.2px;
   gap: 7.2px;
 }
-.sheet.weight .w-date span { color: var(--text); font-weight: 400; font-size: 25px; }
-.sheet.weight .w-date svg { width: 35px; height: 35px; }
+.sheet.weight .w-date span { color: var(--text); font-weight: 400; font-size: 20px; }
+.sheet.weight .w-date svg { width: 26px; height: 26px; }
 .sheet.weight.set-weight { padding-top: 18px; }
 .sheet.weight.set-weight .sheet-actions { height: 92px; }
 .sheet.weight.set-weight .check.center { top: 10px; }

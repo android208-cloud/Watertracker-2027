@@ -1,6 +1,6 @@
 /* Смоук живых цветов (модули liquid-color/chart-color перенесены из донора).
-   Гейты: строки блоков видны (liqBlock/bubBlock/chartBlock), волновой ряд
-   сидит (отложен словом), акт liq-mode меняет цвет орба, chart-on красит
+   Гейты: строки блоков видны (liqBlock/bubBlock/chartBlock), папка «Волна»
+   подключена, акт liq-mode меняет цвет орба, chart-on красит
    столбцы одним цветом, экспорт настроек на месте, консоль чиста. */
 const { chromium } = require('/home/user/pw/node_modules/playwright');
 const fs = require('fs');
@@ -50,7 +50,7 @@ function ok(cond, name) {
   ok(await p.evaluate(() => !!(window.LiquidColor && window.LiquidColor.act && window.LiquidColor.color)), 'L1 LiquidColor на борту');
   ok(await p.evaluate(() => !!(window.ChartColor && window.ChartColor.act && window.ChartColor.color)), 'L1 ChartColor на борту');
 
-  /* L2: настройки «Внешний вид»: блоки цвета видны, волновой ряд сидит */
+  /* L2: настройки «Внешний вид»: блоки цвета видны, папка «Волна» живая */
   await p.click('[data-tab="settings"]');
   await p.waitForTimeout(300);
   await p.click('[data-act="open-look"]');
@@ -59,9 +59,14 @@ function ok(cond, name) {
   ok(lookHtml.indexOf('data-act="liq-mode"') >= 0, 'L2 строки режима цвета видны');
   ok(lookHtml.indexOf('data-act="liq-bubcol"') >= 0, 'L2 строка «пузырьки в цвет» видна');
   ok(lookHtml.indexOf('data-act="chart-on"') >= 0, 'L2 строка «график тем же цветом» видна');
-  ok(lookHtml.indexOf('data-act="lc-export"') < 0, 'L2 экспорт настроек спит вместе с волновым блоком');
-  ok(lookHtml.indexOf('data-act="liq-wave"') < 0, 'L2 волновой ряд сидит (отложен)');
-  ok(lookHtml.indexOf('data-act="open-folder-wave"') < 0, 'L2 дверь «Волна» по-прежнему не рисуется');
+  ok(lookHtml.indexOf('data-act="lc-export"') < 0, 'L2 экспорт настроек живёт внутри папки «Волна»');
+  ok(lookHtml.indexOf('data-act="open-folder-wave"') >= 0, 'L2 дверь «Волна» рисуется (папка подключена)');
+  await p.click('[data-act="open-folder-wave"]');
+  await p.waitForTimeout(400);
+  const waveHtml = await p.content();
+  ok(waveHtml.indexOf('data-act="liq-wave"') >= 0, 'L2 внутри папки — мастер-тумблер волны');
+  ok(waveHtml.indexOf('data-liq-p="waveN"') >= 0, 'L2 внутри папки — «Число волн»');
+  ok(waveHtml.indexOf('data-act="lc-export"') >= 0, 'L2 внутри папки — экспорт настроек');
 
   /* L3: смена режима перекрашивает орб */
   const orbColor = async () => {

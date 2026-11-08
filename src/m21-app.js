@@ -82,7 +82,7 @@
     return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
   }
   /* v-live: окружение пака: оформление жидкости едет с базой и возвращается
-     (донор 5977 importState / 6005 store). Волна внутри lc спит до слова. */
+     (донор 5977 importState / 6005 store), включая настройки волны. */
   function lcEnv() {
     return {
       lcStore: function () { return window.LiquidColor && LiquidColor.store ? LiquidColor.store() : null; },
@@ -973,7 +973,7 @@
           ? (function () { var rrL = LiquidColor.ramp(state, waterToday(), level); return rrL && !rrL.flat ? rrL.colors : null; })()
           : (rampB.flat ? null : (Bc().visibleRamp() || rampB.colors)),
         /* пояса донорской рампы: стыки {c, from, to} — вода красится полосами,
-           как в доноре (1551-1552), пока волновой модуль спит без своих поясов */
+           как в доноре (1551-1552): пояса едят и волновой, и плоский режим */
         belts: (window.LiquidColor && LiquidColor.ramp && LiquidColor.mode && LiquidColor.mode() === "belt")
           ? (function () {
               var rrL = LiquidColor.ramp(state, waterToday(), level);
@@ -3460,13 +3460,9 @@
     var SM = window.SettingsModel;
     if (!SM || SM.__wt2Wrapped) return SM;
     var SEAT_IDS = {
-      animation: 1, warnExceed: 1, waveBox: 1,
-      wave: 1 }; /* волна отложена словом владельца 07.11 */
+      animation: 1, warnExceed: 1 };
     function seatCustom(r) {
-      if (!r || r.type !== "custom") return false;
-      /* живые цвета перенесены (модуль шага 2): liqBlock/bubBlock/chartBlock живые;
-         волновой ряд сидит до слова владельца о волне. */
-      if (r.custom === "wave") return true;
+      /* живые цвета и волна перенесены: liqBlock/bubBlock/chartBlock/wave живые. */
       return false;
     }
     function mark(cat) {
@@ -5708,8 +5704,8 @@
     };
     if (W.WT2X) W.WT2X.bind(env);
     /* Донор app.js:10194: раскладка значков проекта применяется до первого рендера. */
-    /* v99 донора: применение в модуле цвета перерисовывает воду; рейз скоростей
-       волны не зовём — волна отложена словом владельца 07.11. */
+    /* v99 донора: применение в модуле цвета перерисовывает воду; фазы слоёв
+       при смене скорости M07 сохраняет сам (кэш фаз по слоям). */
     if (window.LiquidColor && LiquidColor.onChange) LiquidColor.onChange(function () { render(); });
     adoptProjectLayout(function () { adoptProjectSkin(function () { render(); }); });
     /* Загрузочные шаги донора: разрешение на уведомления, облако, сверка слотов. */

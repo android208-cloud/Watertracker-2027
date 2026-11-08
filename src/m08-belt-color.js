@@ -109,9 +109,22 @@
     var css = "rgb(" + colVis.map(Math.round).join(",") + ")";
     var flats = document.querySelectorAll(".cat-art .cat-flat, .wt-orb .cat-flat");
     for (var i = 0; i < flats.length; i++) flats[i].style.background = css;
-    /* M07: гребни ватерлинии без поясного индекса красит водитель цвета. */
+    /* M07: гребни ватерлинии без поясного индекса красит водитель цвета.
+       Интенсивность слоя (data-wtint) подмешивает белый, как в папке «Волна»;
+       градиентный гребень не затираем заливкой — красим его стопы. */
     var crs = document.querySelectorAll(".wt-orb path[data-wl]:not([data-bi]), .cat-art path[data-wl]:not([data-bi])");
-    for (var k = 0; k < crs.length; k++) crs[k].setAttribute("fill", css);
+    for (var k = 0; k < crs.length; k++) {
+      var pth = crs[k], kk = parseFloat(pth.getAttribute("data-wtint"));
+      var col = isFinite(kk) && kk < 1
+        ? "rgb(" + colVis.map(function (v) { return Math.round(255 + (v - 255) * kk); }).join(",") + ")" : css;
+      var fill = pth.getAttribute("fill") || "";
+      var gm = /^url\(#([A-Za-z0-9_-]+)\)$/.exec(fill);
+      var grad = gm && pth.ownerSVGElement ? pth.ownerSVGElement.querySelector("#" + gm[1]) : null;
+      if (grad) {
+        var stops = grad.querySelectorAll("stop");
+        for (var si = 0; si < stops.length; si++) stops[si].setAttribute("stop-color", col);
+      } else pth.setAttribute("fill", col);
+    }
   }
   function stepColorVis() {
     colRaf = requestAnimationFrame(function () {

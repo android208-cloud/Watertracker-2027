@@ -1,7 +1,7 @@
 /* Смоук M25 (sLayout): донорская машина настроек в next.
    Проверяет словом и делом: страницы (главная/Внешний вид/Дополнительно/
    Уведомления/структура), сид-места (строки неприехавших модулей не видны,
-   дверь «Волна» не рисуется), пикеры донора (пол/норма/тема), возвраты,
+   дверь «Волна» рисуется), пикеры донора (пол/норма/тема), возвраты,
    «Удалить все данные». Снимки — bench/shots/m25/ (вне коммитов). */
 const { chromium } = require('/home/user/pw/node_modules/playwright');
 const fs = require('fs');
@@ -87,7 +87,7 @@ function ok(cond, name) {
   await click(p, '[data-act="open-look"]');
   ok((await p.evaluate(() => window.__waterApp.ui.page)) === 'look', 'ui.page === look');
   ok(await has(p, '[data-act="open-theme"]'), 'строка темы здесь');
-  ok(!(await has(p, '[data-act="open-folder-wave"]')), 'дверь «Волна» не рисуется (0 живых строк)');
+  ok(await has(p, '[data-act="open-folder-wave"]'), 'дверь «Волна» рисуется (папка подключена)');
   ok(!(await has(p, '[data-key="animation"]')), 'анимация — сид-место');
   await shot(p, 'look');
   await click(p, 'header [data-act="back"]');

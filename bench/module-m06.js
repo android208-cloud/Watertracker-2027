@@ -80,7 +80,9 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
   ok('круг: отступ до краёв = А–Б (--f), центр на линии И, форма круг',
     Math.abs(orb.left - orb.f) <= 1 && Math.abs(orb.right - orb.f) <= 1 && Math.abs(orb.cy - orb.sceneCy) <= 2 && orb.sq, orb);
 
-  /* 3. однотон: одна краска = взвешенная смесь цветов дня */
+  /* 3. однотон: одна краска = взвешенная смесь цветов дня.
+     Водитель цвета идёт плавно (1,5 с) — сверяем финальную краску. */
+  await p.waitForTimeout(1600);
   const col = await p.evaluate(() => {
     const st = window.__waterApp.state;
     const want = window.WT2W.liquidColor(st);

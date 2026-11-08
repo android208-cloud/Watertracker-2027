@@ -72,7 +72,7 @@ src/m07-wave.js: три гребня ватерлинии (задний/сред
 периоды и запечённый дрейф wt-wd-N) плюс волнистые границы поясов амплитудой
 60% сOwnymi фазами (слово 05.11 «промежуточные слои»); поясной режим замыкает
 гребни на базовой линии, однотон — до дна. Всё движение — композитор.
-Стенд bench/module-m07.js 5/5. [ГОТОВ, в релизе спит за флагом wt2-waves=1 до разбора граблей, слово 05.11]
+Стенд bench/module-m07.js 7/7. [ГОТОВ, папка «Волна» подключена 08.11: включение и параметры — LiquidColor.waveParams(), флаг wt2-waves retired]
 
 ## M24 — iface: интерфейсный пак и студия интерфейса (контракт C-032)
 v2 (слово 06.11): свои оси владельца (X…/Y…, зелёные, кнопки «+ось»,
@@ -494,16 +494,16 @@ paceAnchor при whenGoalMet; строки донора settings-ui 923) в П�
   * performAction-гварды LiquidColor.act / ChartColor.act перед «goto»
     (донор app.js 8310-8312);
   * орб (m21 homeHtml): цвет LiquidColor.color, пояса LiquidColor.ramp
-    (top/rampColors/belts {c,from,to}) в waterHtml m06 — волновые параметры
-    (waveOn/waveParams/smooth/пузырьки) не подключены;
+    (top/rampColors/belts {c,from,to}) в waterHtml m06; волновые параметры
+    (waveOn/waveParams) с 08.11 подключены к M07;
   * столбцы графика: m11 colHtml — однотон из ChartColor.color
     (донор 2699-2702), state через __waterApp (модуль чист от state);
   * onChange-хук в boot: render() без rebaseWaveSpeeds (донор 10206);
   * мост пака: lcEnv() (m21) — exportPack lc: LiquidColor.store(),
     applyPack importLc: LiquidColor.importState (донор 5977/6005); настройки
     из пака едут только с env.withSettings (облачная линия M09, спит).
-- Сиды: liqBlock/bubBlock/chartBlock сняты (модули приехали); wave добавлен
-  в SEAT_IDS — волновой ряд и дверь «Волна» не рисуются до слова владельца.
+- Сиды: liqBlock/bubBlock/chartBlock сняты (модули приехали); wave жил в
+  SEAT_IDS до слова владельца 08.11 — теперь папка и дверь «Волна» рисуются.
   Пузырьки воды в next отсутствуют (линия волны): строка «Пузырьки в цвет»
   живая, её цвет применится с волной; экспорт lc-export живёт в волновом
   блоке и спит вместе с ним.
