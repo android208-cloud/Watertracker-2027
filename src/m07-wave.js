@@ -344,6 +344,30 @@
       c.fillStyle = cv2._shade; c.fillRect(0, Math.max(0, base - amp), cw, bottom);
       c.restore();
     }
+    /* Световая плёнка по гребню: в однотоне волна того же цвета, что тело,
+       одним силуэтом движение почти не читается (глаз владельца 08.11:
+       «если добавлять только воду, анимации волны нет»). Тонкая светлая
+       полоса вдоль поверхности делает дрейф видимым, геометрию и настройки
+       слоёв не меняя. */
+    function crestFilm(base, amp, lamL, dirSign, omega, phase, op) {
+      if (!(amp > 0)) return;
+      c.save();
+      c.beginPath();
+      var step = Math.max(2, cw / 160);
+      for (var x = 0; x <= cw; x += step) {
+        var y = surfY(x, base, amp, lamL, t, dirSign, omega, phase);
+        if (x === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      for (var rx = cw; rx >= 0; rx -= step)
+        c.lineTo(rx, surfY(rx, base, amp, lamL, t, dirSign, omega, phase) + amp * 1.7);
+      c.closePath();
+      var fg = c.createLinearGradient(0, base - amp, 0, base + amp * 1.7);
+      fg.addColorStop(0, "rgba(255,255,255," + (0.34 * op).toFixed(3) + ")");
+      fg.addColorStop(1, "rgba(255,255,255,0)");
+      c.fillStyle = fg;
+      c.fill();
+      c.restore();
+    }
     function crestLight(base, amp, lamL, dirSign, omega, phase) {
       c.save();
       c.beginPath();
@@ -486,6 +510,7 @@
       c.fill();
       if (idx === 0) {
         depthShade(base, amp, lam, sign, Math.PI * 2 / (dur / 1000), 0, ch);
+        crestFilm(base, amp, lam, sign, Math.PI * 2 / (dur / 1000), 0, Math.max(0.35, op));
         crestLight(base, amp, lam, sign, Math.PI * 2 / (dur / 1000), 0);
       }
     }

@@ -196,6 +196,12 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   ok('дефолт папки = настройки владельца 08.11: 1 волна 12/300/238, 180%, градиент 60, прозрачность 45, интенсивность 75',
     fresh.n === 1 && fresh.layers === 1 && fresh.a === 12 && fresh.w === 300 && fresh.g === 238 &&
     fresh.w1.s === 180 && fresh.w1.d === 0 && fresh.w1.gd === 60 && fresh.w1.op === 45 && fresh.w1.intensity === 75, fresh);
+  const el5 = await p5.$('.wt-orb canvas.wt-wave-c');
+  const f1 = await el5.screenshot();
+  await p5.waitForTimeout(800);
+  const f2 = await el5.screenshot();
+  ok('одна вода, настройки владельца: волна зримо движется (кадры холста разные)',
+    Buffer.compare(f1, f2) !== 0);
   await c5.close();
 
   /* градиент карточки: фейд не глубже кромки (<= 2a), гребень не съеден */
