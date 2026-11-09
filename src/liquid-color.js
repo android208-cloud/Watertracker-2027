@@ -343,7 +343,7 @@
       '" value="' + val + '" data-liq-p="' + key + '" aria-label="' + title + '"><b class="liq-sl-val">' + val + '</b></span></div>';
   }
   function clampP(key) {
-    var lim = { waveA: [4, 24, 12], waveW: [60, 300, 300], waveG: [60, 300, 238], waveSA: [20, 300, 100], waveSB: [20, 300, 100],
+    var lim = { waveA: [2, 48, 12], waveW: [40, 1200, 300], waveG: [40, 1200, 238], waveSA: [20, 300, 100], waveSB: [20, 300, 100],
     waveN: [1, 5, 1],
     waveGD1: [0, 100, 60], waveGD2: [0, 100, 60], waveGD3: [0, 100, 60], waveGD4: [0, 100, 60], waveGD5: [0, 100, 60],
     waveOP1: [0, 100, 45], waveOP2: [0, 100, 100], waveOP3: [0, 100, 100], waveOP4: [0, 100, 100], waveOP5: [0, 100, 100],
@@ -388,9 +388,9 @@
     out += row("Волны прототипа", "Как в прототипе: до пяти слоёв-гребней дрейфуют друг над другом", "lc-engine", store.waveEngine === "proto", "proto");
     out += row("WebGL", "Шейдерная волна: блики, рябь и свет на поверхности считает видеокарта", "lc-engine", store.waveEngine === "webgl", "webgl");
     out += slider("Число волн", "waveN", 1, 5, 1, n, "1–5: слои воды от передней к задним");
-    out += slider("Высота гребня", "waveA", 4, 24, 2, clampP("waveA"));
-    out += slider("Ширина гребня", "waveW", 60, 300, 2, clampP("waveW"));
-    out += slider("Расстояние между волнами", "waveG", 60, 300, 2, clampP("waveG"));
+    out += slider("Высота гребня", "waveA", 2, 48, 1, clampP("waveA"), "прототип: 4–24; шире — гребень выше прототипного максимума");
+    out += slider("Ширина гребня", "waveW", 40, 1200, 5, clampP("waveW"), "прототип: 60–300; шире — волна реже, чем в прототипе");
+    out += slider("Расстояние между волнами", "waveG", 40, 1200, 5, clampP("waveG"), "прототип: 60–300; шире — волна реже, чем в прототипе");
     out += row("Мягкие переходы между слоями", "Выключено — границы слоёв напитков чёткие", "lc-wblend", store.waveBlend !== false);
     /* v120: экспорт настроек воды и волны — JSON владельцу для пересылки. */
     out += '<div class="n-row switch-row" role="button" tabindex="0" data-act="lc-export"><span class="ttl">Скопировать настройки' +

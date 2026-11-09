@@ -344,6 +344,23 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
     glOff.flat && glOff.layers === 0 && Buffer.compare(o1, o2) === 0, glOff);
   await c12.close();
 
+  /* расширенные диапазоны папки (слово владельца 09.11: точное
+     соответствие прототипу в движке прототипа): значения за старыми
+     потолками 24/300/300 не срезаются */
+  const c13 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c13.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'proto', waveA: 40, waveW: 970, waveG: 1100 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p13 = await c13.newPage();
+  p13.on('pageerror', e => errs.push(e.message));
+  await p13.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p13.waitForFunction(() => window.__waterApp && window.LiquidColor);
+  const wide = await p13.evaluate(() => {
+    const q = window.LiquidColor.waveParams();
+    return { a: q.a, w: q.w, g: q.g };
+  });
+  ok('диапазоны волны расширены: высота 40, ширина 970, расстояние 1100 проходят без среза',
+    wide.a === 40 && wide.w === 970 && wide.g === 1100, wide);
+  await c13.close();
+
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
   await b.close();
   console.log('BENCH M07: ' + (fail ? 'FAILS=' + fail : 'ALL GREEN') + ' (' + pass + '/' + (pass + fail) + ')');
