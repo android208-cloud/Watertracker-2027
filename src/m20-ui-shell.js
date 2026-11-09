@@ -51,7 +51,9 @@
   /* Состояние оболочки: поля донора, только общие (экранное наполнение — модули). */
   function shellState() {
     return { tab: "home", page: null, modal: null, dialog: null, sheet: null,
-      sheetLeaving: false, openSwipe: null, toast: null, toastTimer: null };
+      sheetLeaving: false, openSwipe: null, toast: null, toastTimer: null,
+      /* редактор SVG (оживлён 09.11): режим, выбор, позиция панели, откат, покраска */
+      svgEdit: false, svgPick: null, svgPanel: null, svgUndo: [], paintMode: false };
   }
 
   /* Навигация донора: пять табов, порядок закрепён (3771–3783). */

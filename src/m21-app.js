@@ -3963,6 +3963,12 @@
         title: esc(d.title || ""), body: d.body || "<p>" + esc(d.text || "") + "</p>",
         actions: d.actions || [{ act: "dialog-cancel", label: "Отмена" }, { act: d.okAct || "dialog-ok", label: d.ok || "Готово" }] });
     }
+    /* Редактор SVG (донор 4275–4278, оживлён 09.11): кнопка ✎ при включённом
+       тумблере в «Дополнительно», панель — в режиме редактирования. */
+    if (state.svgEditor) {
+      out += '<button type="button" class="svg-edit-fab' + (ui.svgEdit ? " on" : "") + '"' + svgFabStyle() + ' data-act="toggle-svg-edit" data-svg-editor="1" aria-label="Режим редактора SVG">✎</button>';
+      if (ui.svgEdit) out += svgPanelHtml();
+    }
     return out;
   }
 
@@ -4283,6 +4289,459 @@
     return out;
   }
 
+  /* ===== Редактор SVG: интерактив (донор app.js 6272–6560, 6967–7290;
+     оживлён 09.11 по слову владельца). Донорский pushSvgLayout (отправка
+     раскладки на dev-сервер) заменён обычным save(): раскладка живёт в
+     состоянии и уезжает с базой/проектом, как остальные правки. ===== */
+  function pushSvgUndo() {
+    if (!ui.svgUndo) ui.svgUndo = [];
+    ui.svgUndo.push(cloneSvgLayout(state.svgLayout));
+    if (ui.svgUndo.length > 40) ui.svgUndo.shift();
+    var btn = document.querySelector("[data-act='svg-undo']");
+    if (btn) btn.disabled = false;
+  }
+
+  function svgKeyLabel(key) {
+    if (!key) return "Нажмите на значок";
+    var tail = key.split("/").pop() || key;
+    return tail.length > 26 ? tail.slice(-26) : tail;
+  }
+
+  function svgPickedEl() {
+    if (!ui.svgPick) return null;
+    var found = null;
+    document.querySelectorAll("[data-svg-key]").forEach(function (el) {
+      if (el.dataset.svgKey === ui.svgPick) found = el;
+    });
+    return found;
+  }
+
+  function readSvgBox(el) {
+    var key = el && el.dataset.svgKey;
+    var saved = key && state.svgLayout && state.svgLayout[key];
+    var scale = viewScale();
+    var rect = el.getBoundingClientRect();
+    var w = saved && saved.w > 0 ? saved.w : Math.max(8, Math.round(rect.width / scale));
+    var h = saved && saved.h > 0 ? saved.h : Math.max(8, Math.round(rect.height / scale));
+    return {
+      dx: saved ? Math.round(saved.dx || 0) : 0,
+      dy: saved ? Math.round(saved.dy || 0) : 0,
+      w: Math.round(w),
+      h: Math.round(h),
+      rot: saved ? Math.round(saved.rot || 0) : 0,
+      mx: saved && saved.mx === -1 ? -1 : 1,
+      my: saved && saved.my === -1 ? -1 : 1
+    };
+  }
+
+  function markSvgPick(el) {
+    document.querySelectorAll(".svg-picked").forEach(function (node) {
+      if (node !== el) node.classList.remove("svg-picked");
+    });
+    if (el) el.classList.add("svg-picked");
+  }
+
+  var SVG_FILES = ["add.svg", "alcohol.svg", "appIcon.svg", "apple_juice.svg", "apple_juice_carton.svg", "arrow.svg", "arrow_forward.svg", "autorenew.svg", "beer.svg", "beer_barrels.svg", "beer_bottles.svg", "bottle.svg", "brandy.svg", "can.svg", "champagne.svg", "check.svg", "cocktail.svg", "coffee_cup.svg", "coffee_mug.svg", "drop.svg", "energy_drink.svg", "equalizer.svg", "extra_dry_martini.svg", "fiero_martini.svg", "fruit_drink.svg", "ice_tea.svg", "kettlebell.svg", "lemon_juice.svg", "lemonade.svg", "milk.svg", "milk_carton.svg", "notifications.svg", "orange_juice.svg", "pencil.svg", "pineapple_cocktail.svg", "port_wine.svg", "punch.svg", "refresh.svg", "restore.svg", "sake.svg", "settings.svg", "shaker.svg", "smoothie.svg", "soda.svg", "sunEveryday.svg", "sunHot.svg", "sunWarm.svg", "sunrise.svg", "tea.svg", "time.svg", "vodka.svg", "water_bottle.svg", "whiskey.svg", "white_drop.svg", "wine.svg"];
+
+  function appPoint(el) {
+    var app = document.getElementById("app");
+    if (!app || !el) return { x: 0, y: 0 };
+    var scale = viewScale();
+    var er = el.getBoundingClientRect();
+    var ar = app.getBoundingClientRect();
+    return {
+      x: Math.round((er.left - ar.left) / scale),
+      y: Math.round((er.top - ar.top) / scale)
+    };
+  }
+
+  function writeSvgFields(box, el) {
+    var panel = document.querySelector(".svg-panel");
+    if (!panel) return;
+    ["dx", "dy", "w", "h", "rot"].forEach(function (name) {
+      var input = panel.querySelector('[data-svg-field="' + name + '"]');
+      if (!input || document.activeElement === input) return;
+      input.value = box ? Math.round(box[name] || 0) : "";
+    });
+    var g = el ? appPoint(el) : null;
+    ["gx", "gy"].forEach(function (name) {
+      var input = panel.querySelector('[data-svg-field="' + name + '"]');
+      if (!input || document.activeElement === input) return;
+      input.value = g ? g[name === "gx" ? "x" : "y"] : "";
+    });
+  }
+
+  function syncSvgFileSelect(el) {
+    var panel = document.querySelector(".svg-panel");
+    var select = panel && panel.querySelector("[data-svg-file]");
+    if (!select) return;
+    var file = "";
+    if (el) {
+      var saved = state.svgLayout && state.svgLayout[el.dataset.svgKey];
+      file = (saved && saved.file) || el.dataset.svgOrigin || svgDetectFile(el) || "";
+    }
+    select.disabled = !el;
+    var found = false;
+    Array.prototype.forEach.call(select.options, function (opt) {
+      if (opt.value === file) found = true;
+    });
+    var extra = select.querySelector("option[data-extra]");
+    if (file && !found) {
+      if (!extra) {
+        extra = document.createElement("option");
+        extra.setAttribute("data-extra", "1");
+        select.appendChild(extra);
+      }
+      extra.value = file;
+      extra.textContent = file;
+    } else if (extra && extra.value !== file) {
+      extra.remove();
+    }
+    select.value = file;
+  }
+
+  function syncSvgPanel(el) {
+    var panel = document.querySelector(".svg-panel");
+    if (!panel) return;
+    /* В режиме покраски окно показывает своё содержимое — не затираем. */
+    if (ui.paintMode) return;
+    var name = panel.querySelector(".svg-panel-name");
+    var reset = panel.querySelector("[data-act='svg-reset']");
+    var inputs = panel.querySelectorAll("[data-svg-field]");
+    if (!el) {
+      if (name) name.textContent = ui.svgPick ? "Нет на этом экране" : "Нажмите на значок";
+      inputs.forEach(function (input) { input.disabled = true; input.value = ""; });
+      panel.querySelectorAll("[data-act='svg-mx'], [data-act='svg-my'], [data-act='svg-rot90'], [data-act='svg-rot-90']").forEach(function (btn) {
+        btn.disabled = true;
+        btn.classList.remove("on");
+        if (btn.dataset.act === "svg-mx" || btn.dataset.act === "svg-my") btn.setAttribute("aria-pressed", "false");
+      });
+      if (reset) reset.disabled = true;
+      syncSvgFileSelect(null);
+      return;
+    }
+    var box = readSvgBox(el);
+    var saved = state.svgLayout && state.svgLayout[el.dataset.svgKey];
+    var file = (saved && saved.file) || el.dataset.svgOrigin || svgDetectFile(el) || "встроенный svg";
+    if (name) name.textContent = file;
+    inputs.forEach(function (input) { input.disabled = false; });
+    panel.querySelectorAll("[data-act='svg-mx'], [data-act='svg-my'], [data-act='svg-rot90'], [data-act='svg-rot-90']").forEach(function (btn) {
+      btn.disabled = false;
+      if (btn.dataset.act === "svg-mx" || btn.dataset.act === "svg-my") {
+        var on = btn.dataset.act === "svg-mx" ? box.mx === -1 : box.my === -1;
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      }
+    });
+    writeSvgFields(box, el);
+    syncSvgFileSelect(el);
+    if (reset) reset.disabled = !(saved && (saved.w || saved.dx || saved.dy || saved.file || saved.rot || saved.mx === -1 || saved.my === -1));
+    markSvgPick(el);
+  }
+
+  function selectSvgEl(el) {
+    if (!el) return;
+    ui.svgPick = el.dataset.svgKey;
+    markSvgPick(el);
+    syncSvgPanel(el);
+  }
+
+  function parseSvgField(input) {
+    if (!input) return null;
+    var raw = String(input.value || "").trim();
+    if (raw === "" || raw === "-" || raw === "+") return null;
+    var num = Number(raw);
+    if (!isFinite(num)) return null;
+    return Math.round(num);
+  }
+
+  function fieldsToBox(panel, prev) {
+    function take(name, min) {
+      var num = parseSvgField(panel.querySelector('[data-svg-field="' + name + '"]'));
+      if (num == null) return prev[name];
+      if (min != null && num < min) return prev[name];
+      return num;
+    }
+    return {
+      dx: take("dx"),
+      dy: take("dy"),
+      w: take("w", 8),
+      h: take("h", 8),
+      rot: Math.max(-360, Math.min(360, take("rot") || 0))
+    };
+  }
+
+  var svgPushTimer = 0;
+  function scheduleSvgPush() {
+    save();
+  }
+
+  function applySvgFields(e) {
+    var el = svgPickedEl();
+    var panel = document.querySelector(".svg-panel");
+    if (!el || !panel) return;
+    var field = e && e.target && e.target.dataset.svgField;
+    var prev = readSvgBox(el);
+    var next = fieldsToBox(panel, prev);
+    if (field === "gx" || field === "gy") {
+      var num = parseSvgField(e.target);
+      if (num == null) return;
+      var cur = appPoint(el);
+      next = {
+        dx: field === "gx" ? Math.round(prev.dx + (num - cur.x)) : prev.dx,
+        dy: field === "gy" ? Math.round(prev.dy + (num - cur.y)) : prev.dy,
+        w: prev.w,
+        h: prev.h
+      };
+    }
+    if (sameSvgBox(prev, next)) return;
+    if (!panel._undoPushed) {
+      pushSvgUndo();
+      panel._undoPushed = true;
+    }
+    var saved = state.svgLayout[el.dataset.svgKey];
+    if (saved && saved.file) next.file = saved.file;
+    /* Зеркало живёт кнопками, а не полями: переносим флаги из прежнего бокса. */
+    if (prev.mx === -1) next.mx = -1;
+    if (prev.my === -1) next.my = -1;
+    if (!next.rot) delete next.rot;
+    state.svgLayout[el.dataset.svgKey] = next;
+    applySvgBox(el, next);
+    writeSvgFields(next, el);
+    var reset = panel.querySelector("[data-act='svg-reset']");
+    if (reset) reset.disabled = false;
+    scheduleSvgPush();
+  }
+
+  function applySvgFilePick(e) {
+    var el = svgPickedEl();
+    var panel = document.querySelector(".svg-panel");
+    if (!el || !panel) return;
+    var file = e.target.value;
+    if (file && !/^[A-Za-z0-9_.-]+\.svg$/.test(file)) return;
+    var key = el.dataset.svgKey;
+    var prev = state.svgLayout[key];
+    var origin = el.dataset.svgOrigin || "";
+    if ((prev && prev.file ? prev.file : origin) === (file || origin) && !(prev && prev.file && !file)) return;
+    pushSvgUndo();
+    var box = prev ? {
+      dx: prev.dx || 0,
+      dy: prev.dy || 0,
+      w: prev.w || 0,
+      h: prev.h || 0,
+      rot: prev.rot || 0,
+      mx: prev.mx === -1 ? -1 : 1,
+      my: prev.my === -1 ? -1 : 1
+    } : { dx: 0, dy: 0, w: 0, h: 0 };
+    if (file && file !== origin) box.file = file;
+    if (!box.rot) delete box.rot;
+    if (box.mx === 1) delete box.mx;
+    if (box.my === 1) delete box.my;
+    if (!box.file && !box.dx && !box.dy && !(box.w > 0) && !box.rot && !box.mx && !box.my) delete state.svgLayout[key];
+    else state.svgLayout[key] = box;
+    save();
+    if (!box.file) render();
+    else {
+      applySvgFile(el, file);
+      var name = panel.querySelector(".svg-panel-name");
+      if (name) name.textContent = file;
+      var reset = panel.querySelector("[data-act='svg-reset']");
+      if (reset) reset.disabled = false;
+    }
+  }
+
+  function svgPanelHtml() {
+    var pos = svgPanelStyle();
+    var canUndo = ui.svgUndo && ui.svgUndo.length;
+    var head = '<div class="svg-panel-bar"><span class="svg-panel-grip" aria-hidden="true">⠿</span><span>Редактор</span></div>' +
+      '<div class="svg-panel-tabs"><button type="button" class="' + (ui.paintMode ? "" : "on") + '" data-act="svg-mode" data-v="icon">Значок</button>' +
+      '<button type="button" class="' + (ui.paintMode ? "on" : "") + '" data-act="svg-mode" data-v="paint">Цвет</button></div>';
+    if (ui.paintMode) {
+      var pmap = paintMap();
+      var rows = PAINT_ROLES.filter(function (r) { return pmap[r.id]; }).map(function (r) {
+        return '<div class="paint-row"><span class="paint-sw" style="background:' + pmap[r.id] + '"></span><span class="paint-lb">' + r.label + "</span>" +
+          '<button type="button" data-act="paint-reset" data-v="' + r.id + '" aria-label="Сбросить цвет">×</button></div>';
+      }).join("");
+      return '<div class="svg-panel" data-svg-editor="1"' + pos + ">" + head +
+        '<p class="svg-panel-name">Цвет элемента</p>' +
+        '<p class="svg-panel-note">Нажмите на элемент интерфейса вне окна редактора — откроется выбор цвета для его роли. Само окно редактора не красится.</p>' +
+        (rows ? '<div class="paint-list">' + rows + "</div>" : "") +
+        '<div class="svg-panel-actions"><button type="button" data-act="paint-reset-all"' + (rows ? "" : " disabled") + ">Сбросить всё</button></div></div>";
+    }
+    return '<div class="svg-panel" data-svg-editor="1"' + pos + ">" + head +
+      '<p class="svg-panel-name">Нажмите на значок</p>' +
+      '<p class="svg-panel-note">Сдвиг и размер</p>' +
+      '<div class="svg-panel-grid">' +
+      '<label>X<input type="number" inputmode="decimal" step="1" data-svg-field="dx" aria-label="Сдвиг по горизонтали" disabled></label>' +
+      '<label>Y<input type="number" inputmode="decimal" step="1" data-svg-field="dy" aria-label="Сдвиг по вертикали" disabled></label>' +
+      '<label>Ш<input type="number" inputmode="decimal" step="1" min="8" data-svg-field="w" aria-label="Ширина" disabled></label>' +
+      '<label>В<input type="number" inputmode="decimal" step="1" min="8" data-svg-field="h" aria-label="Высота" disabled></label>' +
+      '</div>' +
+      '<p class="svg-panel-note">Зеркало и поворот</p>' +
+      '<div class="svg-panel-grid">' +
+      '<button type="button" class="svg-xbtn" data-act="svg-mx" aria-pressed="false" aria-label="Отразить по горизонтали" disabled>↔</button>' +
+      '<button type="button" class="svg-xbtn" data-act="svg-my" aria-pressed="false" aria-label="Отразить по вертикали" disabled>↕</button>' +
+      '<label>Угол<input type="number" inputmode="numeric" step="1" min="-360" max="360" data-svg-field="rot" aria-label="Угол поворота, градусы" disabled></label>' +
+      '</div>' +
+      '<div class="svg-panel-actions">' +
+      '<button type="button" data-act="svg-rot-90" disabled>−90°</button>' +
+      '<button type="button" data-act="svg-rot90" disabled>+90°</button>' +
+      '</div>' +
+      '<p class="svg-panel-note">На экране</p>' +
+      '<div class="svg-panel-grid">' +
+      '<label>X<input type="number" inputmode="decimal" step="1" data-svg-field="gx" aria-label="Глобальный X" disabled></label>' +
+      '<label>Y<input type="number" inputmode="decimal" step="1" data-svg-field="gy" aria-label="Глобальный Y" disabled></label>' +
+      '</div>' +
+      '<label class="svg-file">Файл<select data-svg-file disabled><option value="">встроенный</option>' +
+      SVG_FILES.map(function (f) { return '<option value="' + f + '">' + f + "</option>"; }).join("") +
+      '</select></label>' +
+      '<div class="svg-panel-actions">' +
+      '<button type="button" data-act="svg-undo"' + (canUndo ? "" : " disabled") + '>Откат</button>' +
+      '<button type="button" data-act="svg-reset" disabled>Сброс</button>' +
+      '</div></div>';
+  }
+
+  function svgPanelStyle() {
+    var p = ui.svgPanel;
+    if (!p || typeof p.x !== "number" || typeof p.y !== "number") return "";
+    return ' style="left:' + Math.round(p.x) + 'px;top:' + Math.round(p.y) + 'px;right:auto"';
+  }
+
+  function clampPanel(x, y, panel) {
+    var app = document.getElementById("app");
+    var w = app ? app.offsetWidth : 412;
+    var h = app ? app.offsetHeight : 893;
+    var pw = panel ? panel.offsetWidth : 196;
+    var ph = panel ? panel.offsetHeight : 160;
+    return {
+      x: Math.round(Math.max(4, Math.min(w - pw - 4, x))),
+      y: Math.round(Math.max(4, Math.min(h - ph - 4, y)))
+    };
+  }
+
+  function bindSvgPanel() {
+    var panel = document.querySelector(".svg-panel");
+    if (!panel) return;
+    var bar = panel.querySelector(".svg-panel-bar");
+    bar.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var scale = viewScale();
+      var sx = e.clientX;
+      var sy = e.clientY;
+      var ox = panel.offsetLeft;
+      var oy = panel.offsetTop;
+      var dragged = false;
+      function onMove(ev) {
+        if (!dragged && Math.abs(ev.clientX - sx) < 4 && Math.abs(ev.clientY - sy) < 4) return;
+        dragged = true;
+        if (ev.cancelable) ev.preventDefault();
+        var pos = clampPanel(ox + (ev.clientX - sx) / scale, oy + (ev.clientY - sy) / scale, panel);
+        panel.style.left = pos.x + "px";
+        panel.style.top = pos.y + "px";
+        panel.style.right = "auto";
+        ui.svgPanel = pos;
+      }
+      function onUp() {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        if (dragged) {
+          suppressNextClick(250);
+        }
+      }
+      window.addEventListener("pointermove", onMove, { passive: false });
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    });
+    panel.querySelectorAll("[data-svg-field]").forEach(function (input) {
+      input.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+      input.addEventListener("focus", function () { panel._undoPushed = false; });
+      input.addEventListener("input", applySvgFields);
+      input.addEventListener("change", function () {
+        var el = svgPickedEl();
+        if (!el) return;
+        writeSvgFields(readSvgBox(el), el);
+      });
+    });
+    var fileSelect = panel.querySelector("[data-svg-file]");
+    if (fileSelect) {
+      fileSelect.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+      fileSelect.addEventListener("change", applySvgFilePick);
+    }
+    syncSvgPanel(svgPickedEl());
+  }
+
+  function bindPaintPick() {
+    var app = document.getElementById("app");
+    if (!app || app._paintBound) return;
+    app._paintBound = true;
+    function pick(target) {
+      var role = null;
+      for (var i = 0; i < PAINT_PICK.length; i++) {
+        if (target.closest(PAINT_PICK[i][0])) { role = PAINT_PICK[i][1]; break; }
+      }
+      if (!role) {
+        /* В режиме разработчика показываем, кого увидели: это диагностика
+           «ни один элемент не красится» на живых устройствах. */
+        var who = "";
+        if (state.devMode) {
+          who = " [" + String(target.tagName || "?").toLowerCase() +
+            (target.classList && target.classList.length ? "." + Array.prototype.slice.call(target.classList, 0, 2).join(".") : "") + "]";
+        }
+        toast("Этот элемент не красится: его цвет задаёт содержимое" + who);
+        return;
+      }
+      openPaintColor(role);
+    }
+    app.addEventListener("pointerdown", function (e) {
+      if (!(ui.svgEdit && ui.paintMode)) return;
+      /* На странице выбора цвета перехват выключен: иначе режим покраски
+         съедал тапы по палитре и барабану (они не в карте ролей). */
+      if (ui.page === "colors") return;
+      if (e.target.closest("[data-svg-editor]")) return;
+      app._paintPointerTs = Date.now();
+      e.preventDefault();
+      e.stopPropagation();
+      suppressNextClick(800);
+      pick(e.target);
+    }, true);
+    /* Запасной путь для WebView без PointerEvent: настоящий click. */
+    if (!("onpointerdown" in window)) {
+      app.addEventListener("click", function (e) {
+        if (!(ui.svgEdit && ui.paintMode)) return;
+        if (ui.page === "colors") return;
+        if (app._paintPointerTs && Date.now() - app._paintPointerTs < 900) return;
+        if (e.target.closest("[data-svg-editor]")) return;
+        app._paintPointerTs = Date.now();
+        pick(e.target);
+      }, true);
+    }
+  }
+
+  function svgFabStyle() {
+    var p = state && state.svgFab;
+    if (!p || typeof p.x !== "number" || typeof p.y !== "number") return "";
+    return ' style="left:' + Math.round(p.x) + 'px;top:' + Math.round(p.y) + 'px;bottom:auto"';
+  }
+
+  function applyFabPos(el, pos) {
+    el.style.left = pos.x + "px";
+    el.style.top = pos.y + "px";
+    el.style.bottom = "auto";
+  }
+
+  function clampFab(x, y) {
+    var app = document.getElementById("app");
+    var w = app ? app.offsetWidth : 412;
+    var h = app ? app.offsetHeight : 893;
+    return {
+      x: Math.round(Math.max(8, Math.min(w - 52, x))),
+      y: Math.round(Math.max(8, Math.min(h - 52, y)))
+    };
+  }
+
   function adoptProjectLayout(done) {
     var hasLocal = state.svgLayout && Object.keys(state.svgLayout).length;
     fetchT("data/svg-layout.json?t=" + Date.now(), 3000).then(function (r) {
@@ -4326,6 +4785,7 @@
   function initSvgEdit() {
     var app = document.getElementById("app");
     if (!app) return;
+    app.classList.toggle("svg-editing", !!ui.svgEdit);
     if (!state.svgLayout) state.svgLayout = {};
     var seen = {};
     svgEditTargets().forEach(function (el) {
@@ -4341,7 +4801,143 @@
         if (savedBox.w > 0 || savedBox.dx || savedBox.dy || savedBox.rot || savedBox.mx === -1 || savedBox.my === -1) applySvgBox(el, savedBox);
         if (savedBox.file) applySvgFile(el, savedBox.file);
       }
-          });
+      if (!ui.svgEdit) return;
+      el.classList.add("svg-hot");
+      if (ui.svgPick && key === ui.svgPick) el.classList.add("svg-picked");
+      var lastTap = 0;
+      el.addEventListener("pointerdown", function (e) {
+        if (!ui.svgEdit || (e.button != null && e.button !== 0)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        suppressNextClick(1200);
+        var scale = viewScale();
+        var rect = el.getBoundingClientRect();
+        var w = rect.width / scale;
+        var h = rect.height / scale;
+        var saved = state.svgLayout[key] || { dx: 0, dy: 0, w: w, h: h };
+        var box = { dx: saved.dx || 0, dy: saved.dy || 0, w: saved.w || w, h: saved.h || h,
+          rot: saved.rot || 0, mx: saved.mx === -1 ? -1 : 1, my: saved.my === -1 ? -1 : 1 };
+        var mode = (e.clientX > rect.right - 16 * scale && e.clientY > rect.bottom - 16 * scale) ? "resize" : "move";
+        selectSvgEl(el);
+        var x = e.clientX;
+        var y = e.clientY;
+        var moved = false;
+        var undoPushed = false;
+        var now = Date.now();
+        var quick = now - lastTap < 320;
+        lastTap = now;
+        function onMove(ev) {
+          if (ev.cancelable) ev.preventDefault();
+          var dx = (ev.clientX - x) / scale;
+          var dy = (ev.clientY - y) / scale;
+          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+          if (moved && !undoPushed) {
+            pushSvgUndo();
+            undoPushed = true;
+          }
+          if (mode === "resize") {
+            box.w = Math.max(8, (saved.w || w) + dx);
+            box.h = Math.max(8, (saved.h || h) + dy);
+          } else {
+            box.dx = (saved.dx || 0) + dx;
+            box.dy = (saved.dy || 0) + dy;
+          }
+          applySvgBox(el, box);
+          writeSvgFields(box, el);
+        }
+        function onUp() {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+          window.removeEventListener("pointercancel", onUp);
+          suppressNextClick(350);
+          if (!moved && quick) {
+            if (state.svgLayout[key]) pushSvgUndo();
+            delete state.svgLayout[key];
+            save();
+            render();
+            return;
+          }
+          if (!moved) return;
+          var keptFile = state.svgLayout[key] && state.svgLayout[key].file;
+          state.svgLayout[key] = {
+            dx: Math.round(box.dx),
+            dy: Math.round(box.dy),
+            w: Math.round(box.w),
+            h: Math.round(box.h)
+          };
+          if (box.rot) state.svgLayout[key].rot = box.rot;
+          if (box.mx === -1) state.svgLayout[key].mx = -1;
+          if (box.my === -1) state.svgLayout[key].my = -1;
+          if (keptFile) state.svgLayout[key].file = keptFile;
+          writeSvgFields(state.svgLayout[key], el);
+          var resetBtn = document.querySelector(".svg-panel [data-act='svg-reset']");
+          if (resetBtn) resetBtn.disabled = false;
+          save();
+        }
+        window.addEventListener("pointermove", onMove, { passive: false });
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
+      });
+    });
+    var fab = app.querySelector(".svg-edit-fab");
+    if (!fab) return;
+    var holdTimer = null;
+    var held = false;
+    var dragged = false;
+    function cancelHold() { clearTimeout(holdTimer); }
+    fab.addEventListener("pointerdown", function (e) {
+      if (e.button != null && e.button !== 0) return;
+      held = false;
+      dragged = false;
+      fab._sx = e.clientX;
+      fab._sy = e.clientY;
+      fab._ox = fab.offsetLeft;
+      fab._oy = fab.offsetTop;
+      try { fab.setPointerCapture(e.pointerId); } catch (err) {}
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(function () {
+        if (dragged) return;
+        held = true;
+        suppressNextClick(500);
+        if (state.svgLayout && Object.keys(state.svgLayout).length) pushSvgUndo();
+        state.svgLayout = {};
+        ui.svgEdit = false;
+        save();
+        toast("Раскладка рисунков сброшена");
+        render();
+      }, 650);
+    });
+    fab.addEventListener("pointermove", function (e) {
+      if (fab._sx == null) return;
+      var scale = viewScale();
+      var dx = (e.clientX - fab._sx) / scale;
+      var dy = (e.clientY - fab._sy) / scale;
+      if (Math.abs(e.clientX - fab._sx) <= 8 && Math.abs(e.clientY - fab._sy) <= 8) return;
+      cancelHold();
+      dragged = true;
+      e.preventDefault();
+      var pos = clampFab(fab._ox + dx, fab._oy + dy);
+      applyFabPos(fab, pos);
+      fab._pos = pos;
+    });
+    function endFab(e) {
+      cancelHold();
+      if (dragged && fab._pos) {
+        state.svgFab = { x: fab._pos.x, y: fab._pos.y };
+        save();
+        suppressNextClick(500);
+      }
+      if (held) suppressNextClick(500);
+      fab._sx = null;
+      dragged = false;
+      if (e && fab.releasePointerCapture) {
+        try { fab.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+    }
+    fab.addEventListener("pointerup", endFab);
+    fab.addEventListener("pointercancel", endFab);
+    bindSvgPanel();
+    bindPaintPick();
   }
 
   /* Скрытая дорога (слово владельца 07.11): долгое удержание большого
@@ -4529,6 +5125,52 @@
     if (act === "lc-export") { copyLiquidSettings(); return; }
     if (window.LiquidColor && LiquidColor.act(act, t)) { render(); return; }
     if (window.ChartColor && ChartColor.act(act, t)) { render(); return; }
+    /* Редактор SVG (донор 9081–9127, оживлён 09.11). */
+    if (act === "svg-mode") { ui.paintMode = t.dataset.v === "paint"; render(); return; }
+    if (act === "paint-reset") { resetPaint(t.dataset.v); return; }
+    if (act === "paint-reset-all") { resetPaint(null); return; }
+    if (act === "toggle-svg-edit") {
+      ui.svgEdit = !ui.svgEdit;
+      render();
+      return;
+    }
+    if (act === "svg-mx" || act === "svg-my" || act === "svg-rot90" || act === "svg-rot-90") {
+      var tEl = svgPickedEl();
+      if (!tEl) { toast("Сначала нажмите на значок"); return; }
+      pushSvgUndo();
+      var tBox = readSvgBox(tEl);
+      var tNext = { dx: tBox.dx, dy: tBox.dy, w: tBox.w, h: tBox.h, rot: tBox.rot || 0, mx: tBox.mx, my: tBox.my };
+      if (act === "svg-mx") tNext.mx = tNext.mx === -1 ? 1 : -1;
+      else if (act === "svg-my") tNext.my = tNext.my === -1 ? 1 : -1;
+      else tNext.rot = ((tNext.rot + (act === "svg-rot90" ? 90 : -90) + 540) % 360) - 180;
+      if (!tNext.rot) delete tNext.rot;
+      if (tNext.mx === 1) delete tNext.mx;
+      if (tNext.my === 1) delete tNext.my;
+      state.svgLayout[tEl.dataset.svgKey] = tNext;
+      applySvgBox(tEl, tNext);
+      save();
+      syncSvgPanel(tEl);
+      return;
+    }
+    if (act === "svg-undo") {
+      if (!ui.svgUndo || !ui.svgUndo.length) { toast("Нечего откатывать"); return; }
+      state.svgLayout = ui.svgUndo.pop();
+      save();
+      render();
+      return;
+    }
+    if (act === "svg-reset") {
+      var picked = svgPickedEl();
+      if (!picked || !state.svgLayout || !state.svgLayout[picked.dataset.svgKey]) {
+        toast("У этого значка нет сохранённых правок");
+        return;
+      }
+      pushSvgUndo();
+      delete state.svgLayout[picked.dataset.svgKey];
+      save();
+      render();
+      return;
+    }
     if (act === "goto") {
       /* v125 донора (app.js 8314-8317): колокольчик — ярлык: вкладка настроек
          и раскрытая подпапка уведомлений (до отдельной замены колокольчика). */
@@ -5486,7 +6128,7 @@
         state[sysFlag] = !state[sysFlag];
       }
       else if (k === "devMode") state.devMode = !state.devMode;
-      else if (k === "svgEditor") state.svgEditor = !state.svgEditor;
+      else if (k === "svgEditor") { state.svgEditor = !state.svgEditor; if (!state.svgEditor) ui.svgEdit = false; }
       save(); alertsSync(); render(); return;
     }
     if (act === "pick-freq") {
