@@ -84,6 +84,10 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
     st.entries.push({ id: 'e9', date: TD, time: '13:00', drinkId: 'mors', name: 'Морс', icon: 'cup', color: '#e2607a', hydration: 90, volume: 100, credited: 90, createdAt: 9 });
     window.__waterApp.render();
   }, TODAY);
+  await p2b.waitForTimeout(150);
+  const grow0 = await p2b.evaluate(() => window.WT2V.canvasState().beltFrom);
+  ok('добавление без рывка: новый пояс растёт плавно (граница ещё едет к доле)',
+    grow0 && grow0.length === 3 && grow0[2] > 0.95, grow0);
   await p2b.waitForTimeout(600);
   const pink = await p2b.evaluate(() => {
     const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
@@ -97,6 +101,17 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   ok('малый розовый пояс виден чистым ядром (не растворён градиентом)',
     pink.belts === 3 && pink.px[0] > 150 && pink.px[2] > 70 && pink.px[2] < 170 && pink.px[0] > pink.px[1] + 40, pink);
   await c2b.close();
+
+  await p2.evaluate(() => window.LiquidColor.act('lc-wblend', null));
+  await p2.waitForTimeout(500);
+  const hardPx = await p2.evaluate(() => {
+    const st = window.WT2V.canvasState();
+    const fy = 0.03 + (0.667 + 0.03) * (st.span / 100) * (100 / 106);
+    return { blend: window.LiquidColor.waveParams().blend, px: window.__px(0.5, fy) };
+  });
+  ok('тумблер «Мягкие переходы» выключен: под швом чистый цвет нижнего пояса',
+    hardPx.blend === false && hardPx.px[0] > 110 && hardPx.px[2] < 85, hardPx);
+  await p2.evaluate(() => window.LiquidColor.act('lc-wblend', null));
 
   ok('стык поясов мягкий: пиксель на шве — смесь цветов соседних поясов',
     seamPx.px[0] > 80 && seamPx.px[0] < 135 && seamPx.px[2] > 60 && seamPx.px[2] < 200, seamPx);

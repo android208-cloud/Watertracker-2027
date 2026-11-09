@@ -32,6 +32,7 @@
       waveOP1: 45, waveOP2: 80, waveOP3: 45, waveOP4: 30, waveOP5: 20,
       waveINT1: 75, waveINT2: 100, waveINT3: 100, waveINT4: 100, waveINT5: 100,
       waveS1: 180, waveS2: 100, waveS3: 100, waveS4: 100, waveS5: 100,
+      waveBlend: true, /* мягкие переходы между слоями поясов (слово владельца 08.11) */
       waveD1: 0, waveD2: 1, waveD3: 0, waveD4: 1, waveD5: 0,
       waveO1: 0, waveO2: 0, waveO3: 0, waveO4: 0, waveO5: 0,
       bubN: 5, bubS: 8, bubV: 100, bubST: 85, bubX: 50, bubT: 25, bubCol: true };
@@ -385,6 +386,7 @@
     out += slider("Высота гребня", "waveA", 4, 24, 2, clampP("waveA"));
     out += slider("Ширина гребня", "waveW", 60, 300, 2, clampP("waveW"));
     out += slider("Расстояние между волнами", "waveG", 60, 300, 2, clampP("waveG"));
+    out += row("Мягкие переходы между слоями", "Выключено — границы слоёв напитков чёткие", "lc-wblend", store.waveBlend !== false);
     /* v120: экспорт настроек воды и волны — JSON владельцу для пересылки. */
     out += '<div class="n-row switch-row" role="button" tabindex="0" data-act="lc-export"><span class="ttl">Скопировать настройки' +
       "<small>JSON всех настроек цвета, волны и пузырьков — вставить в чат с разработчиком</small></span>" +
@@ -409,6 +411,7 @@
     if (a === "liq-smooth") { store.smooth = !store.smooth; save(); applySmooth(); return true; }
     if (a === "liq-dilute") { store.dilute = !store.dilute; save(); return true; }
     if (a === "liq-wave") { store.wave = store.wave === false; save(); return true; }
+    if (a === "lc-wblend") { store.waveBlend = store.waveBlend === false; save(); return true; }
     if (a === "lc-wd") {
       var wi = t && t.dataset ? Number(t.dataset.v) : 0;
       if (wi >= 1 && wi <= 5) { store["waveD" + wi] = store["waveD" + wi] ? 0 : 1; save(); }
@@ -453,7 +456,7 @@
       for (var i = 1; i <= n; i++) {
         waves.push({ s: clampP("waveS" + i), d: store["waveD" + i] ? 1 : 0, o: clampP("waveO" + i), gd: clampP("waveGD" + i), op: clampP("waveOP" + i), intensity: clampP("waveINT" + i) });
       }
-      return { a: clampP("waveA"), w: clampP("waveW"), g: clampP("waveG"), sa: clampP("waveSA"), sb: clampP("waveSB"), n: n, gd: clampP("waveGD"), waves: waves };
+      return { a: clampP("waveA"), w: clampP("waveW"), g: clampP("waveG"), sa: clampP("waveSA"), sb: clampP("waveSB"), n: n, gd: clampP("waveGD"), waves: waves, blend: store.waveBlend !== false };
     },
     bubbleParams: function () {
       return { n: clampP("bubN"), s: clampP("bubS"), v: clampP("bubV"), st: clampP("bubST"), x: clampP("bubX"), t: clampP("bubT"), col: store.bubCol !== false };

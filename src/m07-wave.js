@@ -220,6 +220,10 @@
      смещение/градиент/прозрачность/интенсивность слоя. Цвета и пояса
      читаются у водителей M08 каждый кадр (их плавные переходы сохраняются). */
   var splash = 0, splashTarget = 0, lastVis = null;
+  /* Память холста между пересозданиями DOM: цвета и доли поясов доезжают
+     плавно (lerp), а не встают финалом в момент render — иначе слои
+     дёргаются при добавлении/отмене порции (глаз владельца 08.11). */
+  var persist = { mono: null, belts: null };
   function kick() { splashTarget = 1; }
   function toRgba(fill, alpha) {
     var c = rgbOf(fill);
@@ -265,28 +269,35 @@
        цвета съезжали на соседний пояс («морс цветом кофе», 08.11).
        Плавность перекраски холст делает сам: lerp к цели каждый кадр. */
     var lerpK = 1 - Math.exp(-(dt || 0.016) / 0.45);
-    function lerpCol(slot, targetCss) {
-      var tg = rgbOf(targetCss);
-      if (!tg) return targetCss;
-      var cur = cv2[slot];
-      if (!cur) { cv2[slot] = tg.slice(); return targetCss; }
-      for (var ci = 0; ci < 3; ci++) cur[ci] += (tg[ci] - cur[ci]) * lerpK;
-      return "rgb(" + Math.round(cur[0]) + "," + Math.round(cur[1]) + "," + Math.round(cur[2]) + ")";
-    }
-    var monoCol = lerpCol("_cm", cv2.getAttribute("data-color") || "#2ddaf9");
+    var monoCol = (function () {
+      var tg = rgbOf(cv2.getAttribute("data-color") || "#2ddaf9");
+      if (!tg) return cv2.getAttribute("data-color") || "#2ddaf9";
+      if (!persist.mono) persist.mono = tg.slice();
+      for (var ci = 0; ci < 3; ci++) persist.mono[ci] += (tg[ci] - persist.mono[ci]) * lerpK;
+      return "rgb(" + Math.round(persist.mono[0]) + "," + Math.round(persist.mono[1]) + "," + Math.round(persist.mono[2]) + ")";
+    })();
     var belts = null;
     try { belts = JSON.parse(cv2.getAttribute("data-belts") || "null"); } catch (e) { belts = null; }
     var liveBelts = null;
     if (belts) {
-      if (!cv2._cb || cv2._cb.length !== belts.length) cv2._cb = belts.map(function () { return null; });
-      liveBelts = belts.map(function (bb, bi) {
+      if (!persist.belts || persist.belts.length !== belts.length) {
+        var prev = persist.belts || [];
+        persist.belts = belts.map(function (bb, bi) {
+          if (prev[bi]) return prev[bi];
+          var tg0 = rgbOf(bb.c) || [128, 128, 128];
+          return { c: tg0.slice(), from: bb.to, to: bb.to }; /* новый пояс растёт из своей нижней границы */
+        });
+      }
+      belts = belts.map(function (bb, bi) {
+        var cur = persist.belts[bi];
         var tg = rgbOf(bb.c);
-        if (!tg) return bb.c;
-        var cur = cv2._cb[bi];
-        if (!cur) { cv2._cb[bi] = tg.slice(); return bb.c; }
-        for (var ci2 = 0; ci2 < 3; ci2++) cur[ci2] += (tg[ci2] - cur[ci2]) * lerpK;
-        return "rgb(" + Math.round(cur[0]) + "," + Math.round(cur[1]) + "," + Math.round(cur[2]) + ")";
+        if (tg) for (var ci2 = 0; ci2 < 3; ci2++) cur.c[ci2] += (tg[ci2] - cur.c[ci2]) * lerpK;
+        cur.from += (bb.from - cur.from) * lerpK;
+        cur.to += (bb.to - cur.to) * lerpK;
+        return { c: "rgb(" + Math.round(cur.c[0]) + "," + Math.round(cur.c[1]) + "," + Math.round(cur.c[2]) + ")", from: cur.from, to: cur.to };
       });
+      liveBelts = belts.map(function (bb) { return bb.c; });
+      cState.beltFrom = belts.map(function (bb) { return Math.round(bb.from * 1000) / 1000; });
     }
     var span = Number(cv2.getAttribute("data-span"));
     if (W.WT2W && W.WT2W.visible && W.WT2W.visible() != null && W.WT2B && W.WT2B.beltSpanPct)
@@ -366,6 +377,10 @@
          в соседях и «не появляется». */
       function beltRgbAt(f) {
         function colOf(k2) { return rgbOf((liveBelts && liveBelts[k2]) || belts[k2].c) || [128, 128, 128]; }
+        if (q.blend === false) {
+          for (var k4 = 0; k4 < belts.length; k4++) if (f <= belts[k4].to || k4 === belts.length - 1) return colOf(k4);
+          return colOf(belts.length - 1);
+        }
         for (var b2 = 1; b2 < belts.length; b2++) {
           var pos = belts[b2].from;
           var half = Math.min(0.12,
