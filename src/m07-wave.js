@@ -237,7 +237,7 @@
   var cState = { mode: "none", layers: 0, flat: true, belts: 0, topVar: 0, gdDepth: 0, frame: 0 };
   function canvasState() { return cState; }
 
-  function drawCanvas(cv2, t) {
+  function drawCanvas(cv2, t, dt) {
     var c = cv2._wtc || (cv2._wtc = cv2.getContext("2d"));
     if (!c) return;
     var dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -259,10 +259,35 @@
     var topOff = ch * 0.03;
     var ampPx = Math.max(0, Number(q.a) || A) / BOX * orbH;
     var lam = Math.max(24, ((Number(q.w) || WV) + (Number(q.g) || GV)) / BOX * cw);
-    var monoCol = (W.WT2B && W.WT2B.visibleColor && W.WT2B.visibleColor()) || cv2.getAttribute("data-color") || "#2ddaf9";
+    /* Цвета — только из data-* самого холста (единый источник: та же
+       система, что дала геометрию поясов). Брать цвета по индексу из
+       чужого водителя нельзя: порядок поясов у LiquidColor и M08 разный,
+       цвета съезжали на соседний пояс («морс цветом кофе», 08.11).
+       Плавность перекраски холст делает сам: lerp к цели каждый кадр. */
+    var lerpK = 1 - Math.exp(-(dt || 0.016) / 0.45);
+    function lerpCol(slot, targetCss) {
+      var tg = rgbOf(targetCss);
+      if (!tg) return targetCss;
+      var cur = cv2[slot];
+      if (!cur) { cv2[slot] = tg.slice(); return targetCss; }
+      for (var ci = 0; ci < 3; ci++) cur[ci] += (tg[ci] - cur[ci]) * lerpK;
+      return "rgb(" + Math.round(cur[0]) + "," + Math.round(cur[1]) + "," + Math.round(cur[2]) + ")";
+    }
+    var monoCol = lerpCol("_cm", cv2.getAttribute("data-color") || "#2ddaf9");
     var belts = null;
     try { belts = JSON.parse(cv2.getAttribute("data-belts") || "null"); } catch (e) { belts = null; }
-    var liveBelts = (W.WT2B && W.WT2B.visibleBelts && W.WT2B.visibleBelts()) || null;
+    var liveBelts = null;
+    if (belts) {
+      if (!cv2._cb || cv2._cb.length !== belts.length) cv2._cb = belts.map(function () { return null; });
+      liveBelts = belts.map(function (bb, bi) {
+        var tg = rgbOf(bb.c);
+        if (!tg) return bb.c;
+        var cur = cv2._cb[bi];
+        if (!cur) { cv2._cb[bi] = tg.slice(); return bb.c; }
+        for (var ci2 = 0; ci2 < 3; ci2++) cur[ci2] += (tg[ci2] - cur[ci2]) * lerpK;
+        return "rgb(" + Math.round(cur[0]) + "," + Math.round(cur[1]) + "," + Math.round(cur[2]) + ")";
+      });
+    }
     var span = Number(cv2.getAttribute("data-span"));
     if (W.WT2W && W.WT2W.visible && W.WT2W.visible() != null && W.WT2B && W.WT2B.beltSpanPct)
       span = W.WT2B.beltSpanPct(W.WT2W.visible());
@@ -414,6 +439,19 @@
       return;
     }
     cState.flat = false; cState.layers = n;
+    /* сплошное тело воды полным цветом: волна — свет и слои поверх тела,
+       а не само тело (иначе однотон с карточкой 45%/75% серый и прозрачный —
+       «первый напиток сероватый», глаз владельца 08.11). */
+    (function () {
+      var wvB = cards[0] || {};
+      var durB = WDUR[0] * 100 / Math.max(20, Number(wvB.s) || 100);
+      var signB = ((Number(wvB.d) || 0) !== WDIR[0]) ? 1 : -1;
+      var ampB = layerAmp(0), baseB = layerBase(0) + ampB;
+      bodyPath(baseB, ampB, lam, signB, Math.PI * 2 / (durB / 1000), 0, ch);
+      c.fillStyle = monoCol;
+      c.fill();
+      depthShade(baseB, ampB, lam, signB, Math.PI * 2 / (durB / 1000), 0, ch);
+    })();
     for (var idx = n - 1; idx >= 0; idx--) {
       var wv = cards[idx] || {};
       var dur = WDUR[idx % 5] * 100 / Math.max(20, Number(wv.s) || 100);
@@ -459,7 +497,7 @@
       splash += (splashTarget - splash) * Math.min(1, dt * 9);
       if (splash < 0.001 && !splashTarget) splash = 0;
       var t = now / 1000;
-      for (var i = 0; i < list.length; i++) drawCanvas(list[i], t);
+      for (var i = 0; i < list.length; i++) drawCanvas(list[i], t, dt);
       cState.frame++;
     }
     requestAnimationFrame(tick);

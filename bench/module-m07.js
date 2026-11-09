@@ -102,6 +102,49 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
     seamPx.px[0] > 80 && seamPx.px[0] < 135 && seamPx.px[2] > 60 && seamPx.px[2] < 200, seamPx);
   await c2.close();
 
+  /* однотон не серый: тело сплошное, пиксель близок к цвету напитка */
+  const c2c = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c2c.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ wave: true, waveN: 1, waveOP1: 45, waveINT1: 75, waveGD1: 60 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#c08e69')])}));`);
+  const p2c = await c2c.newPage();
+  p2c.on('pageerror', e => errs.push(e.message));
+  await p2c.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p2c.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  await p2c.waitForTimeout(1200);
+  const teaPx = await p2c.evaluate(() => {
+    const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+    const c = cv.getContext('2d');
+    const d = c.getImageData(Math.round(cv.width / 2), Math.round(cv.height * 0.85), 1, 1).data;
+    return [d[0], d[1], d[2]];
+  });
+  ok('однотон: тело сплошное, цвет напитка не вымыт прозрачностью волны',
+    Math.abs(teaPx[0] - 192) <= 48 && Math.abs(teaPx[1] - 142) <= 48 && Math.abs(teaPx[2] - 105) <= 55, teaPx);
+  await c2c.close();
+
+  /* режим поясов LiquidColor: цвет сегмента = его собственный цвет из data-belts,
+     а не соседний из чужого водителя (порядки поясов у систем разные) */
+  const c2d = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c2d.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ mode: 'belt' }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 800, '#c08e69'), E('e2', '11', '00', 'espresso', 500, '#8b5a2b'), E('e3', '12', '00', 'water', 100, '#e2607a')])}));`);
+  const p2d = await c2d.newPage();
+  p2d.on('pageerror', e => errs.push(e.message));
+  await p2d.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p2d.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  await p2d.waitForTimeout(1500);
+  const seg = await p2d.evaluate(() => {
+    const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+    const c = cv.getContext('2d');
+    const st = window.WT2V.canvasState();
+    const belts = JSON.parse(cv.getAttribute('data-belts'));
+    const last = belts[belts.length - 1];
+    const fy = 0.03 + 0.97 * (st.span / 100) * (100 / 106);
+    const d = c.getImageData(Math.round(cv.width / 2), Math.round(cv.height * fy), 1, 1).data;
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(last.c);
+    const want = m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
+    return { belts: st.belts, want, px: [d[0], d[1], d[2]] };
+  });
+  ok('пояса LiquidColor: нижний сегмент крашен своим цветом (без сдвига на соседа)',
+    seg.belts >= 2 && seg.want && Math.abs(seg.px[0] - seg.want[0]) <= 45 && Math.abs(seg.px[1] - seg.want[1]) <= 45 && Math.abs(seg.px[2] - seg.want[2]) <= 50, seg);
+  await c2d.close();
+
   /* папка правит волну: один слой по карточке */
   const c3 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c3.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ wave: true, waveN: 1, waveA: 24, waveW: 90, waveG: 90, waveS1: 50, waveD1: 1, waveO1: 5, waveOP1: 25, waveGD1: 50, waveINT1: 50 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
