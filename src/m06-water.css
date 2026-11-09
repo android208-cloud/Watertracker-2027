@@ -52,7 +52,9 @@
 /* M07 wave: дрейф гребней и поясные слои в круге (композитор, ноль перекрасок). */
 /* Canvas 2D воды (M07): холст внутри слоя подъёма, с запасом сверху под гребень */
 .cat-stage .wt-orb canvas.wt-wave-c,
-.cat-art canvas.wt-wave-c {
+.cat-art canvas.wt-wave-c,
+.cat-stage .wt-orb canvas.wt-wave-gl,
+.cat-art canvas.wt-wave-gl {
   position: absolute;
   left: 0;
   top: -3%;

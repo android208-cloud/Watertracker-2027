@@ -77,7 +77,12 @@
        гребнями ватерлинии или пояса с волнистыми стыками (слово 05.11). */
     var inner;
     var engineProto = !!(W.WT2V && W.WT2V.engine && W.WT2V.engine() === "proto");
-    if (!engineProto && W.WT2V && W.WT2V.canvasHtml && W.WT2V.canvasOk()) {
+    var engineGl = !!(W.WT2V && W.WT2V.engine && W.WT2V.engine() === "webgl" && W.WT2V.glOk && W.WT2V.glOk());
+    if (engineGl && W.WT2V.glHtml) {
+      /* WebGL — третий движок папки (шейдер стенда wavelab, 09.11);
+         недоступен — честный спад на Canvas ниже. */
+      inner = W.WT2V.glHtml(o);
+    } else if (!engineProto && W.WT2V && W.WT2V.canvasHtml && W.WT2V.canvasOk()) {
       /* Canvas 2D — тело воды (слово владельца 08.11): рисовальщик M07,
          SVG-путь ниже остаётся аварийным запасом без canvas. */
       inner = W.WT2V.canvasHtml(o);

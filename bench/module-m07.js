@@ -57,6 +57,7 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   await p2.goto('http://127.0.0.1:8085/wt2/index.html');
   await p2.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
   const belt = await p2.evaluate(s => eval(s), STATE);
+  await p2.waitForTimeout(2600); /* пояса оседают (lerp долей), иначе сэмпл ловит стык в пути */
   await p2.evaluate(PX);
   const pxBelt = await p2.evaluate(() => {
     /* холст: top -3%..103%; жидкость 900/1950~46% высоты круга; нижний пояс — эспрессо */
@@ -294,6 +295,54 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   ok('движок прототипа + пояса: стек поясов и волнистые стыки на месте',
     protoB.stack && protoB.seams >= 1 && protoB.layers >= 2, protoB);
   await c9.close();
+
+  /* движок WebGL (третий вариант, слово владельца 09.11): шейдер стенда
+     wavelab на данных приложения */
+  const c10 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c10.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'webgl' }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p10 = await c10.newPage();
+  p10.on('pageerror', e => errs.push(e.message));
+  await p10.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p10.waitForFunction(() => window.__waterApp && window.WT2V && window.WT2V.glState().frame > 10);
+  await p10.waitForTimeout(2600);
+  const gl1 = await p10.evaluate(() => window.WT2V.glState());
+  const el10 = await p10.$('.wt-orb canvas.wt-wave-gl');
+  const g1 = await el10.screenshot();
+  await p10.waitForTimeout(700);
+  const g2 = await el10.screenshot();
+  ok('движок WebGL: шейдерный холст на месте, холста 2D нет, волна движется',
+    !!el10 && gl1.ok && gl1.mode === 'mono' && gl1.layers >= 1 && !gl1.flat &&
+    (await p10.evaluate(() => document.querySelectorAll('.wt-orb canvas.wt-wave-c').length)) === 0 &&
+    Buffer.compare(g1, g2) !== 0, gl1);
+  await c10.close();
+
+  const c11 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c11.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'webgl' }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')])}));`);
+  const p11 = await c11.newPage();
+  p11.on('pageerror', e => errs.push(e.message));
+  await p11.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p11.waitForFunction(() => window.__waterApp && window.WT2V && window.WT2V.glState().frame > 10);
+  await p11.waitForTimeout(2600);
+  const glB = await p11.evaluate(() => window.WT2V.glState());
+  ok('движок WebGL + пояса: режим поясов, поясов не меньше двух',
+    glB.mode === 'belts' && glB.belts >= 2, glB);
+  await c11.close();
+
+  const c12 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c12.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'webgl', wave: false }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p12 = await c12.newPage();
+  p12.on('pageerror', e => errs.push(e.message));
+  await p12.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p12.waitForFunction(() => window.__waterApp && window.WT2V && window.WT2V.glState().frame > 10);
+  await p12.waitForTimeout(600);
+  const glOff = await p12.evaluate(() => window.WT2V.glState());
+  const el12 = await p12.$('.wt-orb canvas.wt-wave-gl');
+  const o1 = await el12.screenshot();
+  await p12.waitForTimeout(700);
+  const o2 = await el12.screenshot();
+  ok('движок WebGL + мастер выключен: плоская статичная вода',
+    glOff.flat && glOff.layers === 0 && Buffer.compare(o1, o2) === 0, glOff);
+  await c12.close();
 
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
   await b.close();

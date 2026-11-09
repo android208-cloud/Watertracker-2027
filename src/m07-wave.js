@@ -218,7 +218,9 @@
   function engine() {
     try {
       var q = W.LiquidColor && W.LiquidColor.waveParams ? W.LiquidColor.waveParams() : null;
-      return q && q.engine === "proto" ? "proto" : "canvas";
+      if (q && q.engine === "proto") return "proto";
+      if (q && q.engine === "webgl") return "webgl";
+      return "canvas";
     } catch (e) { return "canvas"; }
   }
   /* Состояние прото-движка для стражей стенда: слои в круге и их дрейф. */
@@ -542,6 +544,249 @@
     }
   }
 
+  /* ===== WebGL — третий движок (слово владельца 09.11: «в запасе остался
+     ещё один способ»): шейдер стенда /home/user/wavelab (тот же surfY —
+     сумма трёх гармоник с заострением гребня — плюс блики, рябь-ноиз и
+     свет у поверхности), перенесённый на данные приложения: параметры
+     папки «Волна», пояса M08 с растушёвкой, качка лифта, выключенный
+     мастер = плоская вода. WebGL недоступен — M06 падает на Canvas. */
+  var GL_VS = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
+  var GL_FS = [
+    "precision highp float;",
+    "uniform vec2 uRes; uniform float uTime; uniform float uSplash;",
+    "uniform vec3 uMono; uniform float uOn; uniform float uN; uniform float uLam;",
+    "uniform float uTopOff; uniform float uSpanH; uniform float uBelts; uniform float uBeltN; uniform float uBlend;",
+    "uniform vec3 uBeltCol[8]; uniform float uBeltFrom[8]; uniform float uBeltTo[8];",
+    "uniform float uLAmp[5]; uniform float uLBase[5]; uniform float uLOmega[5]; uniform float uLDir[5];",
+    "uniform float uLPhase[5]; uniform float uLOp[5]; uniform vec3 uLCol[5]; uniform float uLGd[5];",
+    "float surf(float x, float base, float amp, float om, float dir, float ph){",
+    "  float v = (sin(x / uLam * 6.28318 + dir * om * uTime + ph)",
+    "    + 0.38 * sin(x / (uLam * 0.45) * 6.28318 - dir * om * 1.7 * uTime + ph * 2.1)",
+    "    + 0.16 * sin(x / (uLam * 0.19) * 6.28318 + dir * om * 2.9 * uTime + ph * 4.7)) / 1.54;",
+    "  v = 0.62 * v + 0.38 * v * v * v;",
+    "  return base + v * amp;",
+    "}",
+    "float hash(vec2 q){ return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }",
+    "float noise(vec2 q){ vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f);",
+    "  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }",
+    "vec3 beltAt(float f){",
+    "  vec3 col = uBeltCol[0];",
+    "  for (int k = 0; k < 8; k++) {",
+    "    if (float(k) >= uBeltN) break;",
+    "    if (f <= uBeltTo[k] || float(k) == uBeltN - 1.0) { col = uBeltCol[k]; break; }",
+    "  }",
+    "  if (uBlend > 0.5) {",
+    "    for (int b = 1; b < 8; b++) {",
+    "      if (float(b) >= uBeltN) break;",
+    "      float pos = uBeltFrom[b];",
+    "      float hw = min(0.12, min(0.45 * (uBeltTo[b - 1] - uBeltFrom[b - 1]), 0.45 * (uBeltTo[b] - uBeltFrom[b])));",
+    "      if (hw > 0.002 && abs(f - pos) < hw) {",
+    "        float u = (f - (pos - hw)) / (2.0 * hw); u = u * u * (3.0 - 2.0 * u);",
+    "        col = mix(uBeltCol[b - 1], uBeltCol[b], u);",
+    "      }",
+    "    }",
+    "  }",
+    "  return col;",
+    "}",
+    "vec3 shade(vec3 col, float y, float surfY0){",
+    "  float d = clamp((y - surfY0) / max(1.0, uRes.y), 0.0, 1.0);",
+    "  col += vec3(1.0) * 0.10 * exp(-d * 9.0);",
+    "  col *= 1.0 - 0.30 * smoothstep(0.05, 0.9, d);",
+    "  return col;",
+    "}",
+    "void main(){",
+    "  vec2 P = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);",
+    "  float x = P.x;",
+    "  float surf0 = uOn > 0.5 ? surf(x, uLBase[0], uLAmp[0], uLOmega[0], uLDir[0], uLPhase[0]) : uTopOff;",
+    "  vec3 col = vec3(0.0); float inWater = 0.0;",
+    "  if (P.y >= surf0) {",
+    "    inWater = 1.0;",
+    "    if (uBelts > 0.5) {",
+    "      float f = clamp((P.y - uTopOff) / max(1.0, uSpanH), 0.0, 1.0);",
+    "      col = beltAt(f);",
+    "    } else col = uMono;",
+    "    col = shade(col, P.y, surf0);",
+    "    if (uOn > 0.5) {",
+    "      for (int i = 4; i >= 0; i--) {",
+    "        if (float(i) >= uN) continue;",
+    "        float sy = surf(x, uLBase[i], uLAmp[i], uLOmega[i], uLDir[i], uLPhase[i]);",
+    "        float dBand = P.y - sy;",
+    "        if (uBelts > 0.5) {",
+    "          /* пояса: только гребневая полоска поверх тела */",
+    "          if (dBand >= 0.0 && dBand <= uLAmp[i] * 1.7)",
+    "            col = mix(col, uLCol[i], uLOp[i]);",
+    "        } else if (P.y >= sy) {",
+    "          float al = uLOp[i];",
+    "          if (uLGd[i] > 0.5) al *= clamp((P.y - (sy - uLAmp[i])) / max(1.0, 2.0 * uLAmp[i] * uLGd[i] / 100.0), 0.0, 1.0);",
+    "          col = mix(col, uLCol[i], al);",
+    "        }",
+    "      }",
+    "      /* световая плёнка гребня + блики/рябь стенда — только однотон */",
+    "      if (uBelts < 0.5) {",
+    "        float d0 = P.y - surf0;",
+    "        if (d0 >= 0.0 && d0 <= uLAmp[0] * 1.7)",
+    "          col += vec3(1.0) * 0.30 * max(0.35, uLOp[0]) * (1.0 - d0 / max(1.0, uLAmp[0] * 1.7));",
+    "        float dl = abs(P.y - surf0);",
+    "        if (dl < 2.0) col += vec3(1.0) * 0.28 * (1.0 - dl / 2.0) * pow(max(0.0, sin(3.14159 * clamp(x / uRes.x, 0.0, 1.0))), 1.5);",
+    "        float deep = max(0.0, d0);",
+    "        col += vec3(1.0, 0.99, 0.95) * exp(-deep / max(1.0, uRes.y * 0.10)) * 0.05;",
+    "        float sparkle = noise(vec2(x * 0.045 + uTime * 0.7, P.y * 0.07 - uTime * 1.1));",
+    "        col += vec3(1.0, 0.99, 0.95) * pow(sparkle, 3.0) * exp(-deep / max(1.0, uRes.y * 0.20)) * 0.14;",
+    "      } else {",
+    "        float dl2 = abs(P.y - surf0);",
+    "        if (dl2 < 2.0) col += vec3(1.0) * 0.22 * (1.0 - dl2 / 2.0) * pow(max(0.0, sin(3.14159 * clamp(x / uRes.x, 0.0, 1.0))), 1.5);",
+    "      }",
+    "    }",
+    "  }",
+    "  if (inWater < 0.5) { gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0); return; }",
+    "  gl_FragColor = vec4(col, 1.0);",
+    "}"
+  ].join("\n");
+  var glState = { mode: "none", layers: 0, flat: true, belts: 0, frame: 0, ok: false };
+  function glOk() {
+    if (glOk._v != null) return glOk._v;
+    try {
+      var cv3 = document.createElement("canvas");
+      var g = cv3.getContext("webgl", { alpha: true, antialias: true }) || cv3.getContext("experimental-webgl");
+      glOk._v = !!g;
+    } catch (e) { glOk._v = false; }
+    return glOk._v;
+  }
+  function glInit(cv2) {
+    var gl = cv2.getContext("webgl", { alpha: true, antialias: true, premultipliedAlpha: false });
+    if (!gl) { cv2._glFail = true; return null; }
+    function sh(type, src) {
+      var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+    }
+    var vs = sh(gl.VERTEX_SHADER, GL_VS), fs = sh(gl.FRAGMENT_SHADER, GL_FS);
+    if (!vs || !fs) { cv2._glFail = true; return null; }
+    var prog = gl.createProgram();
+    gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { cv2._glFail = true; return null; }
+    gl.useProgram(prog);
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    var U = {};
+    ["uRes", "uTime", "uSplash", "uMono", "uOn", "uN", "uLam", "uTopOff", "uSpanH", "uBelts", "uBeltN", "uBlend",
+     "uBeltCol", "uBeltFrom", "uBeltTo", "uLAmp", "uLBase", "uLOmega", "uLDir", "uLPhase", "uLOp", "uLCol", "uLGd"]
+      .forEach(function (nm) { U[nm] = gl.getUniformLocation(prog, nm); });
+    return cv2._gl = { gl: gl, U: U };
+  }
+  function drawGL(cv2, t, dt) {
+    var G = cv2._gl || glInit(cv2);
+    if (!G) return;
+    var gl = G.gl, U = G.U;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var cw = cv2.clientWidth, ch = cv2.clientHeight;
+    if (!cw || !ch) return;
+    if (cv2.width !== Math.round(cw * dpr) || cv2.height !== Math.round(ch * dpr)) {
+      cv2.width = Math.round(cw * dpr); cv2.height = Math.round(ch * dpr);
+    }
+    gl.viewport(0, 0, cv2.width, cv2.height);
+    var q = params();
+    var on = enabled();
+    var cards = q.waves && q.waves.length ? q.waves : [];
+    var n = on ? Math.max(1, Math.min(5, Math.round(Number(q.n) || cards.length || 1))) : 0;
+    var orbH = ch * 100 / 106;
+    var topOff = ch * 0.03;
+    var ampPx = Math.max(0, Number(q.a) || A) / BOX * orbH;
+    var lam = Math.max(24, ((Number(q.w) || WV) + (Number(q.g) || GV)) / BOX * cw);
+    var lerpK = 1 - Math.exp(-(dt || 0.016) / 0.45);
+    var tg = rgbOf(cv2.getAttribute("data-color") || "#2ddaf9") || [42, 163, 232];
+    if (!persist.mono) persist.mono = tg.slice();
+    for (var ci = 0; ci < 3; ci++) persist.mono[ci] += (tg[ci] - persist.mono[ci]) * lerpK;
+    var belts = null;
+    try { belts = JSON.parse(cv2.getAttribute("data-belts") || "null"); } catch (e) { belts = null; }
+    var liveBelts = null;
+    if (belts) {
+      if (!persist.belts || persist.belts.length !== belts.length) {
+        var prev = persist.belts || [];
+        persist.belts = belts.map(function (bb, bi) {
+          if (prev[bi]) return prev[bi];
+          var tg0 = rgbOf(bb.c) || [128, 128, 128];
+          return { c: tg0.slice(), from: bb.to, to: bb.to };
+        });
+      }
+      liveBelts = belts.map(function (bb, bi) {
+        var cur = persist.belts[bi];
+        var tg2 = rgbOf(bb.c);
+        if (tg2) for (var ci2 = 0; ci2 < 3; ci2++) cur.c[ci2] += (tg2[ci2] - cur.c[ci2]) * lerpK;
+        cur.from += (bb.from - cur.from) * lerpK;
+        cur.to += (bb.to - cur.to) * lerpK;
+        return { rgb: cur.c.slice(), from: cur.from, to: cur.to };
+      });
+    }
+    var span = Number(cv2.getAttribute("data-span"));
+    if (W.WT2W && W.WT2W.visible && W.WT2W.visible() != null && W.WT2B && W.WT2B.beltSpanPct)
+      span = W.WT2B.beltSpanPct(W.WT2W.visible());
+    if (!isFinite(span)) span = 100;
+    gl.uniform2f(U.uRes, cv2.width, cv2.height);
+    gl.uniform1f(U.uTime, t);
+    gl.uniform1f(U.uSplash, splash);
+    gl.uniform3f(U.uMono, persist.mono[0] / 255, persist.mono[1] / 255, persist.mono[2] / 255);
+    gl.uniform1f(U.uOn, on ? 1 : 0);
+    gl.uniform1f(U.uN, Math.max(1, n));
+    gl.uniform1f(U.uLam, lam * dpr);
+    gl.uniform1f(U.uTopOff, topOff * dpr);
+    gl.uniform1f(U.uSpanH, span / 100 * orbH * dpr);
+    gl.uniform1f(U.uBelts, liveBelts ? 1 : 0);
+    gl.uniform1f(U.uBlend, q.blend === false ? 0 : 1);
+    var bCol = [], bFrom = [], bTo = [];
+    for (var bk = 0; bk < 8; bk++) {
+      var lb = liveBelts && liveBelts[Math.min(bk, liveBelts.length - 1)];
+      bCol.push(lb ? lb.rgb[0] / 255 : 0, lb ? lb.rgb[1] / 255 : 0, lb ? lb.rgb[2] / 255 : 0);
+      bFrom.push(lb ? lb.from : 0); bTo.push(lb ? lb.to : 1);
+    }
+    gl.uniform3fv(U["uBeltCol"], bCol);
+    gl.uniform1fv(U["uBeltFrom"], bFrom);
+    gl.uniform1fv(U["uBeltTo"], bTo);
+    gl.uniform1f(U.uBeltN, liveBelts ? liveBelts.length : 0);
+    var lAmp = [], lBase = [], lOm = [], lDir = [], lPh = [], lOp = [], lCol = [], lGd = [];
+    for (var li = 0; li < 5; li++) {
+      var wv = cards[li] || {};
+      var dur = WDUR[li % 5] * 100 / Math.max(20, Number(wv.s) || 100);
+      var amp = ampPx * [1, 0.82, 0.66, 0.55, 0.45][li] * (1 + 0.16 * Math.sin(t * 0.45 + li * 1.7)) * (1 + 2.1 * splash);
+      var srcCol = liveBelts ? belts[0].c : ("rgb(" + Math.round(persist.mono[0]) + "," + Math.round(persist.mono[1]) + "," + Math.round(persist.mono[2]) + ")");
+      var fc = fillOf(srcCol, wv.intensity);
+      var rgb = rgbOf(fc.fill) || [128, 128, 128];
+      lAmp.push(amp * dpr);
+      lBase.push((topOff + (Number(wv.o) || 0) / 100 * orbH + amp) * dpr);
+      lOm.push(Math.PI * 2 / (dur / 1000));
+      lDir.push(((Number(wv.d) || 0) !== WDIR[li % 5]) ? 1 : -1);
+      lPh.push(li * 2.2);
+      lOp.push(wv.op == null ? 1 : Math.max(0, Math.min(100, Number(wv.op))) / 100);
+      lCol.push(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
+      lGd.push(Math.max(0, Math.min(100, Number(wv.gd) || 0)));
+    }
+    gl.uniform1fv(U["uLAmp"], lAmp);
+    gl.uniform1fv(U["uLBase"], lBase);
+    gl.uniform1fv(U["uLOmega"], lOm);
+    gl.uniform1fv(U["uLDir"], lDir);
+    gl.uniform1fv(U["uLPhase"], lPh);
+    gl.uniform1fv(U["uLOp"], lOp);
+    gl.uniform3fv(U["uLCol"], lCol);
+    gl.uniform1fv(U["uLGd"], lGd);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    glState.mode = liveBelts ? "belts" : "mono";
+    glState.layers = n; glState.flat = !on; glState.belts = liveBelts ? liveBelts.length : 0;
+    glState.ok = true; glState.frame++;
+  }
+  function glStateFn() { return glState; }
+  function glHtml(o) {
+    startLoop();
+    var beltsJson = "";
+    if (o.belts && o.belts.length) {
+      beltsJson = ' data-belts="' + JSON.stringify(o.belts).replace(/"/g, "&quot;") + '"';
+    }
+    return '<canvas class="wt-wave-gl" data-color="' + (o.color || "#2ddaf9") + '"' + beltsJson +
+      ' data-span="' + (o.spanPct != null ? Math.round(Number(o.spanPct) * 100) / 100 : 100) + '"></canvas>';
+  }
+
   var loopStarted = false;
   function startLoop() {
     if (loopStarted) return;
@@ -550,7 +795,8 @@
       requestAnimationFrame(tick);
       if (document.hidden) return;
       var list = document.querySelectorAll("canvas.wt-wave-c");
-      if (!list.length) return;
+      var glist = document.querySelectorAll("canvas.wt-wave-gl");
+      if (!list.length && !glist.length) return;
       var vis = (W.WT2W && W.WT2W.visible) ? W.WT2W.visible() : null;
       if (vis != null && lastVis != null) {
         var vel = Math.abs(vis - lastVis);
@@ -564,6 +810,7 @@
       if (splash < 0.001 && !splashTarget) splash = 0;
       var t = now / 1000;
       for (var i = 0; i < list.length; i++) drawCanvas(list[i], t, dt);
+      for (var gi = 0; gi < glist.length; gi++) drawGL(glist[gi], t, dt);
       cState.frame++;
     }
     requestAnimationFrame(tick);
@@ -592,6 +839,9 @@
     waterInner: waterInner,
     canvasHtml: canvasHtml,
     canvasOk: canvasOk,
+    glHtml: glHtml,
+    glOk: glOk,
+    glState: glStateFn,
     canvasState: canvasState,
     kick: kick,
     params: params,
