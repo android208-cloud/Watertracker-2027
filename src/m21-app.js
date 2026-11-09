@@ -125,7 +125,93 @@
     var box = size === "fill" ? "" : "width:" + dim + ";height:" + dim + ";";
     return '<span class="bubble" style="background:' + d.color + ";" + box + '">' + glyph(d.icon) + "</span>";
   }
-  function toast(text) { U().toast(ui, text, render); }
+  function toast(text) { U().toast(ui, text, render); placeToast(); }
+
+  /* Тосты главного экрана — как в прототипе (донор app.js placeToast/
+     dockGap, слово владельца 09.11): облачко живёт в зазоре док-панели
+     между кнопкой отмены и кнопкой напитка, высотой с круглые кнопки
+     дока и с тем же отступом, что кнопки держат друг от друга; вне
+     главного экрана — прежняя верхняя капсула из CSS. */
+  function dockGap(scale) {
+    var nodes = document.querySelectorAll(".home-dock > .round, .home-dock > .shortcut, .home-dock > .edit-toggle, .home-dock > .pin-add");
+    var rows = {};
+    Array.prototype.forEach.call(nodes, function (el) {
+      var m = (el.getAttribute("style") || "").match(/--c:\s*(\d+)\s*;\s*--r:\s*(\d+)/);
+      if (!m) return;
+      var rect = el.getBoundingClientRect();
+      if (!rect.width) return;
+      var r = m[2];
+      if (!rows[r]) rows[r] = [];
+      rows[r].push({ c: Number(m[1]), cx: (rect.left + rect.right) / 2, w: rect.width });
+    });
+    var best = null;
+    Object.keys(rows).forEach(function (r) {
+      var list = rows[r].sort(function (a, b) { return a.c - b.c; });
+      for (var i = 1; i < list.length; i++) {
+        var dc = list[i].c - list[i - 1].c;
+        if (dc <= 0) continue;
+        var gap = (list[i].cx - list[i - 1].cx) / dc - list[i].w;
+        if (gap > 0.5 && (best == null || gap < best)) best = gap;
+      }
+    });
+    if (best != null) return best / (scale || 1);
+    var undo = document.querySelector('.home-dock [data-act="undo"]');
+    var drink = document.querySelector('.home-dock [data-act="open-drinks"]');
+    if (undo && drink) {
+      var ru = undo.getBoundingClientRect();
+      var rd = drink.getBoundingClientRect();
+      var span = (rd.left - ru.right) / (scale || 1);
+      if (span > 0) return span / 5;
+    }
+    return 15;
+  }
+
+  function placeToast() {
+    var el = document.querySelector(".toast");
+    var app = document.getElementById("app");
+    if (!el || !app) return;
+    var scale = viewScale();
+    var ar = app.getBoundingClientRect();
+    if (!scale || !ar.width) return;
+    var undo = app.querySelector('.home-dock [data-act="undo"]');
+    var drink = app.querySelector('.home-dock [data-act="open-drinks"]');
+    var pad = dockGap(scale);
+    var left = null;
+    var right = null;
+    var center = null;
+    var height = null;
+    if (undo && drink) {
+      var u = undo.getBoundingClientRect();
+      var d = drink.getBoundingClientRect();
+      if (u.width && d.width) {
+        left = (u.right - ar.left) / scale + pad;
+        right = (ar.width - (d.left - ar.left)) / scale + pad;
+        center = ((u.top + u.bottom) / 2 - ar.top) / scale;
+        height = u.height / scale;
+      }
+    }
+    if (center == null) {
+      /* Нет дока — обычный верхний слот из CSS. */
+      el.style.left = "";
+      el.style.right = "";
+      el.style.top = "";
+      el.style.bottom = "";
+      el.style.height = "";
+      el.style.minHeight = "";
+      el.style.transform = "";
+      return;
+    }
+    el.style.left = left.toFixed(1) + "px";
+    el.style.right = right.toFixed(1) + "px";
+    el.style.top = center.toFixed(1) + "px";
+    el.style.bottom = "auto";
+    if (height) {
+      var exact = height.toFixed(1) + "px";
+      el.style.height = exact;
+      el.style.minHeight = exact;
+    }
+    el.style.transform = "translateY(-50%)";
+  }
   function save() { C().save(); }
   function currentDrink() { return D().defaultDrink(state); }
   function latestEntryToday() {
@@ -3994,6 +4080,7 @@
     restoreScroll();
     holdScreenScroll();
     afterRender();
+    placeToast();
   }
   /* Слово владельца 06.11: версия в программе = реальная версия сборки.
      Правда приходит из Java-моста (BuildConfig), константы — запас веб-режима. */

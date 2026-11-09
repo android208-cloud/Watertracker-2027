@@ -76,7 +76,8 @@
     /* M07/M08: внутренность слоя подъёма строит волновой модуль: однотон с
        гребнями ватерлинии или пояса с волнистыми стыками (слово 05.11). */
     var inner;
-    if (W.WT2V && W.WT2V.canvasHtml && W.WT2V.canvasOk()) {
+    var engineProto = !!(W.WT2V && W.WT2V.engine && W.WT2V.engine() === "proto");
+    if (!engineProto && W.WT2V && W.WT2V.canvasHtml && W.WT2V.canvasOk()) {
       /* Canvas 2D — тело воды (слово владельца 08.11): рисовальщик M07,
          SVG-путь ниже остаётся аварийным запасом без canvas. */
       inner = W.WT2V.canvasHtml(o);

@@ -243,6 +243,58 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
   ok('градиент 100: фейд внутри кромки (глубина <= 2a), поверхность живая', gd.gdDepth > 0 && gd.gdDepth <= 2 && gd.topVar > 0.1, gd);
   await c6.close();
 
+  /* движок «Волны прототипа» (слово владельца 09.11): слоёные гребни
+     вместо холста, дрейф жив, мастер по-прежнему гасит всё */
+  const c7 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c7.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'proto', waveN: 3 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p7 = await c7.newPage();
+  p7.on('pageerror', e => errs.push(e.message));
+  await p7.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p7.waitForFunction(() => window.__waterApp && window.WT2V && window.WT2V.protoState().layers >= 3);
+  await p7.waitForTimeout(2600);
+  const proto1 = await p7.evaluate(() => {
+    const s = window.WT2V.protoState();
+    const el = document.querySelector('.wt-orb .cat-wave');
+    return { s, tr: el ? getComputedStyle(el).transform : null };
+  });
+  await p7.waitForTimeout(700);
+  const proto2 = await p7.evaluate(() => {
+    const el = document.querySelector('.wt-orb .cat-wave');
+    return el ? getComputedStyle(el).transform : null;
+  });
+  ok('движок прототипа: холста нет, три слоя гребней, дрейф движется',
+    proto1.s.engine === 'proto' && proto1.s.canvas === 0 && proto1.s.layers >= 3 &&
+    /^wt-wd-/.test(proto1.s.anim || '') && proto1.tr !== proto2, { proto1, proto2 });
+  await c7.close();
+
+  const c8 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c8.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'proto', wave: false }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
+  const p8 = await c8.newPage();
+  p8.on('pageerror', e => errs.push(e.message));
+  await p8.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p8.waitForFunction(() => window.__waterApp && window.WT2V);
+  await p8.waitForTimeout(600);
+  const protoOff = await p8.evaluate(() => window.WT2V.protoState());
+  ok('движок прототипа + мастер выключен: слоёв нет, вода плоская',
+    protoOff.layers === 0 && protoOff.canvas === 0, protoOff);
+  await c8.close();
+
+  const c9 = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c9.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ waveEngine: 'proto' }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')])}));`);
+  const p9 = await c9.newPage();
+  p9.on('pageerror', e => errs.push(e.message));
+  await p9.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p9.waitForFunction(() => window.__waterApp && window.WT2V);
+  await p9.waitForTimeout(2600);
+  const protoB = await p9.evaluate(() => ({
+    stack: !!document.querySelector('.wt-orb .cat-beltstack'),
+    seams: document.querySelectorAll('.wt-orb .cat-wave [data-bi]').length,
+    layers: document.querySelectorAll('.wt-orb .cat-wave').length
+  }));
+  ok('движок прототипа + пояса: стек поясов и волнистые стыки на месте',
+    protoB.stack && protoB.seams >= 1 && protoB.layers >= 2, protoB);
+  await c9.close();
+
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
   await b.close();
   console.log('BENCH M07: ' + (fail ? 'FAILS=' + fail : 'ALL GREEN') + ' (' + pass + '/' + (pass + fail) + ')');

@@ -33,6 +33,7 @@
       waveINT1: 75, waveINT2: 100, waveINT3: 100, waveINT4: 100, waveINT5: 100,
       waveS1: 180, waveS2: 100, waveS3: 100, waveS4: 100, waveS5: 100,
       waveBlend: true, /* мягкие переходы между слоями поясов (слово владельца 08.11) */
+      waveEngine: "canvas", /* движок волны: canvas — холст M07; proto — слоёные гребни прототипа (слово владельца 09.11) */
       waveD1: 0, waveD2: 1, waveD3: 0, waveD4: 1, waveD5: 0,
       waveO1: 0, waveO2: 0, waveO3: 0, waveO4: 0, waveO5: 0,
       bubN: 5, bubS: 8, bubV: 100, bubST: 85, bubX: 50, bubT: 25, bubCol: true };
@@ -382,6 +383,9 @@
   function waveHtml() {
     var n = clampP("waveN");
     var out = row("Волна", "Покачивание воды и всплеск при новой порции", "liq-wave", store.wave !== false);
+    out += '<div class="n-section">Движок волны</div>';
+    out += row("Холст", "Гладкая волна, нарисованная на холсте круга", "lc-engine", store.waveEngine !== "proto", "canvas");
+    out += row("Волны прототипа", "Как в прототипе: до пяти слоёв-гребней дрейфуют друг над другом", "lc-engine", store.waveEngine === "proto", "proto");
     out += slider("Число волн", "waveN", 1, 5, 1, n, "1–5: слои воды от передней к задним");
     out += slider("Высота гребня", "waveA", 4, 24, 2, clampP("waveA"));
     out += slider("Ширина гребня", "waveW", 60, 300, 2, clampP("waveW"));
@@ -412,6 +416,11 @@
     if (a === "liq-dilute") { store.dilute = !store.dilute; save(); return true; }
     if (a === "liq-wave") { store.wave = store.wave === false; save(); return true; }
     if (a === "lc-wblend") { store.waveBlend = store.waveBlend === false; save(); return true; }
+    if (a === "lc-engine") {
+      var ev = t && t.dataset ? t.dataset.v : "";
+      if (ev === "canvas" || ev === "proto") { store.waveEngine = ev; save(); }
+      return true;
+    }
     if (a === "lc-wd") {
       var wi = t && t.dataset ? Number(t.dataset.v) : 0;
       if (wi >= 1 && wi <= 5) { store["waveD" + wi] = store["waveD" + wi] ? 0 : 1; save(); }
@@ -456,7 +465,7 @@
       for (var i = 1; i <= n; i++) {
         waves.push({ s: clampP("waveS" + i), d: store["waveD" + i] ? 1 : 0, o: clampP("waveO" + i), gd: clampP("waveGD" + i), op: clampP("waveOP" + i), intensity: clampP("waveINT" + i) });
       }
-      return { a: clampP("waveA"), w: clampP("waveW"), g: clampP("waveG"), sa: clampP("waveSA"), sb: clampP("waveSB"), n: n, gd: clampP("waveGD"), waves: waves, blend: store.waveBlend !== false };
+      return { a: clampP("waveA"), w: clampP("waveW"), g: clampP("waveG"), sa: clampP("waveSA"), sb: clampP("waveSB"), n: n, gd: clampP("waveGD"), waves: waves, blend: store.waveBlend !== false, engine: store.waveEngine === "proto" ? "proto" : "canvas" };
     },
     bubbleParams: function () {
       return { n: clampP("bubN"), s: clampP("bubS"), v: clampP("bubV"), st: clampP("bubST"), x: clampP("bubX"), t: clampP("bubT"), col: store.bubCol !== false };

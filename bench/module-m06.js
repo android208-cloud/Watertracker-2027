@@ -151,6 +151,28 @@ const E = (id, h, m, drink, vol, cred) => ({ id, date: TODAY, time: h + ':' + m,
   await p3.close();
   await p.screenshot({ path: '/home/user/wt2/bench/shots/m06-water-dark.png', clip: { x: 0, y: 100, width: 412, height: 520 } });
 
+  /* 9. тост главного экрана — в зазоре дока, как в прототипе (09.11):
+     между кнопкой отмены и кнопкой напитка, той же высоты и оси;
+     вне главного — верхняя капсула */
+  await p.click('.wt-orb');
+  await p.waitForFunction(() => document.querySelector('.toast'));
+  const tg = await p.evaluate(() => {
+    const R = e => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, h: r.height, cy: (r.top + r.bottom) / 2, t: r.top }; };
+    return { toast: R(document.querySelector('.toast')),
+      undo: R(document.querySelector('.home-dock [data-act="undo"]')),
+      drink: R(document.querySelector('.home-dock [data-act="open-drinks"]')) };
+  });
+  ok('тост на главном: в зазоре дока между отменой и напитком, высота и ось кнопок',
+    tg.toast.l > tg.undo.r && tg.toast.r < tg.drink.l &&
+    Math.abs(tg.toast.h - tg.undo.h) <= 2 && Math.abs(tg.toast.cy - tg.undo.cy) <= 2, tg);
+  await p.click('[data-tab="history"]');
+  await p.waitForTimeout(200);
+  const tg2 = await p.evaluate(() => {
+    const t = document.querySelector('.toast');
+    return t ? { top: t.getBoundingClientRect().top } : null;
+  });
+  ok('тост вне главного: верхняя капсула', !!tg2 && tg2.top < 100, tg2);
+
   ok('без pageerror', errs.length === 0, errs.slice(0, 3));
   await b.close();
   console.log('BENCH M06: ' + (fail ? 'FAILS=' + fail : 'ALL GREEN') + ' (' + pass + '/' + (pass + fail) + ')');

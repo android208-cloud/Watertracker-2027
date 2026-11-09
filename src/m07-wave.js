@@ -136,7 +136,9 @@
     if (gd > 0) {
       var gid = "wtg" + (++gradSeq);
       var gy1 = HEAD - a;
-      var depth = Math.max(1, 2 * a * gd / 100);
+      /* Глубина фейда — как в прототипе (донор waveDiv): однотон ×20 от
+         амплитуды, пояс умещается в полосу гребня ×2 и не ниже ватерлинии. */
+      var depth = Math.max(1, (o.close === 'line' ? 2 : 20) * a * gd / 100);
       var gy2 = Math.min(Hc, gy1 + depth);
       defs = '<defs><linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + gy1 +
         '" x2="0" y2="' + gy2 + '"><stop offset="0" stop-color="' + fc.fill + '" stop-opacity="0"/>' +
@@ -207,6 +209,27 @@
   function enabled() {
     try { return !!(W.LiquidColor && W.LiquidColor.waveOn && W.LiquidColor.waveOn()); }
     catch (e) { return false; }
+  }
+
+  /* Движок волны из папки (слово владельца 09.11: волна прототипа —
+     второй вариант через настройки): "canvas" — холст ниже, "proto" —
+     слоёные гребни waterInner/waveLayer (донор ui-kit catWater: форма
+     гребня, запечённые кейфреймы дрейфа, фазы единых часов). */
+  function engine() {
+    try {
+      var q = W.LiquidColor && W.LiquidColor.waveParams ? W.LiquidColor.waveParams() : null;
+      return q && q.engine === "proto" ? "proto" : "canvas";
+    } catch (e) { return "canvas"; }
+  }
+  /* Состояние прото-движка для стражей стенда: слои в круге и их дрейф. */
+  function protoState() {
+    var layers = document.querySelectorAll(".wt-orb .cat-wave");
+    var anim = null;
+    if (layers.length) {
+      try { anim = getComputedStyle(layers[0]).animationName; } catch (e) {}
+    }
+    return { engine: engine(), layers: layers.length, anim: anim,
+      canvas: document.querySelectorAll(".wt-orb canvas.wt-wave-c").length };
   }
 
 
@@ -561,6 +584,8 @@
 
   W.WT2V = {
     enabled: enabled,
+    engine: engine,
+    protoState: protoState,
     crestPath: crestPath,
     ensureWaveKeys: ensureWaveKeys,
     waveLayer: waveLayer,
