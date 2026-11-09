@@ -1027,9 +1027,9 @@
           { act: "edit-entry", id: e.id, aria: "Изменить", icon: uiIcon("pencilMask") },
           { act: "del-entry", id: e.id, cls: "danger", aria: "Удалить", icon: uiIcon("trash") }
         ],
-        front: '<div class="swipe-front entry"><span class="who"><span class="htime">' + esc(e.time) + '</span><span class="hname">' + esc(e.name) +
+        front: '<div class="swipe-front entry"><span class="who"><span class="htime">' + esc(e.time) + '</span><span class="hname">' + esc(e.name) + '</span>' +
           (dkeys[J().entryKey(e)] ? '<span class="dupe-tag">Дубль</span>' : "") +
-          '</span></span><span class="hvol">' + e.volume + ' мл</span><span class="hcred">(' + uiIcon("drop") + "<span>" + e.credited + " мл</span>)</span></div>"
+          '</span><span class="hvol">' + e.volume + ' мл</span><span class="hcred">(' + uiIcon("drop") + "<span>" + e.credited + " мл</span>)</span></div>"
       });
     }).join("");
     if (!rows) rows = '<div class="empty">Нет записей</div>';

@@ -423,9 +423,12 @@
       c.save();
       c.beginPath();
       var stp2 = Math.max(2, cw / 160);
-      var baseSurf = layerBase(0) + layerAmp(0);
+      /* мастер выключен — кромка поясов плоская, как в однотоне (пояса
+         забывали проверку и волнились при выключенной волне, 08.11) */
+      var effAmp = on ? layerAmp(0) : 0;
+      var baseSurf = on ? layerBase(0) + effAmp : topOff;
       for (var gx = 0; gx <= cw; gx += stp2) {
-        var gy = surfY(gx, baseSurf, layerAmp(0), lam, t, 1, Math.PI * 2 / 7, 0);
+        var gy = surfY(gx, baseSurf, effAmp, lam, t, 1, Math.PI * 2 / 7, 0);
         if (gx === 0) c.moveTo(gx, gy); else c.lineTo(gx, gy);
       }
       c.lineTo(cw, topOff + spanH); c.lineTo(0, topOff + spanH); c.closePath();
@@ -439,7 +442,7 @@
       c.fillStyle = grad;
       c.fillRect(0, topOff - ampPx * 2, cw, spanH + ampPx * 2);
       c.restore();
-      depthShade(baseSurf, layerAmp(0), lam, 1, Math.PI * 2 / 7, 0, topOff + spanH);
+      depthShade(baseSurf, effAmp, lam, 1, Math.PI * 2 / 7, 0, topOff + spanH);
       /* гребни ватерлинии — полоски цвета верхнего пояса */
       if (on) {
         for (var li = n - 1; li >= 0; li--) {

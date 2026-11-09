@@ -160,6 +160,34 @@ const PX = `(() => { const cv = document.querySelector('.wt-orb canvas.wt-wave-c
     seg.belts >= 2 && seg.want && Math.abs(seg.px[0] - seg.want[0]) <= 45 && Math.abs(seg.px[1] - seg.want[1]) <= 45 && Math.abs(seg.px[2] - seg.want[2]) <= 50, seg);
   await c2d.close();
 
+  /* мастер выключен + пояса: кромка плоская, холст статичен */
+  const c4b = await b.newContext({ viewport: { width: 412, height: 892 } });
+  await c4b.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ wave: false }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 600, '#4aa3e8'), E('e2', '11', '00', 'espresso', 300, '#8b5a2b')])}));`);
+  const p4b = await c4b.newPage();
+  p4b.on('pageerror', e => errs.push(e.message));
+  await p4b.goto('http://127.0.0.1:8085/wt2/index.html');
+  await p4b.waitForFunction(() => window.__waterApp && document.querySelector('.wt-orb canvas.wt-wave-c') && window.WT2V.canvasState().frame > 5);
+  await p4b.waitForTimeout(2600); /* геометрия и цвета поясов осели после загрузки */
+  const diff = await p4b.evaluate(() => new Promise(done => {
+    const cv = document.querySelector('.wt-orb canvas.wt-wave-c');
+    const c = cv.getContext('2d');
+    const a = c.getImageData(0, 0, cv.width, cv.height).data;
+    setTimeout(() => {
+      const b = c.getImageData(0, 0, cv.width, cv.height).data;
+      let changed = 0, maxD = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+        if (d > 2) changed++;
+        if (d > maxD) maxD = d;
+      }
+      done({ changedPct: Math.round(changed / (a.length / 4) * 10000) / 100, maxD });
+    }, 800);
+  }));
+  const offB = await p4b.evaluate(s => eval(s), STATE);
+  ok('мастер выключен, пояса: волна не появляется, холст статичен',
+    offB.mode === 'belts' && offB.flat && diff.changedPct < 0.1 && diff.maxD <= 2, { offB, diff });
+  await c4b.close();
+
   /* папка правит волну: один слой по карточке */
   const c3 = await b.newContext({ viewport: { width: 412, height: 892 } });
   await c3.addInitScript(`localStorage.setItem('cup-liquid-color-v1', JSON.stringify({ wave: true, waveN: 1, waveA: 24, waveW: 90, waveG: 90, waveS1: 50, waveD1: 1, waveO1: 5, waveOP1: 25, waveGD1: 50, waveINT1: 50 }));localStorage.setItem('cup-tracker-v1', JSON.stringify(${store([E('e1', '09', '00', 'water', 1100, '#4aa3e8')])}));`);
